@@ -45,3 +45,7 @@ if __name__ == "__main__":
     tf.random.set_seed(randomseed)
     # Note that due to using a GPU and using multiprocessing, reproducibility is not guaranteed
     # But the above lines do their best
+
+    # Set up and run the experiment
+    experiment_function = config.getimportable('EXPERIMENT', 'function')
+    experiment_function(config, savedir)
