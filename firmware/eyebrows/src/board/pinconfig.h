@@ -27,6 +27,9 @@ static const uint LIMIT_SWITCH_LEFT = 18;
 /** Limit switch GPIO interrupt pin to tell us servo has gone to limit on right side. */
 static const uint LIMIT_SWITCH_RIGHT = 19;
 
+/** This pin tells us whether we are left or right. */
+static const uint ADDRESS_PIN = 22;
+
 // These are used by the LCD subsystem and defined in the LCD library.
 //#define LCD_RST_PIN  12
 //#define LCD_DC_PIN   8

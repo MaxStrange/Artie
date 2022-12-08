@@ -19,10 +19,10 @@ int main()
     leds_init();
 
     // Initialize I2C for communication with controller module
-    cmds_init();
+    side_t left_or_right = cmds_init();
 
     // Initialize LCD
-    graphics_init();
+    graphics_init(left_or_right);
 
     // Initialize servo subsystem
     servo_init();

@@ -87,6 +87,9 @@ static char strbuf[32];
 /** Inter-core communication queue. */
 static queue_t inter_core_queue;
 
+/** Which side eye are we (left/right)? */
+static side_t left_or_right_side = EYE_UNASSIGNED_SIDE;
+
 /** Put the current eyebrow state into a string buffer. */
 static void eyebrow_state_to_strbuf(size_t n, char *buf)
 {
@@ -308,6 +311,21 @@ static void graphics_draw(cmd_t command)
         }
     }
 
+    // If we are the right side, we need to reverse some bits,
+    // as this algorithm was written for the left side originally.
+    if (left_or_right_side == EYE_RIGHT_SIDE)
+    {
+        // Swap left and right on msbs
+        uint8_t tmp = msbs[0];
+        msbs[0] = msbs[2];
+        msbs[2] = tmp;
+
+        // Swap left and right on lsbs
+        tmp = lsbs[0];
+        lsbs[0] = lsbs[2];
+        lsbs[2] = tmp;
+    }
+
     // Turn the bit manipulation results into a struct
     eyebrow_state.left    = (msbs[0] ? VERTEX_POS_MIDDLE : (lsbs[0] ? VERTEX_POS_HIGH : VERTEX_POS_LOW));
     eyebrow_state.middle  = (msbs[1] ? VERTEX_POS_MIDDLE : (lsbs[1] ? VERTEX_POS_HIGH : VERTEX_POS_LOW));
@@ -365,9 +383,12 @@ static void core_task(void)
     }
 }
 
-void graphics_init(void)
+void graphics_init(side_t side)
 {
     log_info("Init LCD\n");
+
+    // Set the module-level variable to tell us which side we are (left or right)
+    left_or_right_side = side;
 
     // Initialize the inter-core queue with a mutex to be safe.
     static const uint SPINLOCK_ID = 0; // If we need more than one of these, we should put them all in the same header.
