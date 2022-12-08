@@ -2,7 +2,6 @@
 
 ## Eyebrows
 
-* Modify FW for left vs right eye
 * Bring up PCB
     * Document BOM
 * Replace Arduino with RPi Controller Module

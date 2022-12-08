@@ -14,8 +14,10 @@ extern "C" {
 /**
  * @brief Initialize graphics (and LCD) libraries.
  *
+ * @param side The side (left or right) that this MCU controls.
+ *
  */
-void graphics_init(void);
+void graphics_init(side_t side);
 
 /**
  * @brief Handles the given LCD subsystem command.

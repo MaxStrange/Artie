@@ -19,6 +19,13 @@ extern "C" {
 #define CMD_MODULE_ID_SERVO 0x80        // 0b1000 0000
 //#define CMD_MODULE_ID_??    0xC0      // If you need one more subsystem, this is the address
 
+/** Sidedness */
+typedef enum {
+    EYE_LEFT_SIDE       = 0,
+    EYE_RIGHT_SIDE      = 1,
+    EYE_UNASSIGNED_SIDE = 0xFF
+} side_t;
+
 /**
  * @brief The types of commands we can receive and act on.
  *
@@ -34,9 +41,9 @@ typedef enum {
 } cmd_t;
 
 /**
- * @brief Initialize the command module.
+ * @brief Initialize the command module, which determines which side we are (left or right).
  */
-void cmds_init(void);
+side_t cmds_init(void);
 
 /**
  * @brief Get the next command from the queue of so-far received commands.

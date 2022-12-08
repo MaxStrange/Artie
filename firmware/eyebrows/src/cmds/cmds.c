@@ -13,11 +13,17 @@
 #include "../board/pinconfig.h"
 #include "../board/errors.h"
 
+/** I2C address if we are the left eye. */
+static const uint LEFT_EYE_I2C_ADDRESS = 0x17;
+
+/** I2C address if we are the right eye. */
+static const uint RIGHT_EYE_I2C_ADDRESS = 0x18;
+
 /** Baudrate for the I2C bus */
 static const uint I2C_BAUDRATE = 100 * 1000;
 
 /** Our I2C address */
-static const uint OUR_I2C_ADDRESS = 0x17;
+static const uint OUR_I2C_ADDRESS = EYE_UNASSIGNED_SIDE;
 
 /** The number of items we can hold at maximum in the command queue. No testing was done to determine this value. */
 static const uint CMD_QUEUE_SIZE = 128;
@@ -63,9 +69,19 @@ static void _i2c_handler(i2c_inst_t *i2c, i2c_slave_event_t event)
     }
 }
 
-void cmds_init(void)
+side_t cmds_init(void)
 {
     log_info("Init command module\n");
+
+    // Determine if we are right or left eyebrow/eye
+    // Read state: HIGH (1) means we are RIGHT
+    //              LOW (0) means we are LEFT
+    gpio_init(ADDRESS_PIN);
+    gpio_set_dir(ADDRESS_PIN, GPIO_IN);
+    side_t left_or_right = gpio_get(ADDRESS_PIN);
+    OUR_I2C_ADDRESS = (left_or_right == EYE_LEFT_SIDE) ? LEFT_EYE_I2C_ADDRESS : RIGHT_EYE_I2C_ADDRESS;
+
+    // Initialize I2C
     queue_init(&cmd_queue, sizeof(uint8_t), CMD_QUEUE_SIZE);
     gpio_init(I2C_SDA_PIN);
     gpio_init(I2C_SCL_PIN);
@@ -75,7 +91,10 @@ void cmds_init(void)
     gpio_pull_up(I2C_SCL_PIN);
 
     i2c_init(i2c0, I2C_BAUDRATE);
+    assert(OUR_I2C_ADDRESS != EYE_UNASSIGNED_SIDE);
     i2c_slave_init(i2c0, OUR_I2C_ADDRESS, &_i2c_handler);
+
+    return left_or_right;
 }
 
 bool cmds_get_next(cmd_t *ret)
