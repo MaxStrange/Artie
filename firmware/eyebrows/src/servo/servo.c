@@ -51,7 +51,7 @@ static void set_pulse_width(float ms)
     float duty_cycle = ms / (float)PWM_PERIOD_MS;
     float count_fraction = (float)((uint32_t)COUNT_TOP + 1) * duty_cycle;
     assert(count_fraction >= 0);
-    assert(count <= COUNT_TOP);
+    assert(count_fraction <= COUNT_TOP);
     pwm_set_gpio_level(SERVO_PWM_PIN, (uint16_t)count_fraction);
 }
 

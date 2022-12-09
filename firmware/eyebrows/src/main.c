@@ -18,14 +18,18 @@ int main()
     // Initialize GPIO pins for LEDs
     leds_init();
 
-    // Initialize I2C for communication with controller module
+    // Initialize I2C for communication with controller module. If we are mouth, left_or_right is unassigned.
     side_t left_or_right = cmds_init();
 
     // Initialize LCD
     graphics_init(left_or_right);
 
+#ifdef MOUTH
+    sensors_init();
+#else
     // Initialize servo subsystem
     servo_init();
+#endif // MOUTH
 
     while (true)
     {
@@ -55,10 +59,17 @@ int main()
                     log_debug("LCD command\n");
                     graphics_cmd(command);
                     break;
+#ifdef MOUTH
+                case CMD_MODULE_ID_SENSORS:
+                    log_debug("Sensors command\n");
+                    sensors_cmd(command);
+                    break;
+#else
                 case CMD_MODULE_ID_SERVO:
                     log_debug("Servo command\n");
                     servo_cmd(command);
                     break;
+#endif // MOUTH
                 default:
                     log_error("Illegal cmd type 0x%02X; route mask is: 0x%02X\n", command, route);
                     break;
