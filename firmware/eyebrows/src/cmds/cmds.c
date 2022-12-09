@@ -23,7 +23,7 @@ static const uint RIGHT_EYE_I2C_ADDRESS = 0x18;
 static const uint I2C_BAUDRATE = 100 * 1000;
 
 /** Our I2C address */
-static const uint OUR_I2C_ADDRESS = EYE_UNASSIGNED_SIDE;
+static uint OUR_I2C_ADDRESS = EYE_UNASSIGNED_SIDE;
 
 /** The number of items we can hold at maximum in the command queue. No testing was done to determine this value. */
 static const uint CMD_QUEUE_SIZE = 128;
