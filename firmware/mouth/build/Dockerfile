@@ -1,4 +1,4 @@
-# docker build -f Dockerfile -t artie-eyebrows:$(git log --format="%h" -n 1) ..
+# docker build -f Dockerfile -t artie-mouth:$(git log --format="%h" -n 1) ../..
 FROM ubuntu:latest
 
 RUN apt-get update && apt-get install -y \
@@ -26,7 +26,7 @@ RUN cp /pico/pico-sdk/external/pico_sdk_import.cmake /pico/src/pico_sdk_import.c
 
 ENV PICO_SDK_PATH=/pico/pico-sdk
 
-COPY ./src /pico/src
+COPY ./eyebrows/src /pico/src
 WORKDIR /pico/src/build
 
 ARG BUILD_TYPE=Debug

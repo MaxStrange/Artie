@@ -18,6 +18,22 @@ static const uint I2C_SDA_PIN = 20;
 /** I2C SCL pin used for communicating with controller module */
 static const uint I2C_SCL_PIN = 21;
 
+#ifdef MOUTH
+/** SPI Clock for sensors */
+static const uint SENSORS_SPI_CLOCK = 18;
+
+/** SPI MOSI for sensors*/
+static const uint SENSORS_SPI_MOSI = 19;
+
+/** SPI MISO for sensors */
+static const uint SENSORS_SPI_MISO = 16;
+
+/** CS for IMU */
+static const uint SENSORS_SPI_CS_IMU = 17;
+
+/** CS for temp sensor */
+static const uint SENSORS_SPI_CS_TEMP = 22;
+#else
 /** Servo PWM pin. Used for controlling the attached servo. */
 static const uint SERVO_PWM_PIN = 15;
 
@@ -29,6 +45,7 @@ static const uint LIMIT_SWITCH_RIGHT = 19;
 
 /** This pin tells us whether we are left or right. */
 static const uint ADDRESS_PIN = 22;
+#endif // MOUTH
 
 // These are used by the LCD subsystem and defined in the LCD library.
 //#define LCD_RST_PIN  12

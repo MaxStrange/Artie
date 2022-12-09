@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.13)
 include(pico_sdk_import.cmake)
-project(eyebrows C CXX ASM)
+project(mouth C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
 # Add compiler definitions
+add_compile_definitions(MOUTH=1)
 add_compile_definitions(LOG_LEVEL=${LOG_LEVEL})
 
 # Add top-level source and header files
@@ -17,7 +18,7 @@ file(GLOB SOURCES
   "graphics/*.c"
   "graphics/lcd/*/*.c"
   "leds/*.c"
-  "servo/*.c"
+  "sensors/*.c"
 )
 include_directories(
   "."
@@ -26,13 +27,13 @@ include_directories(
   "graphics"
   "graphics/lcd/*"
   "leds"
-  "servo"
+  "sensors"
 )
 
 add_subdirectory(i2c_slave)
 
-add_executable(eyebrows ${SOURCES})
-target_link_libraries(eyebrows
+add_executable(mouth ${SOURCES})
+target_link_libraries(mouth
   pico_stdlib
   pico_multicore
   hardware_spi
@@ -41,8 +42,7 @@ target_link_libraries(eyebrows
   i2c_slave
   hardware_gpio
   hardware_clocks
-  pico_time
 )
 
-pico_add_extra_outputs(eyebrows)
-pico_enable_stdio_usb(eyebrows 1)
+pico_add_extra_outputs(mouth)
+pico_enable_stdio_usb(mouth 1)

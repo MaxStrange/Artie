@@ -13,7 +13,7 @@
 
 ## Mouth
 
-* Determine how much FW is common between mouth and eyebrows
+* Write FW
 * Test in breadboard
 * Create PCB
 * Bring up PCB

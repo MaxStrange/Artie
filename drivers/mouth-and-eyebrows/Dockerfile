@@ -57,7 +57,8 @@ RUN mkdir -p /usr/local/bin
 COPY --from=OPENOCDIMG /usr/local/share/openocd /usr/local/share/openocd
 COPY --from=OPENOCDIMG /usr/local/bin/openocd /usr/local/bin/
 
-# Create the OpenOCD swd.cfg file from the board config
+# Create the OpenOCD swd.cfg files from the board config
+ENV SWD_CONFIG_MOUTH=raspberrypi-mouth-swd.cfg
 ENV SWD_CONFIG_RIGHT=raspberrypi-right-swd.cfg
 ENV SWD_CONFIG_LEFT=raspberrypi-swd.cfg
 COPY ./conf/populate_swd_config.py /scripts/populate_swd_config.py
@@ -65,15 +66,17 @@ WORKDIR /scripts
 RUN python populate_swd_config.py && \
     cp ./raspberrypi-right-swd.cfg /usr/local/share/openocd/scripts/interface/${SWD_CONFIG_RIGHT} && \
     cp ./raspberrypi-swd.cfg /usr/local/share/openocd/scripts/interface/${SWD_CONFIG_LEFT} && \
+    cp ./raspberrypi-mouth-swd.cfg /usr/local/share/openocd/scripts/interface/${SWD_CONFIG_MOUTH} && \
     cd / && \
     rm -rf /scripts
 
 # Copy in the FW
-ENV EYEBROW_FW_PATH=/conf/eyebrow-fw.elf
-COPY --from=FWBASEIMG /pico/src/build/*.elf ${EYEBROW_FW_PATH}
+ENV FW_PATH=/conf/mcu-fw.elf
+COPY --from=FWBASEIMG /pico/src/build/*.elf ${FW_PATH}
 
 # Copy in the source
-COPY ./src /src
+ARG DRIVER_TYPE
+COPY ./src-${DRIVER_TYPE} /src
 
 # Configuration stuff
 ENV PORT=4242

@@ -1,30 +1,31 @@
 /**
- * @file graphics.h
- * @brief High-level interface to the LCD display.
+ * @file mouthgfx.h
+ * @brief Mouth-specific graphics stuff.
  *
  */
 #pragma once
-
-#include "../cmds/cmds.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifdef MOUTH
+
+#include "../cmds/cmds.h"
+
 /**
  * @brief Initialize graphics (and LCD) libraries.
- *
- * @param side The side (left or right) that this MCU controls.
- *
  */
-void graphics_init(side_t side);
+void mouthgfx_init(void);
 
 /**
  * @brief Handles the given LCD subsystem command.
  *
  * @param command The command to handle.
  */
-void graphics_cmd(cmd_t command);
+void mouthgfx_cmd(cmd_t command);
+
+#endif
 
 #ifdef __cplusplus
 }
