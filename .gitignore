@@ -129,5 +129,6 @@ dmypy.json
 
 # Build
 firmware/eyebrows/src/build/
+cli/build/
 *.elf
 *.uf2

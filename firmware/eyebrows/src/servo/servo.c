@@ -20,7 +20,7 @@
 #define PWM_PERIOD_MS 3
 
 /** Top of the PWM counter. */
-#define COUNT_TOP 0xFFFFFFFFU
+static const uint16_t COUNT_TOP = 0xFFFFU;
 
 /** The middle of the servo's range (nominally). */
 #define NOMINAL_MIDDLE_PULSE_WIDTH_MS 1.5f
@@ -99,7 +99,8 @@ void servo_init(void)
     pwm_init(slice_num, &cfg, true);
 
     // Run the calibration procedure
-    calibrate_servo();
+    // TODO: Add this back in when we actually have servos with limit switches attached
+    //calibrate_servo();
 }
 
 void calibrate_servo(void)

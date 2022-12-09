@@ -41,7 +41,8 @@ static const uint ADDRESS_PIN = 22;
 //
 //#define LCD_SCL_PIN  7
 //#define LCD_SDA_PIN  6
-
+//
+// They make use of spi1 and i2c1
 
 #ifdef __cplusplus
 }

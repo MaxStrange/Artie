@@ -15,9 +15,6 @@
 ## Mouth
 
 * Determine how much FW is common between mouth and eyebrows
-* Source sensors for mouth PCB
-    * Temperature?
-    * 6 DOF IMU over SPI (both I2Cs are in use)
 * Test in breadboard
 * Create PCB
 * Bring up PCB
@@ -53,8 +50,7 @@
 * Drivers
 * Application
 * PCB
-* Enclosure:
-    * Need an interface to ears, which have the mics in them.
+* Enclosure
 
 ## Neural Module: Eyes
 
