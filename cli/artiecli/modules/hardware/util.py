@@ -46,7 +46,7 @@ def run_cmd(cmd: str):
     """
     if cmd.strip().startswith("sudo"):
         if have_i2c_access:
-            cmd = cmd.lstrip().removeprefix("sudo")
+            cmd = cmd.lstrip().removeprefix("sudo").lstrip().removeprefix("-S").lstrip()
             return subprocess.run(cmd.split(), capture_output=True, encoding='utf-8')
         else:
             return subprocess.run(cmd.split(), input=_get_password(), capture_output=True, encoding='utf-8')
