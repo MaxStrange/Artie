@@ -13,7 +13,7 @@ password = None
 is_root = platform.system() == "Linux" and os.geteuid() == 0
 
 # Determine if we are in the i2c group
-user = os.getlogin()
+user = getpass.getuser()
 groups = [g.gr_name for g in grp.getgrall() if user in g.gr_mem]
 gid = pwd.getpwnam(user).pw_gid
 groups.append(grp.getgrgid(gid).gr_name)
