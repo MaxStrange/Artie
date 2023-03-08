@@ -1,7 +1,7 @@
 """
 All the stuff that depends on the PCB or Pi model.
 """
-from . import util
+from artie_util import util
 if util.on_linux():
     import RPi.GPIO as GPIO
 

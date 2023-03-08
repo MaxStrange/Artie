@@ -1,5 +1,5 @@
 import argparse
-from .hardware import i2c
+from artie_i2c import i2c
 from .hardware import gpio
 
 def _cmd_led_on(args):

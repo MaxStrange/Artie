@@ -4,7 +4,6 @@
 
 * Bring up PCB
     * Document BOM
-* Replace Arduino with RPi Controller Module
 * Test Servo
 * Create 3D printable faceplate
 * Create eyeball enclosure
@@ -23,16 +22,12 @@
 ## Controller Module
 
 * Yocto:
-    * systemd
-    * I2C
-    * UART
     * Include the eyebrow and mouth FW binaries into image
 * Drivers:
     * Start with user-space I2C driver using sysfs
     * Create kernel module device driver that attaches to I2C bus
     * Driver should program FW into the devices
 * Application:
-    * CLI for debugging/testing the whole system
     * Flask app that accepts REST API and forwards into I2C
     * k3s
     * Get Flask app running on k3s
