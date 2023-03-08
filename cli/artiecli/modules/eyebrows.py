@@ -1,6 +1,5 @@
-from .hardware import i2c
 import argparse
-import numpy as np
+import zerorpc
 
 EYEBROWS_ADDRESS_LEFT = 0x17
 EYEBROWS_ADDRESS_RIGHT = 0x18
@@ -8,20 +7,24 @@ CMD_MODULE_ID_LEDS = 0x00
 CMD_MODULE_ID_LCD = 0x40
 CMD_MODULE_ID_SERVO = 0x80
 
+def _connect_client():
+    ip = "0.0.0.0"
+    port = "4242"
+    client = zerorpc.Client(f"tcp://{ip}:{port}")  # This will change to a K8S service later
+    client.connect()
+    return client
+
 def _cmd_led_on(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    led_on_bytes = CMD_MODULE_ID_LEDS | 0x00
-    i2c.write_bytes_to_address(address, led_on_bytes)
+    client = _connect_client()
+    client.led_on(args.side)
 
 def _cmd_led_off(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    led_off_bytes = CMD_MODULE_ID_LEDS | 0x01
-    i2c.write_bytes_to_address(address, led_off_bytes)
+    client = _connect_client()
+    client.led_off(args.side)
 
 def _cmd_led_heartbeat(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    led_heartbeat_bytes = CMD_MODULE_ID_LEDS | 0x02
-    i2c.write_bytes_to_address(address, led_heartbeat_bytes)
+    client = _connect_client()
+    client.led_heartbeat(args.side)
 
 def _parse_subsystem_led(subparser):
     def _parse_cmd_on(ss):
@@ -43,45 +46,16 @@ def _parse_subsystem_led(subparser):
     _parse_cmd_heartbeat(cmd_subparsers)
 
 def _cmd_lcd_test(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    lcd_test_bytes = CMD_MODULE_ID_LCD | 0x11
-    i2c.write_bytes_to_address(address, lcd_test_bytes)
+    client = _connect_client()
+    client.lcd_test(args.side)
 
 def _cmd_lcd_off(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    lcd_off_bytes = CMD_MODULE_ID_LCD | 0x22
-    i2c.write_bytes_to_address(address, lcd_off_bytes)
+    client = _connect_client()
+    client.lcd_off(args.side)
 
 def _cmd_lcd_draw(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    eyebrow_state = args.draw_val
-    # An eyebrow state is encoded as follows:
-    # Six bits (3 msb, 3 lsb)
-    # The 3 lsb determine UP (1) or DOWN (0) for each of the three vertex pairs
-    # The 3 msb override the corresponding lsb to show MIDDLE if set.
-    # HOWEVER, if an msb is set, its corresponding lsb must be cleared, otherwise
-    # it is interpreted as one of the special LCD commands like OFF or TEST.
-    lsbs = [0, 0, 0]
-    msbs = [0, 0, 0]
-    for i, pos in enumerate(eyebrow_state):
-        if pos.startswith('H'):
-            msbs[i] = 0
-            lsbs[i] = 1
-        elif pos.startswith('L'):
-            msbs[i] = 0
-            lsbs[i] = 0
-        else:
-            msbs[i] = 1
-            lsbs[i] = 0
-
-    eyebrow_state_bytes = 0x00
-    all = lsbs + msbs
-    for i in range(len(all)):
-        if all[i] == 1:
-            eyebrow_state_bytes |= (0x01 << i)
-
-    lcd_draw_bytes = CMD_MODULE_ID_LCD | eyebrow_state_bytes
-    i2c.write_bytes_to_address(address, lcd_draw_bytes)
+    client = _connect_client()
+    client.lcd_draw(args.side, args.draw_val)
 
 def _parse_subsystem_lcd(subparser):
     def _parse_cmd_test(ss):
@@ -104,13 +78,8 @@ def _parse_subsystem_lcd(subparser):
     _parse_cmd_draw(cmd_subparsers)
 
 def _cmd_servo_go(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    servo_degrees = args.go_val
-    go_val_bytes = int(round(np.interp(servo_degrees, [0, 180], [0, 63]))) # map 0 to 180 into 0 to 63
-    go_val_bytes = 0b00000000 if go_val_bytes < 0b00000000 else go_val_bytes
-    go_val_bytes = 0b00111111 if go_val_bytes > 0b00111111 else go_val_bytes
-    servo_go_bytes = CMD_MODULE_ID_SERVO | go_val_bytes
-    i2c.write_bytes_to_address(address, servo_go_bytes)
+    client = _connect_client()
+    client.servo_go(args.side, args.go_val)
 
 def _check_servo_range(arg):
     try:

@@ -22,6 +22,7 @@ Here's the list of things you have to buy. I try to keep this as up-to-date as p
 * [RPi Pin Headers](https://www.adafruit.com/product/2222) - solder these to the *underside* of the board!
 * [10 pin Female Header](https://www.sparkfun.com/products/8506)
 * [6 pin Female Header](https://www.sparkfun.com/products/10877)
+* [Extra Long Male Headers](https://www.adafruit.com/product/400)
 * Through hole LED (whatever color you want)
 * 1x 330 Ohm through hole resistor
 * 2x 4.7kOhm through hole resistors

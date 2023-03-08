@@ -2,7 +2,8 @@
 This module handles interfacing with an I2C bus,
 or with simulating one for development purposes.
 """
-from . import util
+from artie_util import util
+import logging
 import math
 import platform
 
@@ -28,19 +29,19 @@ def public_i2c_function(func):
 
 class I2CBus:
     def __init__(self) -> None:
-        self._address_to_instance_map = None
+        self.address_to_instance_map = None
         self._simulation = False
 
         if not ON_LINUX:
             # If we are on Windows or Mac, simulate an i2c bus
-            self._address_to_instance_map = {
+            self.address_to_instance_map = {
                 0x17: 0,    # The left eyebrow
                 0x18: 0,    # The right eyebrow
             }
             self._simulation = True
-            self.i2c_instances = sorted(list(set([i for _, i in self._address_to_instance_map.items()])))
+            self.i2c_instances = sorted(list(set([i for _, i in self.address_to_instance_map.items()])))
             self.instance_to_address_map = {}
-            for addr, inst in self._address_to_instance_map.items():
+            for addr, inst in self.address_to_instance_map.items():
                 if inst not in self.instance_to_address_map:
                     self.instance_to_address_map[inst] = [addr]
                 else:
@@ -49,10 +50,10 @@ class I2CBus:
             # Otherwise populate a hash table of all the addresses on the various bus instances
             self.i2c_instances = _detect_all_i2c_instances()
             self.instance_to_address_map = {instance: _detect_all_addresses_on_i2c_instance(instance) for instance in self.i2c_instances}
-            self._address_to_instance_map = {}
+            self.address_to_instance_map = {}
             for instance, addresses in self.instance_to_address_map.items():
                 for addr in addresses:
-                    self._address_to_instance_map[addr] = instance
+                    self.address_to_instance_map[addr] = instance
 
             # Create an instance of smbus
             self._instance_to_bus_map = {instance: smbus2.SMBus(instance) for instance in self.i2c_instances}
@@ -74,16 +75,16 @@ class I2CBus:
         hex_addr = hex(address)[2:]  # hex() leads with '0x', so strip that off as well
 
         # Get the bus instance that has the desired address
-        instance = self._address_to_instance_map.get(hex_addr, None)
+        instance = self.address_to_instance_map.get(hex_addr, None)
         if instance is None:
-            print(f"Cannot find address 0x{hex_addr} on i2c bus.")
+            logging.warning(f"Cannot find address 0x{hex_addr} on i2c bus.")
 
         # Write to the given address on the i2c instance
         if ON_LINUX:
             offset = 0
             self._instance_to_bus_map[instance].write_byte_data(address, offset, data)
         else:
-            print("Simulating write of", data_bytes)
+            logging.info("Simulating write of", data_bytes)
 
 
 def _detect_all_i2c_instances():
@@ -107,6 +108,17 @@ def _detect_all_addresses_on_i2c_instance(instance):
                 # Val is a hex string
                 addresses.append(val.strip())
     return addresses
+
+@public_i2c_function
+def check_for_address(address: int):
+    """
+    Check all i2c instances for the given `address`. If found,
+    we return the instance. If not, we return `None`.
+    """
+    if address < 0 or address > 255:
+        logging.error(f"Address must be a single byte, but is the value {address}")
+    hexaddr = hex(address)[2:]  # hex() leads with '0x', so strip that off as well
+    return bus.address_to_instance_map.get(hexaddr, None)
 
 @public_i2c_function
 def list_all_instances():

@@ -1,11 +1,11 @@
 """
 Command line interface for Artie.
 """
-import argparse
 from .modules import controller
 from .modules import eyebrows
 from .modules import mouth
-from .modules.hardware import util
+from artie_util import util
+import argparse
 
 MODULES = [
     controller,

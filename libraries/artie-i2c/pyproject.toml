@@ -3,17 +3,11 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "artiecli"
+name = "artie-i2c"
 readme = "README.md"
 version = "0.0.1"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = [
-    "artie-util",
-    "artie-i2c",
-    "RPi.GPIO",
-    "zerorpc",
+    "smbus2",
 ]
-
-[project.scripts]
-artie-cli = "artiecli.cli:main"
