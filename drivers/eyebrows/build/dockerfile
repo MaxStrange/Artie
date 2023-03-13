@@ -63,6 +63,9 @@ COPY --from=OPENOCDIMG /usr/local/bin/openocd /usr/local/bin/
 # Copy in the source
 COPY ./src /src
 
+# Copy the OpenOCD config(s)
+COPY ./conf/raspberrypi-right-swd.cfg /usr/share/openocd/scripts/interface/raspberrypi-right-swd.cfg
+
 # Configuration stuff
 ENV PORT=4242
 

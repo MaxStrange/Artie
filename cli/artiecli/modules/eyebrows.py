@@ -10,8 +10,8 @@ CMD_MODULE_ID_SERVO = 0x80
 def _connect_client():
     ip = "0.0.0.0"
     port = "4242"
-    client = zerorpc.Client(f"tcp://{ip}:{port}")  # This will change to a K8S service later
-    client.connect()
+    client = zerorpc.Client()
+    client.connect(f"tcp://{ip}:{port}")  # This will change to a K8S service later
     return client
 
 def _cmd_led_on(args):
