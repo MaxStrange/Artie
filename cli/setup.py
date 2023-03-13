@@ -10,6 +10,7 @@ setup(
         "RPi.GPIO",
         "zerorpc",
     ],
+    packages=["artiecli", "artiecli.modules", "artiecli.modules.hardware"],
     entry_points={
         'console_scripts': [
             "artie-cli = artiecli.cli:main"
