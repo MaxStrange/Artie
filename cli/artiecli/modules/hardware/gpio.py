@@ -2,7 +2,7 @@
 Module for controlling GPIO on the controller board.
 """
 from . import boardconfig
-from . import util
+from artie_util import util
 import queue
 import threading
 import time
