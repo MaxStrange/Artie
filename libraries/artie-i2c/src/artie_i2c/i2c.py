@@ -91,7 +91,7 @@ def _detect_all_i2c_instances():
     """
     Return a list of instances of the I2C bus on this device.
     """
-    proc = util.run_cmd("sudo -S i2cdetect -l")
+    proc = util.run_cmd("i2cdetect -l")
     lines = proc.stdout.splitlines()
     instances = [line.strip().split()[0] for line in lines]
     return [int(inst.split("-")[1]) for inst in instances]
@@ -100,7 +100,7 @@ def _detect_all_addresses_on_i2c_instance(instance):
     """
     Return a list of addresses found on the given I2C instance.
     """
-    proc = util.run_cmd(f"sudo -S i2cdetect -y {instance}")
+    proc = util.run_cmd(f"i2cdetect -y {instance}")
     addresses = []
     for line in proc.stdout.splitlines()[1:]:
         for val in line.split():

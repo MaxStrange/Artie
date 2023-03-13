@@ -196,7 +196,7 @@ class DriverServer:
         match side:
             case "left":
                 logging.info(f"Attempting to load {fw_fpath} into LEFT eyebrow MCU...")
-                cmd = f'openocd -f interface/{left_iface_fname} -f target/rp2040.cfg -c'
+                cmd = f'openocd -f interface/{left_iface_fname} -f target/rp2040.cfg -c "program {fw_fpath} verify reset exit"'
                 result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
             case "right":
                 logging.info(f"Attempting to load {fw_fpath} into RIGHT eyebrow MCU...")
