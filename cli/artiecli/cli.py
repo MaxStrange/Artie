@@ -4,7 +4,6 @@ Command line interface for Artie.
 from .modules import controller
 from .modules import eyebrows
 from .modules import mouth
-from artie_util import util
 import argparse
 
 MODULES = [
@@ -17,7 +16,7 @@ def main():
     """
     Entrypoint for the script.
     """
-    parser = argparse.ArgumentParser(description=__doc__, usage="%(prog)s [--help] [module] [subsystem] [cmd]")
+    parser = argparse.ArgumentParser(description=__doc__, usage="%(prog)s [--help] [module] [subsystem] [cmd] <args>")
     subparsers = parser.add_subparsers(help="Module command")
     for module in MODULES:
         module.add_subparser(subparsers)
@@ -27,12 +26,6 @@ def main():
         parser.print_usage()
     else:
         args.cmd(args)
-
-    # Cleanup
-    if util.on_linux():
-        import RPi.GPIO as GPIO
-        GPIO.setwarnings(False)
-        GPIO.cleanup()
 
 if __name__ == "__main__":
     main()

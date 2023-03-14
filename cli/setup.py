@@ -5,12 +5,11 @@ setup(
     python_requires=">=3.10",
     license="MIT",
     install_requires=[
-        "artie-util",
         "artie-i2c",
-        "RPi.GPIO",
+        "dbus-python",
         "zerorpc",
     ],
-    packages=["artiecli", "artiecli.modules", "artiecli.modules.hardware"],
+    packages=["artiecli", "artiecli.modules"],
     entry_points={
         'console_scripts': [
             "artie-cli = artiecli.cli:main"

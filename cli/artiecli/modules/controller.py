@@ -1,15 +1,23 @@
 import argparse
+import dbus
 from artie_i2c import i2c
-from .hardware import gpio
+
+def _connect_to_led_interface():
+    bus = dbus.SessionBus()
+    led = bus.get_object("com.artie.LedInterface", "/Led")
+    return led
 
 def _cmd_led_on(args):
-    gpio.led_on()
+    led = _connect_to_led_interface()
+    led.on()
 
 def _cmd_led_off(args):
-    gpio.led_off()
+    led = _connect_to_led_interface()
+    led.off()
 
 def _cmd_led_heartbeat(args):
-    gpio.led_heartbeat()
+    led = _connect_to_led_interface()
+    led.heartbeat()
 
 def _cmd_i2c_list(args):
     for i in i2c.list_all_instances():
