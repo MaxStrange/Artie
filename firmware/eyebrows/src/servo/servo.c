@@ -4,6 +4,7 @@
 // SDK includes
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
+#include "pico/time.h"
 // Local includes
 #include "servo.h"
 #include "../cmds/cmds.h"
@@ -109,6 +110,7 @@ void calibrate_servo(void)
 
     // Run the servo all the way left to find where the limit is.
     currently_calibrating = true;
+    uint32_t timestamp_ms = to_ms_since_boot(get_absolute_time());
     while (currently_calibrating)
     {
         // Determine next value
@@ -129,10 +131,9 @@ void calibrate_servo(void)
 
         // If we have been doing this for too long, cancel calibration.
         // We have a potential hardware misconfiguration. Let someone know.
-        // TODO
-        if (too_long)
+        if ((to_ms_since_boot(get_absolute_time()) - timestamp_ms) >= 2000U)
         {
-            // TODO: Signal a hardware problem somehow.
+            set_errno(ERR_ID_SERVO_MODULE, ETIME);
             log_warning("Calibration timed out. Potentially misconfigured servo encasing.\n");
             return;
         }
@@ -146,6 +147,7 @@ void calibrate_servo(void)
     // Repeat on the right
     prev_value = NOMINAL_MIDDLE_PULSE_WIDTH_MS;
     currently_calibrating = true;
+    timestamp_ms = to_ms_since_boot(get_absolute_time());
     while (currently_calibrating)
     {
         // Determine next value
@@ -162,6 +164,15 @@ void calibrate_servo(void)
         if (currently_calibrating)
         {
             prev_value = next_value;
+        }
+
+        // If we have been doing this for too long, cancel calibration.
+        // We have a potential hardware misconfiguration. Let someone know.
+        if ((to_ms_since_boot(get_absolute_time()) - timestamp_ms) >= 2000U)
+        {
+            set_errno(ERR_ID_SERVO_MODULE, ETIME);
+            log_warning("Calibration timed out. Potentially misconfigured servo encasing.\n");
+            return;
         }
     }
     last_known_safe_right = prev_value;

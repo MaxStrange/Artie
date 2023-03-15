@@ -38,6 +38,7 @@ target_link_libraries(eyebrows
   i2c_slave
   hardware_gpio
   hardware_clocks
+  pico_time
 )
 
 pico_add_extra_outputs(eyebrows)
