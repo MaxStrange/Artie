@@ -151,7 +151,15 @@ static void init_paint_buffer(void)
     Paint_NewImage((UBYTE *)paint_buffer, LCD_1IN14.WIDTH, LCD_1IN14.HEIGHT, 0, WHITE);
     Paint_SetScale(65);
     Paint_Clear(WHITE);
-    Paint_SetRotate(ROTATE_0);
+    if (left_or_right_side == EYE_LEFT_SIDE)
+    {
+        // Left LCD is installed upside-down
+        Paint_SetRotate(ROTATE_180);
+    }
+    else
+    {
+        Paint_SetRotate(ROTATE_0);
+    }
     Paint_Clear(WHITE);
 }
 

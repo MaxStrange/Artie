@@ -18,10 +18,11 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /pico/src/graphics/lcd
 
 WORKDIR /pico
-RUN git clone --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
-RUN git clone https://github.com/raspberrypi/pico-examples.git
-RUN git clone https://github.com/raspberrypi/pico-extras.git
-RUN git clone https://github.com/raspberrypi/pico-playground.git
+ARG PICO_RELEASE=1.5.0
+RUN git clone --depth 1 --branch ${PICO_RELEASE} --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
+RUN git clone --depth 1 --branch sdk-${PICO_RELEASE} https://github.com/raspberrypi/pico-examples.git
+RUN git clone --depth 1 --branch sdk-${PICO_RELEASE} https://github.com/raspberrypi/pico-extras.git
+RUN git clone --depth 1 --branch sdk-${PICO_RELEASE} https://github.com/raspberrypi/pico-playground.git
 RUN git clone https://github.com/vmilea/pico_i2c_slave && \
     mv pico_i2c_slave/i2c_slave /pico/src/
 RUN cp /pico/pico-sdk/external/pico_sdk_import.cmake /pico/src/pico_sdk_import.cmake

@@ -88,8 +88,9 @@ class Led:
         if self._pwm_pattern_thread is not None:
             self._pwm_pattern_queue.put("END")
             self._pwm_pattern_thread.join()
+            self._pwm_pattern_thread = None
 
-def _serve(address):
+def _serve(address, led):
     s = socket.socket(family=socket.AF_UNIX)
     s.bind(address)
     s.listen()
@@ -119,13 +120,12 @@ if __name__ == "__main__":
     logging.basicConfig(format=format, level=getattr(logging, args.loglevel.upper()))
 
     led = Led(state=args.mode)
-
     address = "/tmp/leddaemonconnection"
     try:
         # In case previous instance did not shut down cleanly
         if os.path.exists(address):
             os.remove(address)
-        _serve(address)
+        _serve(address, led)
     finally:
         # Cleanup the tmp file
         if os.path.exists(address):
