@@ -10,7 +10,6 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = [
     "artie-i2c",
-    "dbus-python",
     "zerorpc",
 ]
 

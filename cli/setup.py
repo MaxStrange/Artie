@@ -6,7 +6,6 @@ setup(
     license="MIT",
     install_requires=[
         "artie-i2c",
-        "dbus-python",
         "zerorpc",
     ],
     packages=["artiecli", "artiecli.modules"],

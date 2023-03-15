@@ -1,23 +1,21 @@
 import argparse
-import dbus
+import socket
 from artie_i2c import i2c
 
-def _connect_to_led_interface():
-    bus = dbus.SessionBus()
-    led = bus.get_object("com.artie.LedInterface", "/Led")
-    return led
+def _send_to_leddaemon(cmd: str):
+    s = socket.socket(family=socket.AF_UNIX)
+    s.connect("/tmp/leddaemonconnection")
+    s.send(cmd.encode())
+    s.close()
 
 def _cmd_led_on(args):
-    led = _connect_to_led_interface()
-    led.on()
+    _send_to_leddaemon("on")
 
 def _cmd_led_off(args):
-    led = _connect_to_led_interface()
-    led.off()
+    _send_to_leddaemon("off")
 
 def _cmd_led_heartbeat(args):
-    led = _connect_to_led_interface()
-    led.heartbeat()
+    _send_to_leddaemon("heartbeat")
 
 def _cmd_i2c_list(args):
     for i in i2c.list_all_instances():
