@@ -45,6 +45,7 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
+        logging.info(f"Received request for {side} LED -> ON.")
         address = self._get_address(side)
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x00
         i2c.write_bytes_to_address(address, led_on_bytes)
@@ -57,6 +58,7 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
+        logging.info(f"Received request for {side} LED -> OFF.")
         address = self._get_address(side)
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x01
         i2c.write_bytes_to_address(address, led_on_bytes)
@@ -69,6 +71,7 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
+        logging.info(f"Received request for {side} LED -> HEARTBEAT.")
         address = self._get_address(side)
         led_heartbeat_bytes = CMD_MODULE_ID_LEDS | 0x02
         i2c.write_bytes_to_address(address, led_heartbeat_bytes)
@@ -81,6 +84,7 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
+        logging.info(f"Received request for {side} LCD -> TEST.")
         address = self._get_address(side)
         lcd_test_bytes = CMD_MODULE_ID_LCD | 0x11
         i2c.write_bytes_to_address(address, lcd_test_bytes)
@@ -93,6 +97,7 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
+        logging.info(f"Received request for {side} LCD -> OFF.")
         address = self._get_address(side)
         lcd_off_bytes = CMD_MODULE_ID_LCD | 0x22
         i2c.write_bytes_to_address(address, lcd_off_bytes)
@@ -106,6 +111,7 @@ class DriverServer:
         - side: One of 'left' or 'right'
         - eyebrow_stat: A list of 'H' or 'L'
         """
+        logging.info(f"Received request for {side} LCD -> DRAW.")
         address = self._get_address(side)
         # An eyebrow state is encoded as follows:
         # Six bits (3 msb, 3 lsb)
@@ -144,6 +150,8 @@ class DriverServer:
         - side: One of 'left' or 'right'
         - servo_degrees: Any value in the interval [0, 180]
         """
+        logging.info(f"Received request for {side} SERVO -> GO.")
+
         if servo_degrees < 0 or servo_degrees > 180:
             errmsg = f"Need a servo value in range [0, 180] but got {servo_degrees}"
             logging.error(errmsg)
@@ -202,6 +210,8 @@ class DriverServer:
             logging.error(f"Got stdout and stderr from openocd subprocess:")
             logging.error(f"STDOUT: {result.stdout}")
             logging.error(f"STDERR: {result.stderr}")
+        else:
+            logging.info("Loaded FW successfully.")
 
     def _check_mcu(self, mcu: str):
         """

@@ -99,8 +99,7 @@ void servo_init(void)
     pwm_init(slice_num, &cfg, true);
 
     // Run the calibration procedure
-    // TODO: Add this back in when we actually have servos with limit switches attached
-    //calibrate_servo();
+    calibrate_servo();
 }
 
 void calibrate_servo(void)
@@ -126,6 +125,16 @@ void calibrate_servo(void)
         if (currently_calibrating)
         {
             prev_value = next_value;
+        }
+
+        // If we have been doing this for too long, cancel calibration.
+        // We have a potential hardware misconfiguration. Let someone know.
+        // TODO
+        if (too_long)
+        {
+            // TODO: Signal a hardware problem somehow.
+            log_warning("Calibration timed out. Potentially misconfigured servo encasing.\n");
+            return;
         }
     }
     last_known_safe_left = prev_value;

@@ -1,4 +1,4 @@
-#! /bin/python3
+#! /usr/bin/python3
 """
 A simple user-space driver for the on-board LED.
 Communicates over dbus.
