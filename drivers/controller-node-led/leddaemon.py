@@ -3,25 +3,20 @@
 A simple user-space driver for the on-board LED.
 Communicates over dbus.
 """
-from gi.repository import GLib
 import argparse
-import dbus
-import dbus.service
-import dbus.mainloop.glib
+import logging
+import os
 import queue
+import socket
 import RPi.GPIO as GPIO
 import threading
-import time
 
 LED_PIN = 18  # GPIO 18 (BCM mode -> physical pin 12, at least on RPi 4B)
 LED_ACTIVE_MODE = GPIO.HIGH  # LED PIN is active high
 LED_INACTIVE_MODE = GPIO.LOW
-BUS_NAME = "com.artie.LedInterface"
 
-
-class Led(dbus.service.Object):
-    def __init__(self, bus, objpath, state='heartbeat'):
-        super().__init__(bus, objpath)
+class Led:
+    def __init__(self, state='heartbeat'):
         self._led_pin = LED_PIN
         self._active_mode = LED_ACTIVE_MODE
         self._inactive_mode = LED_INACTIVE_MODE
@@ -40,27 +35,27 @@ class Led(dbus.service.Object):
             case _:
                 raise ValueError(f"Invalid state for Led requested: {state}")
 
-    @dbus.service.method(BUS_NAME, in_signature="", out_signature="")
     def on(self):
         """
         Turn the LED on.
         """
+        logging.info("Setting LED to ON")
         self._clean_up_pwm_pattern_thread()
         GPIO.output(self._led_pin, self._active_mode)
 
-    @dbus.service.method(BUS_NAME, in_signature="", out_signature="")
     def off(self):
         """
         Turn the LED off.
         """
+        logging.info("Setting LED to OFF")
         self._clean_up_pwm_pattern_thread()
         GPIO.output(self._led_pin, self._inactive_mode)
 
-    @dbus.service.method(BUS_NAME, in_signature="", out_signature="")
     def heartbeat(self):
         """
         Set the LED to heartbeat mode.
         """
+        logging.info("Setting LED to HEARTBEAT")
         if self._pwm_pattern_thread is None:
             self._spawn_pwm_pattern_thread()
 
@@ -94,14 +89,44 @@ class Led(dbus.service.Object):
             self._pwm_pattern_queue.put("END")
             self._pwm_pattern_thread.join()
 
+def _serve(address):
+    s = socket.socket(family=socket.AF_UNIX)
+    s.bind(address)
+    s.listen()
+
+    while True:
+        c, addr = s.accept()
+        logging.info("Connected to a client.")
+        match val := c.recv(1024).decode().lower():
+            case "on":
+                led.on()
+            case "off":
+                led.off()
+            case "heartbeat":
+                led.heartbeat()
+            case _:
+                logging.error(f"Ignoring an unexpected value from client connection: {val}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=('on', 'off', 'heartbeat'), type=str, help="The particular mode of LED operation.")
+    parser.add_argument("-l", "--loglevel", type=str, default="info", choices=["debug", "info", "warning", "error"], help="The log level.")
     args = parser.parse_args()
 
-    session_bus = dbus.SessionBus()
-    name = dbus.service.BusName(BUS_NAME)
-    led = Led(session_bus, "/Led", state=args.mode)
-    mainloop = GLib.MainLoop()
-    mainloop.run()
+    # Set up logging
+    format = "%(asctime)s %(threadName)s %(levelname)s: %(message)s"
+    logging.basicConfig(format=format, level=getattr(logging, args.loglevel.upper()))
+
+    led = Led(state=args.mode)
+
+    address = "/tmp/leddaemonconnection"
+    try:
+        # In case previous instance did not shut down cleanly
+        if os.path.exists(address):
+            os.remove(address)
+        _serve(address)
+    finally:
+        # Cleanup the tmp file
+        if os.path.exists(address):
+            os.remove(address)
