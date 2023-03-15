@@ -32,17 +32,6 @@ CMD_MODULE_ID_LEDS = 0x00
 CMD_MODULE_ID_LCD = 0x40
 CMD_MODULE_ID_SERVO = 0x80
 
-def _cmd_led_on(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    led_on_bytes = CMD_MODULE_ID_LEDS | 0x00
-    i2c.write_bytes_to_address(address, led_on_bytes)
-
-def _cmd_led_off(args):
-    address = EYEBROWS_ADDRESS_LEFT if args.side == "LEFT" else EYEBROWS_ADDRESS_RIGHT
-    led_off_bytes = CMD_MODULE_ID_LEDS | 0x01
-    i2c.write_bytes_to_address(address, led_off_bytes)
-
-
 class DriverServer:
     def __init__(self, fw_fpath: str):
         # Load the FW files
@@ -192,15 +181,15 @@ class DriverServer:
         """
         left_iface_fname = "raspberrypi-swd.cfg"
         right_iface_fname = "raspberrypi-right-swd.cfg"
-        openocd_cmds = f"program {fw_fpath} verify reset exit"
+        openocd_cmds = f'program {fw_fpath} verify reset exit'
         match side:
             case "left":
                 logging.info(f"Attempting to load {fw_fpath} into LEFT eyebrow MCU...")
-                cmd = f'openocd -f interface/{left_iface_fname} -f target/rp2040.cfg -c "program {fw_fpath} verify reset exit"'
+                cmd = f'openocd -f interface/{left_iface_fname} -f target/rp2040.cfg -c '
                 result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
             case "right":
                 logging.info(f"Attempting to load {fw_fpath} into RIGHT eyebrow MCU...")
-                cmd = f'openocd -f interface/{right_iface_fname} -f target/rp2040.cfg -c "program {fw_fpath} verify reset exit"'
+                cmd = f'openocd -f interface/{right_iface_fname} -f target/rp2040.cfg -c '
                 result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
             case _:
                 errmsg = f"Invalid argument for MCU side. Given {side}, but must be 'left' or 'right'"
