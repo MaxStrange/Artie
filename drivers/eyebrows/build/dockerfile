@@ -68,7 +68,8 @@ COPY ./conf/raspberrypi-right-swd.cfg /usr/local/share/openocd/scripts/interface
 
 # Configuration stuff
 ENV PORT=4242
+ENV LOGLEVEL=info
 
 # Default command is to run the application
 WORKDIR /src
-CMD [ "/bin/bash", "-c", "python main.py ${EYEBROW_FW_PATH} --port ${PORT}" ]
+CMD [ "/bin/bash", "-c", "python main.py ${EYEBROW_FW_PATH} --port ${PORT} --loglevel ${LOGLEVEL}" ]
