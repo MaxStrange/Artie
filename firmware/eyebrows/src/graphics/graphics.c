@@ -258,7 +258,7 @@ static void graphics_paint_eyebrow(void)
     // Paint line from bottom middle -> bottom right
     DRAW_SOLID_LINE(X_POS_MIDDLE_VERTEX, BOTTOM_MIDDLE_Y(), X_POS_RIGHT_VERTEX, BOTTOM_RIGHT_Y());
 
-    #if 1
+    #if 0
     label_points();
     eyebrow_state_to_strbuf(count_of(strbuf), strbuf);
     DRAW_TEXT(10, 10, strbuf);
