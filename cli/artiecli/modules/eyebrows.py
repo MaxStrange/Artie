@@ -104,6 +104,9 @@ def _parse_subsystem_firmware(subparsers):
     def _parse_cmd_load(ss):
         p = ss.add_parser("load", help="(Re)load the firmware. Targets both sides at once.")
         p.add_argument("--load", dest="cmd", default=_cmd_firmware_load, help="Reserved.")
+    parser: argparse.ArgumentParser = subparsers.add_parser("firmware", help="Firmware subsystem")
+    cmd_subparsers = parser.add_subparsers(help="Command")
+    _parse_cmd_load(cmd_subparsers)
 
 def add_subparser(subparsers):
     """
