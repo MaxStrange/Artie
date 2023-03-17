@@ -96,6 +96,15 @@ def _parse_subsystem_servo(subparsers):
     cmd_subparsers = parser.add_subparsers(help="Command")
     _parse_cmd_go(cmd_subparsers)
 
+def _cmd_firmware_load(args):
+    client = _connect_client()
+    client.firmware_load()
+
+def _parse_subsystem_firmware(subparsers):
+    def _parse_cmd_load(ss):
+        p = ss.add_parser("load", help="(Re)load the firmware. Targets both sides at once.")
+        p.add_argument("--load", dest="cmd", default=_cmd_firmware_load, help="Reserved.")
+
 def add_subparser(subparsers):
     """
     Add the subargs for the eyebrows module.
@@ -105,3 +114,4 @@ def add_subparser(subparsers):
     _parse_subsystem_led(subsystem_subparsers)
     _parse_subsystem_lcd(subsystem_subparsers)
     _parse_subsystem_servo(subsystem_subparsers)
+    _parse_subsystem_firmware(subsystem_subparsers)

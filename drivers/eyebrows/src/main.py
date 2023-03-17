@@ -19,7 +19,9 @@ import errno
 import logging
 import numpy as np
 import os
+import RPi.GPIO as GPIO
 import subprocess
+import time
 import zerorpc
 
 # I2C address for each eyebrow MCU
@@ -34,8 +36,15 @@ CMD_MODULE_ID_SERVO = 0x80
 
 class DriverServer:
     def __init__(self, fw_fpath: str):
+        # Set up GPIO (for reset pin)
+        self._reset_pin = 26  # GPIO 26 (BCM mode -> physical pin 37 on rpi4b)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self._reset_pin, GPIO.OUT)
+        GPIO.output(self._reset_pin, GPIO.LOW)
+
         # Load the FW files
-        self._left_i2c, self._right_i2c = self._initialize_mcus(fw_fpath)
+        self.fw_fpath = fw_fpath
+        self._left_i2c, self._right_i2c = self._initialize_mcus()
 
     def led_on(self, side: str):
         """
@@ -141,6 +150,13 @@ class DriverServer:
         lcd_draw_bytes = CMD_MODULE_ID_LCD | eyebrow_state_bytes
         i2c.write_bytes_to_address(address, lcd_draw_bytes)
 
+    def firmware_load(self):
+        """
+        RPC method to (re)load the FW on both MCUs.
+        """
+        logging.info("Reloading FW...")
+        self._initialize_mcus()
+
     def servo_go(self, side: str, servo_degrees: float):
         """
         RPC method to move the servo to the given location.
@@ -226,26 +242,26 @@ class DriverServer:
 
         return i2cinstance
 
-    def _initialize_mcus(self, fw_fpath: str):
+    def _initialize_mcus(self):
         """
         Attempt to load FW files into the two eyebrow MCUs.
-
-        Parameters
-        ------
-        - fw_fpath: The path to the FW file. It's the same for both eyebrow MCUs and must be an .elf file.
 
         Returns
         -------
         - (left i2c instance, right i2c instnce)
         """
         # Check that we have FW files
-        if not os.path.isfile(fw_fpath):
-            logging.error(f"Given a FW file path of {fw_fpath}, but it doesn't exist.")
+        if not os.path.isfile(self.fw_fpath):
+            logging.error(f"Given a FW file path of {self.fw_fpath}, but it doesn't exist.")
             exit(errno.ENOENT)
 
         # Use SWD to load the two FW files
-        self._load_fw_file(fw_fpath, "left")
-        self._load_fw_file(fw_fpath, "right")
+        self._load_fw_file(self.fw_fpath, "left")
+        self._load_fw_file(self.fw_fpath, "right")
+        GPIO.output(self._reset_pin, GPIO.HIGH)
+        time.sleep(0.1)  # Give it a moment to reset
+        GPIO.output(self._reset_pin, GPIO.LOW)
+        time.sleep(1)    # Give the MCUs a moment to come back online
 
         # Sanity check that both MCUs are present on the I2C bus
         i2cinstance_l = self._check_mcu("left")
