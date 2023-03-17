@@ -14,6 +14,7 @@ and it needs to be run inside a container that
 has access to both SWD and I2C on the Controller Node.
 """
 from artie_i2c import i2c
+from artie_util import boardconfig_controller as board
 import argparse
 import errno
 import logging
@@ -37,7 +38,7 @@ CMD_MODULE_ID_SERVO = 0x80
 class DriverServer:
     def __init__(self, fw_fpath: str):
         # Set up GPIO (for reset pin)
-        self._reset_pin = 26  # GPIO 26 (BCM mode -> physical pin 37 on rpi4b)
+        self._reset_pin = board.EYEBROWS_RESET_PIN
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self._reset_pin, GPIO.OUT)
         GPIO.output(self._reset_pin, GPIO.LOW)
@@ -203,8 +204,8 @@ class DriverServer:
         - side: Either 'right' or 'left'.
 
         """
-        left_iface_fname = "raspberrypi-swd.cfg"
-        right_iface_fname = "raspberrypi-right-swd.cfg"
+        left_iface_fname = os.environ.get("SWD_CONFIG_LEFT", "raspberrypi-swd.cfg")
+        right_iface_fname = os.environ.get("SWD_CONFIG_RIGHT", "raspberrypi-right-swd.cfg")
         openocd_cmds = f'program {fw_fpath} verify reset exit'
         match side:
             case "left":

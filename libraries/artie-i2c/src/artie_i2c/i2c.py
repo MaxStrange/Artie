@@ -5,7 +5,6 @@ or with simulating one for development purposes.
 from artie_util import util
 import logging
 import math
-import platform
 import smbus2
 
 # The I2C bus

@@ -3,6 +3,7 @@
 A simple user-space driver for the on-board LED.
 Communicates over dbus.
 """
+from artie_util import boardconfig_controller as board
 import argparse
 import logging
 import os
@@ -11,15 +12,11 @@ import socket
 import RPi.GPIO as GPIO
 import threading
 
-LED_PIN = 18  # GPIO 18 (BCM mode -> physical pin 12, at least on RPi 4B)
-LED_ACTIVE_MODE = GPIO.HIGH  # LED PIN is active high
-LED_INACTIVE_MODE = GPIO.LOW
-
 class Led:
     def __init__(self, state='heartbeat'):
-        self._led_pin = LED_PIN
-        self._active_mode = LED_ACTIVE_MODE
-        self._inactive_mode = LED_INACTIVE_MODE
+        self._led_pin = board.LED_PIN
+        self._active_mode = GPIO.HIGH
+        self._inactive_mode = GPIO.LOW
         self._pwm_pattern_thread = None
         self._pwm_pattern_queue = queue.Queue()
         GPIO.setmode(GPIO.BCM)
