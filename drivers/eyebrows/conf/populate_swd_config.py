@@ -8,7 +8,7 @@ bcm2835gpio_speed_coeffs 146203 36
 
 # SWD                swclk swdio
 # Header pin numbers
-bcm2835gpio_swd_nums ${board.SWCLK_EYEBROW_RIGHT}    ${board.SWDIO_EYEBROW_RIGHT}
+bcm2835gpio_swd_nums {board.SWCLK_EYEBROW_RIGHT}    {board.SWDIO_EYEBROW_RIGHT}
 
 transport select swd
 
@@ -24,7 +24,7 @@ bcm2835gpio_speed_coeffs 146203 36
 
 # SWD                swclk swdio
 # Header pin numbers
-bcm2835gpio_swd_nums ${board.SWCLK_EYEBROW_LEFT}    ${board.SWDIO_EYEBROW_LEFT}
+bcm2835gpio_swd_nums {board.SWCLK_EYEBROW_LEFT}    {board.SWDIO_EYEBROW_LEFT}
 
 transport select swd
 
