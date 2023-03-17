@@ -36,7 +36,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libftdi1
 RUN pip install \
     zerorpc \
-    numpy
+    numpy \
+    RPi.GPIO
 
 # Build artie-i2c lib
 COPY ./tmp/artie-i2c /tmp/artie-i2c/
