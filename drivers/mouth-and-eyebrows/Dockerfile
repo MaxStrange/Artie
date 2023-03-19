@@ -85,4 +85,4 @@ ENV LOGLEVEL=info
 
 # Default command is to run the application
 WORKDIR /src
-CMD [ "/bin/bash", "-c", "python main.py ${EYEBROW_FW_PATH} --port ${PORT} --loglevel ${LOGLEVEL}" ]
+CMD [ "/bin/bash", "-c", "python main.py ${FW_PATH} --port ${PORT} --loglevel ${LOGLEVEL}" ]
