@@ -79,7 +79,8 @@ ARG DRIVER_TYPE
 COPY ./src-${DRIVER_TYPE} /src
 
 # Configuration stuff
-ENV PORT=4242
+ARG RPC_PORT=4242
+ENV PORT=${RPC_PORT}
 ENV LOGLEVEL=info
 
 # Default command is to run the application

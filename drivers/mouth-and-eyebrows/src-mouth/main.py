@@ -77,7 +77,37 @@ class DriverServer:
         led_heartbeat_bytes = CMD_MODULE_ID_LEDS | 0x02
         i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, led_heartbeat_bytes)
 
-    def _read_sensor_value(self, sensor):
+    def _read_imu_sensor_value(self, sensor):
+        """
+        Read x, y, z tuple from the given sensor.
+
+        Args
+        ----
+        - sensor: One of ('acceleration', 'gyro')
+        """
+        match sensor:
+            case 'acceleration':
+                sensor_bytes = (0x03, 0x04, 0x05)  # x, y, z
+            case 'gyro':
+                sensor_bytes = (0x06, 0x07, 0x08)  # x, y, z
+            case _:
+                errmsg = f"Invalid sensor ID given: {sensor}"
+                logging.error(errmsg)
+                raise ValueError(errmsg)
+
+        xyz = []
+        for sensor_id_byte in sensor_bytes:
+            bytes_to_write = CMD_MODULE_ID_SENSORS | sensor_id_byte
+            i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, bytes_to_write)
+            # Give it a moment to read the latest sensor value
+            time.sleep(1.0/3.0)
+            # Now read back the value
+            nbytes = 4
+            value_bytes = i2c.read_bytes_from_address(MCU_MOUTH_ADDRESS, nbytes)
+            value = struct.unpack('f', value_bytes)
+        return xyz
+
+    def _read_temp_sensor_value(self, sensor):
         """
         Read a value from the specified sensor.
 
@@ -110,23 +140,57 @@ class DriverServer:
     def sensors_read_temperature(self) -> float:
         """
         RPC method to read the temperature (degrees C) value from the mouth PCB.
+
+        Returns
+        -------
+        Floating point value of temperature in degrees celsius.
         """
         logging.info("Received request for temperature sensor value.")
-        return self._read_sensor_value('temperature')
+        return self._read_temp_sensor_value('temperature')
 
     def sensors_read_humidity(self) -> float:
         """
         RPC method to read the humidity (% relative humidity) value from the mouth PCB.
+
+        Returns
+        -------
+        Floating point value of percent relative humidity.
         """
         logging.info("Received request for humidity sensor value.")
-        return self._read_sensor_value('humidity')
+        return self._read_temp_sensor_value('humidity')
 
     def sensors_read_pressure(self) -> float:
         """
         RPC method to read the pressure value from the mouth PCB.
+
+        Returns
+        -------
+        Floating point value of barometric pressure in Pa.
         """
         logging.info("Received request for pressure sensor value.")
-        return self._read_sensor_value('pressure')
+        return self._read_temp_sensor_value('pressure')
+
+    def sensors_read_acceleration(self):
+        """
+        RPC method to read the accleration values (x, y, z) from the mouth PCB.
+
+        Returns
+        -------
+        Tuple of three floating point values: x, y, and z, in ?? units.
+        """
+        logging.info("Received request for acceleration values.")
+        return self._read_imu_value('acceleration')
+
+    def sensors_read_gyro(self):
+        """
+        RPC method to read the gyro values (x, y, z) from the mouth PCB.
+
+        Returns
+        -------
+        Tuple of three floating point values: x, y, and z, in ?? units.
+        """
+        logging.info("Received request for gyro values.")
+        return self._read_imu_value('gyro')
 
     def lcd_test(self):
         """
