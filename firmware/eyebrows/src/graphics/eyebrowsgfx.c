@@ -257,6 +257,17 @@ static void core_task(void)
 {
     gfx_init(LCD_SIZE_EYEBROWS);
 
+    // Left eyebrow LCD is installed upside-down
+    if (left_or_right_side == EYE_LEFT_SIDE)
+    {
+        Paint_SetRotate(ROTATE_180);
+    }
+    else
+    {
+        Paint_SetRotate(ROTATE_0);
+    }
+    Paint_Clear(WHITE);
+
     while (true)
     {
         cmd_t command;
