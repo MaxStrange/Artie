@@ -132,3 +132,4 @@ firmware/eyebrows/src/build/
 cli/build/
 *.elf
 *.uf2
+build-all.ps1
