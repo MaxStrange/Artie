@@ -226,7 +226,7 @@ parameter:
 ******************************************************************************/
 void LCD_1IN14_Clear(UWORD Color)
 {
-    UWORD j, i;
+    UWORD j;
     UWORD Image[LCD_1IN14.WIDTH * LCD_1IN14.HEIGHT];
 
     Color = ((Color << 8) & 0xff00) | (Color >> 8);

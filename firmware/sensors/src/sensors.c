@@ -2,9 +2,11 @@
 #include <stdbool.h>
 // SDK includes
 #include "hardware/spi.h"
+#include "pico/stdlib.h"
 // Local includes
 #include "../cmds/cmds.h"
 #include "../board/errors.h"
+#include "../board/pinconfig.h"
 #include "imu.h"
 #include "sensors.h"
 #include "temp.h"
@@ -33,12 +35,12 @@ volatile static sensor_values_t sensor_values = {
 };
 
 /** Wrapper around cmds_set_register_value to make sure we are abiding by the mutex. */
-static inline void set_register_value(const float *val)
+static inline void set_register_value(volatile const float *val)
 {
     // Spinlock while we wait for the flag to clear.
     while (setting_sensor_values)
     {
-        sleep_ns(100);
+        sleep_us(1);
     }
 
     setting_sensor_values = true;
@@ -100,22 +102,22 @@ void sensors_cmd(cmd_t command)
             set_register_value(&sensor_values.temp_sensor_values.pressure_pa);
             break;
         case CMD_SENSORS_READ_ACCEL_X:
-            set_register_values((float *)&sensor_values.imu_sensor_values.accel_x);
+            set_register_value((float *)&sensor_values.imu_sensor_values.accel_x);
             break;
         case CMD_SENSORS_READ_ACCEL_Y:
-            set_register_values((float *)&sensor_values.imu_sensor_values.accel_y);
+            set_register_value((float *)&sensor_values.imu_sensor_values.accel_y);
             break;
         case CMD_SENSORS_READ_ACCEL_Z:
-            set_register_values((float *)&sensor_values.imu_sensor_values.accel_z);
+            set_register_value((float *)&sensor_values.imu_sensor_values.accel_z);
             break;
         case CMD_SENSORS_READ_GYRO_X:
-            set_register_values((float *)&sensor_values.imu_sensor_values.gyro_x);
+            set_register_value((float *)&sensor_values.imu_sensor_values.gyro_x);
             break;
         case CMD_SENSORS_READ_GYRO_Y:
-            set_register_values((float *)&sensor_values.imu_sensor_values.gyro_y);
+            set_register_value((float *)&sensor_values.imu_sensor_values.gyro_y);
             break;
         case CMD_SENSORS_READ_GYRO_Z:
-            set_register_values((float *)&sensor_values.imu_sensor_values.gyro_z);
+            set_register_value((float *)&sensor_values.imu_sensor_values.gyro_z);
             break;
         default:
             log_error("Illegal cmd type 0x%02X\n in sensors subsystem", command);

@@ -9,6 +9,9 @@ pico_sdk_init()
 # Add compiler definitions
 add_compile_definitions(LOG_LEVEL=${LOG_LEVEL})
 
+# Compiler warnings
+add_compile_options(-Wall -Wextra -Werror -Wno-unused-function -Wno-unused-parameter)
+
 # Add top-level source and header files
 file(GLOB SOURCES
   "*.c"

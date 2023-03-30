@@ -10,6 +10,9 @@ pico_sdk_init()
 add_compile_definitions(MOUTH=1)
 add_compile_definitions(LOG_LEVEL=${LOG_LEVEL})
 
+# Set compiler warnings
+add_compile_options(-Wall -Wextra -Werror -Wno-unused-function -Wno-unused-parameter)
+
 # Add top-level source and header files
 file(GLOB SOURCES
   "*.c"
@@ -18,7 +21,6 @@ file(GLOB SOURCES
   "graphics/*.c"
   "graphics/lcd/*/*.c"
   "leds/*.c"
-  "sensors/*.c"
 )
 include_directories(
   "."
@@ -27,7 +29,6 @@ include_directories(
   "graphics"
   "graphics/lcd/*"
   "leds"
-  "sensors"
 )
 
 add_subdirectory(i2c_slave)
@@ -42,6 +43,7 @@ target_link_libraries(mouth
   i2c_slave
   hardware_gpio
   hardware_clocks
+  pico_time
 )
 
 pico_add_extra_outputs(mouth)

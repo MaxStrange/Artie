@@ -8,7 +8,9 @@
 #include "cmds/cmds.h"
 #include "graphics/graphics.h"
 #include "board/errors.h"
-#include "servo/servo.h"
+#ifndef MOUTH
+    #include "servo/servo.h"
+#endif // MOUTH
 
 int main()
 {
@@ -24,9 +26,7 @@ int main()
     // Initialize LCD
     graphics_init(left_or_right);
 
-#ifdef MOUTH
-    sensors_init();
-#else
+#ifndef MOUTH
     // Initialize servo subsystem
     servo_init();
 #endif // MOUTH
@@ -59,12 +59,7 @@ int main()
                     log_debug("LCD command\n");
                     graphics_cmd(command);
                     break;
-#ifdef MOUTH
-                case CMD_MODULE_ID_SENSORS:
-                    log_debug("Sensors command\n");
-                    sensors_cmd(command);
-                    break;
-#else
+#ifndef MOUTH
                 case CMD_MODULE_ID_SERVO:
                     log_debug("Servo command\n");
                     servo_cmd(command);

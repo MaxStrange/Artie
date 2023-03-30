@@ -1,6 +1,7 @@
 // Stdlib
 #include <stdint.h>
 // SDK
+#include "hardware/gpio.h"
 #include "hardware/spi.h"
 // Local
 #include "spi_interface.h"

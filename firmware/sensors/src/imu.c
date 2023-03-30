@@ -2,6 +2,7 @@
 // SDK includes
 #include <pico/stdlib.h>
 // Local includes
+#include "../board/errors.h"
 #include "../board/pinconfig.h"
 #include "imu.h"
 #include "spi_interface.h"
@@ -96,7 +97,7 @@ static inline void blocking_read(uint8_t reg, uint8_t *buf, uint16_t len)
 
 void imu_read(imu_sensor_values_t *values)
 {
-    blocking_read(LSM_REG_OUTX_L_G, (uint8_t *)values, sizeof(imu_sensor_vlues_t));
+    blocking_read(LSM_REG_OUTX_L_G, (uint8_t *)values, sizeof(imu_sensor_values_t));
 }
 
 void imu_init(void)

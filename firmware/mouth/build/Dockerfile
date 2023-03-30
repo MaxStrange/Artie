@@ -27,6 +27,7 @@ RUN cp /pico/pico-sdk/external/pico_sdk_import.cmake /pico/src/pico_sdk_import.c
 ENV PICO_SDK_PATH=/pico/pico-sdk
 
 COPY ./eyebrows/src /pico/src
+COPY ./mouth/CMakeLists.txt /pico/src/CMakeLists.txt
 WORKDIR /pico/src/build
 
 ARG BUILD_TYPE=Debug

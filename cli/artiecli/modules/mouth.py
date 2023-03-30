@@ -18,37 +18,6 @@ def _connect_client():
     client.connect(f"tcp://{ip}:{port}")  # This will change to a K8S service later
     return client
 
-def _cmd_read_temperature(args):
-    client = _connect_client()
-    temperature = client.sensors_read_temperature()
-    print("Temperature:", temperature, "degrees C")
-
-def _cmd_read_humidity(args):
-    client = _connect_client()
-    humidity = client.sensors_read_humidity()
-    print("Humidity:", humidity, "%% relative humidity")
-
-def _cmd_read_pressure(args):
-    client = _connect_client()
-    pressure = client.sensors_read_pressure()
-    print("Pressure:", pressure, "Pa")
-
-def _parse_subsystem_sensors(subparser):
-    def _parse_cmd_temperature(ss):
-        p: argparse.ArgumentParser = ss.add_parser("temperature", help="Read the temperature.")
-        p.add_argument("--temperature", dest="cmd", default=_cmd_read_temperature, help="This command has no args.")
-    def _parse_cmd_humidity(ss):
-        p: argparse.ArgumentParser = ss.add_parser("humidity", help="Read the humidity.")
-        p.add_argument("--humidity", dest="cmd", default=_cmd_read_humidity, help="This command has no args.")
-    def _parse_cmd_pressure(ss):
-        p: argparse.ArgumentParser = ss.add_parser("pressure", help="Read the pressure.")
-        p.add_argument("--pressure", dest="cmd", default=_cmd_read_pressure, help="This command has no args.")
-    parser: argparse.ArgumentParser = subparser.add_parser("sensors", help="Sensors subsystem")
-    cmd_subparsers = parser.add_subparsers(help="Command")
-    _parse_cmd_temperature(cmd_subparsers)
-    _parse_cmd_humidity(cmd_subparsers)
-    _parse_cmd_pressure(cmd_subparsers)
-
 def _cmd_led_on(args):
     client = _connect_client()
     client.led_on(args.side)
@@ -96,6 +65,10 @@ def _cmd_lcd_draw(args):
     client = _connect_client()
     client.lcd_draw(args.side, args.draw_val)
 
+def _cmd_lcd_talk(args):
+    client = _connect_client()
+    client.lcd_talk()
+
 def _parse_subsystem_lcd(subparser):
     def _parse_cmd_test(ss):
         p = ss.add_parser("test", help="Draw a test image on the LCD")
@@ -107,11 +80,15 @@ def _parse_subsystem_lcd(subparser):
         p = ss.add_parser("draw", help="Draw the given mouth configuration on the LCD.")
         p.add_argument("draw_val", metavar="draw-val", choices=sorted(MOUTH_DRAWING_CHOICES), help="The mouth configuration to draw.")
         p.add_argument("--draw", dest="cmd", default=_cmd_lcd_draw, help="Reserved.")
+    def _parse_cmd_talk(ss):
+        p = ss.add_parser("talk", help="Set the mouth to talking mode.")
+        p.add_argument("--talk", dest="cmd", default=_cmd_lcd_talk, help="Reserved.")
     parser: argparse.ArgumentParser = subparser.add_parser("lcd", help="LCD subsystem")
     cmd_subparsers = parser.add_subparsers(help="Command")
     _parse_cmd_test(cmd_subparsers)
     _parse_cmd_off(cmd_subparsers)
     _parse_cmd_draw(cmd_subparsers)
+    _parse_cmd_talk(cmd_subparsers)
 
 def _cmd_firmware_load(args):
     client = _connect_client()
@@ -133,5 +110,4 @@ def add_subparser(subparsers):
     subsystem_subparsers = parser.add_subparsers(help="Subsystem")
     _parse_subsystem_led(subsystem_subparsers)
     _parse_subsystem_lcd(subsystem_subparsers)
-    _parse_subsystem_sensors(subsystem_subparsers)
     _parse_subsystem_firmware(subsystem_subparsers)

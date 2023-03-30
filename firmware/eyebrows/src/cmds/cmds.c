@@ -16,14 +16,16 @@
 /** The value that we will give out from the sensors subsystem the next time an i2c read is requested. */
 static float register_read_value = 0.0f;
 
+#ifdef MOUTH
+/** I2C address if we are the mouth. */
+static const uint MOUTH_I2C_ADDRESSS = 0x19;
+#else
 /** I2C address if we are the left eye. */
 static const uint LEFT_EYE_I2C_ADDRESS = 0x17;
 
 /** I2C address if we are the right eye. */
 static const uint RIGHT_EYE_I2C_ADDRESS = 0x18;
-
-/** I2C address if we are the mouth. */
-static const uint MOUTH_I2C_ADDRESSS = 0x19;
+#endif // MOUTH
 
 /** Baudrate for the I2C bus */
 static const uint I2C_BAUDRATE = 100 * 1000;
@@ -52,20 +54,6 @@ static inline void _isr_receive_bytes(i2c_inst_t *i2c)
     }
 }
 
-#ifdef MOUTH
-/** Send requested bytes over I2C. */
-static inline void _isr_send_bytes(i2c_inst_t *i2c)
-{
-    // Write the register value
-    float value = register_read_value;
-    uint8_t bytes[4] = (uint8_t *)&value;
-    for (size_t i = 0; i < 4; i++)
-    {
-        i2c_write_byte(i2c, bytes[i]);
-    }
-}
-#endif
-
 /**
  * @brief Handler for the I2C slave (us) interrupt.
  *
@@ -80,11 +68,7 @@ static void _i2c_handler(i2c_inst_t *i2c, i2c_slave_event_t event)
         _isr_receive_bytes(i2c);
         break;
     case I2C_SLAVE_REQUEST: // master is requesting data
-#ifdef MOUTH
-        _isr_send_bytes(i2c);
-#else
         errno = ERR_ID_CMD_MODULE | EIO;
-#endif // MOUTH
         break;
     case I2C_SLAVE_FINISH: // master has signalled Stop / Restart
         break;
