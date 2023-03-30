@@ -1,12 +1,12 @@
 /*****************************************************************************
 * | File      	:   DEV_Config.c
-* | Author      :   
+* | Author      :
 * | Function    :   Hardware underlying interface
 * | Info        :
 *----------------
 * |	This version:   V1.0
 * | Date        :   2021-03-16
-* | Info        :   
+* | Info        :
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documnetation files (the "Software"), to deal
@@ -127,8 +127,8 @@ void DEV_GPIO_Init(void)
     DEV_GPIO_Mode(LCD_DC_PIN, 1);
     DEV_GPIO_Mode(LCD_CS_PIN, 1);
     DEV_GPIO_Mode(LCD_BL_PIN, 1);
-    
-    
+
+
     DEV_GPIO_Mode(LCD_CS_PIN, 1);
     DEV_GPIO_Mode(LCD_BL_PIN, 1);
 
@@ -143,16 +143,16 @@ Info:
 ******************************************************************************/
 UBYTE DEV_Module_Init(void)
 {
-    stdio_init_all();   
+    stdio_init_all();
     // SPI Config
     spi_init(SPI_PORT, 10000 * 1000);
     gpio_set_function(LCD_CLK_PIN, GPIO_FUNC_SPI);
     gpio_set_function(LCD_MOSI_PIN, GPIO_FUNC_SPI);
-    
+
     // GPIO Config
     DEV_GPIO_Init();
-    
-    
+
+
     // PWM Config
     gpio_set_function(LCD_BL_PIN, GPIO_FUNC_PWM);
     slice_num = pwm_gpio_to_slice_num(LCD_BL_PIN);
@@ -160,28 +160,28 @@ UBYTE DEV_Module_Init(void)
     pwm_set_chan_level(slice_num, PWM_CHAN_B, 1);
     pwm_set_clkdiv(slice_num,50);
     pwm_set_enabled(slice_num, true);
-    
-    
+
+
     //I2C Config
     i2c_init(i2c1,300*1000);
     gpio_set_function(LCD_SDA_PIN,GPIO_FUNC_I2C);
     gpio_set_function(LCD_SCL_PIN,GPIO_FUNC_I2C);
     gpio_pull_up(LCD_SDA_PIN);
     gpio_pull_up(LCD_SCL_PIN);
-    
+
     printf("DEV_Module_Init OK \r\n");
     return 0;
 }
 
 void DEV_SET_PWM(uint8_t Value){
-    if(Value<0 || Value >100){
+    if(Value > 100){
         printf("DEV_SET_PWM Error \r\n");
     }else {
         pwm_set_chan_level(slice_num, PWM_CHAN_B, Value);
     }
-        
-    
-    
+
+
+
 }
 
 /******************************************************************************

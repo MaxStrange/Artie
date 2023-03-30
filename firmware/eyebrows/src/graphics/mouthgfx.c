@@ -2,8 +2,6 @@
 // Std lib includes
 #include <stdio.h>
 // SDK includes
-#include "pico/multicore.h"
-#include "pico/util/queue.h"
 // Local includes
 #include "commongfx.h"
 #include "lcd/LCD/LCD_2in.h"
@@ -11,68 +9,166 @@
 #include "../cmds/cmds.h"
 #include "../board/errors.h"
 
-/** Smallish value for commands to be fed into the LCD command queue by the main core. */
-#define INTER_CORE_QUEUE_SIZE 32
-
-/** Inter-core communication queue. */
-static queue_t inter_core_queue;
-
-////////////////////////// All these values need to be determined through testing /////////////////////////
 /** The width of the mouth. */
-#define MOUTH_WIDTH 100
+#define MOUTH_WIDTH 275
 
 /** The x position of the left corner of the mouth. */
-#define X_POS_LEFT_CORNER 25
+#define X_POS_LEFT_CORNER 20
 
 #define X_POS_RIGHT_CORNER (X_POS_LEFT_CORNER + MOUTH_WIDTH)
 
 /** The y position of the two corners of the mouth. */
-#define Y_POS_CORNERS 75
+#define Y_POS_CORNERS 120
 
 /** The x position of the center of the mouth. */
-#define X_POS_CENTER ((((X_POS_RIGHT_CORNER)) - ((X_POS_LEFT_CORNER))) / 2)
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define X_POS_CENTER (X_POS_LEFT_CORNER + (MOUTH_WIDTH / 2))
+
+/** Are we currently in a talking state? */
+static volatile bool talking = false;
+
+/** Repeating timer used by talking stuff. */
+static repeating_timer_t timer;
+
+static void draw_line_no_erase(void)
+{
+    DRAW_SOLID_LINE(X_POS_LEFT_CORNER, Y_POS_CORNERS, X_POS_RIGHT_CORNER, Y_POS_CORNERS);
+    log_debug("Paint line\n");
+    gfx_send_paint_buffer_to_lcd();
+}
+
+static void erase_line(void)
+{
+    ERASE_SOLID_LINE(X_POS_LEFT_CORNER, Y_POS_CORNERS, X_POS_RIGHT_CORNER, Y_POS_CORNERS);
+}
+
+static void draw_open_no_erase(void)
+{
+    // Draw a circle
+    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS, MOUTH_WIDTH/4);
+    log_debug("Paint open\n");
+    gfx_send_paint_buffer_to_lcd();
+}
+
+static void erase_open(void)
+{
+    ERASE_CIRCLE(X_POS_CENTER, Y_POS_CORNERS, MOUTH_WIDTH/4);
+}
+
+static inline bool talking_cb(repeating_timer_t *rt)
+{
+    if (!talking)
+    {
+        // Somehow we got called even though we should be turned off.
+        // Abort and cancel timer.
+        return false;
+    }
+
+    static bool mouth_open = false;
+    if (mouth_open)
+    {
+        // Draw mouth closed
+        mouth_open = false;
+        erase_open();
+        draw_line_no_erase();
+    }
+    else
+    {
+        // Draw mouth open
+        mouth_open = true;
+        erase_line();
+        draw_open_no_erase();
+    }
+
+    return true;
+}
+
+static void start_talking(void)
+{
+    Paint_Clear(WHITE);
+
+    // Fire off a timer that will trigger a periodic interrupt to refresh the LCD
+    const int32_t refresh_period_ms = 1000;
+    talking = true;
+    bool worked = add_repeating_timer_ms(refresh_period_ms, &talking_cb, NULL, &timer);
+    if (!worked)
+    {
+        set_errno(ERR_ID_GRAPHICS_MODULE, ENOMEM);
+        log_error("Could not initialize repeating timer for talking animation.\n");
+    }
+}
+
+static void stop_talking(void)
+{
+    // Disable the talking timer/interrupt
+    if (talking)
+    {
+        talking = false;
+        bool worked = cancel_repeating_timer(&timer);
+        if (!worked)
+        {
+            set_errno(ERR_ID_GRAPHICS_MODULE, ENOENT);
+            log_error("Could not cancel the repeating timer for some reason.\n");
+        }
+        Paint_Clear(WHITE);
+    }
+}
 
 static void draw_mouth_smile(void)
 {
+    stop_talking();
+    Paint_Clear(WHITE);
+
     // Bottom half of a circle
-    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS, MOUTH_WIDTH/2);
-    DRAW_FILLED_RECTANGLE(X_POS_LEFT_CORNER, Y_POS_CORNERS+(MOUTH_WIDTH/2), X_POS_RIGHT_CORNER, Y_POS_CORNERS+1);
+    uint16_t radius = MOUTH_WIDTH / 2;
+    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS - (radius / 4), radius);
+    ERASE_RECTANGLE(0, 0, X_POS_RIGHT_CORNER, Y_POS_CORNERS-1);
     log_debug("Paint smile\n");
     gfx_send_paint_buffer_to_lcd();
 }
 
 static void draw_mouth_frown(void)
 {
+    stop_talking();
+    Paint_Clear(WHITE);
+
     // Top half of a circle, translated down so the top is at Y_POS_CORNERS
-    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS - (MOUTH_WIDTH/2), MOUTH_WIDTH/2);
-    DRAW_FILLED_RECTANGLE(X_POS_LEFT_CORNER, Y_POS_CORNERS - (MOUTH_WIDTH/2), X_POS_RIGHT_CORNER, Y_POS_CORNERS - MOUTH_WIDTH);
+    uint16_t radius = MOUTH_WIDTH / 2;
+    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS + (radius / 4), radius);
+    ERASE_RECTANGLE(X_POS_LEFT_CORNER, Y_POS_CORNERS + 1, gfx_lcd_width(), gfx_lcd_height());
     log_debug("Paint frown\n");
     gfx_send_paint_buffer_to_lcd();
 }
 
 static void draw_mouth_line(void)
 {
-    // Draw line
-    DRAW_SOLID_LINE(X_POS_LEFT_CORNER, Y_POS_CORNERS, X_POS_RIGHT_CORNER, Y_POS_CORNERS);
-    log_debug("Paint line\n");
-    gfx_send_paint_buffer_to_lcd();
+    stop_talking();
+    Paint_Clear(WHITE);
+    draw_line_no_erase();
 }
 
 static void draw_mouth_smirk(void)
 {
-    // Draw a line
-    DRAW_SOLID_LINE(X_POS_LEFT_CORNER, Y_POS_CORNERS, X_POS_RIGHT_CORNER, Y_POS_CORNERS);
-    // Draw a small curve at the end of the line
     const UWORD rad = MOUTH_WIDTH / 6;
-    DRAW_CIRCLE(X_POS_RIGHT_CORNER, Y_POS_CORNERS + (rad), rad);
-    DRAW_FILLED_RECTANGLE(X_POS_RIGHT_CORNER - rad, Y_POS_CORNERS + (2 * rad), X_POS_RIGHT_CORNER + rad, Y_POS_CORNERS + rad);
+
+    stop_talking();
+    Paint_Clear(WHITE);
+
+    // Draw a line
+    DRAW_SOLID_LINE(X_POS_LEFT_CORNER, Y_POS_CORNERS, X_POS_RIGHT_CORNER - rad, Y_POS_CORNERS);
+
+    // Draw a small curve at the end of the line
+    DRAW_CIRCLE(X_POS_RIGHT_CORNER - rad, Y_POS_CORNERS - rad, rad);
+    ERASE_RECTANGLE(0, 0, gfx_lcd_width(), Y_POS_CORNERS - rad);
+    ERASE_RECTANGLE(X_POS_RIGHT_CORNER - (2 * rad), Y_POS_CORNERS - (2 * rad), X_POS_RIGHT_CORNER - rad, Y_POS_CORNERS - (LINE_WIDTH + 1));
     log_debug("Paint smirk\n");
     gfx_send_paint_buffer_to_lcd();
 }
 
 static void draw_mouth_zigzag(void)
 {
+    stop_talking();
+    Paint_Clear(WHITE);
+
     // Draw a bunch of lines, each of which starts at the end of the line previous
     uint8_t nzigs = 5;
     UWORD start_x = X_POS_LEFT_CORNER;
@@ -90,90 +186,98 @@ static void draw_mouth_zigzag(void)
         end_x += (MOUTH_WIDTH / nzigs);
         end_y = down ? bottom_y : Y_POS_CORNERS;
     }
+    gfx_send_paint_buffer_to_lcd();
 }
 
 static void draw_mouth_open(void)
 {
-    // Draw a circle
-    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS, MOUTH_WIDTH/2);
-    log_debug("Paint open\n");
-    gfx_send_paint_buffer_to_lcd();
+    stop_talking();
+    Paint_Clear(WHITE);
+    draw_open_no_erase();
 }
 
 static void draw_mouth_open_smile(void)
 {
+    stop_talking();
+    Paint_Clear(WHITE);
+
     // Draw bottom half of a circle
-    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS, MOUTH_WIDTH/2);
-    DRAW_FILLED_RECTANGLE(X_POS_LEFT_CORNER, Y_POS_CORNERS+(MOUTH_WIDTH/2), X_POS_RIGHT_CORNER, Y_POS_CORNERS+1);
+    uint16_t up = 10;
+    uint16_t radius = MOUTH_WIDTH / 2;
+    DRAW_CIRCLE(X_POS_CENTER, Y_POS_CORNERS - (radius / 4), radius);
+    ERASE_RECTANGLE(0, 0, X_POS_RIGHT_CORNER, (Y_POS_CORNERS-1) - up);
+
     // Draw top line
-    DRAW_SOLID_LINE(X_POS_LEFT_CORNER, Y_POS_CORNERS, X_POS_RIGHT_CORNER, Y_POS_CORNERS);
+    DRAW_SOLID_LINE(X_POS_LEFT_CORNER + 1, Y_POS_CORNERS - up, X_POS_RIGHT_CORNER - 1, Y_POS_CORNERS - up);
     log_debug("Paint open smile\n");
     gfx_send_paint_buffer_to_lcd();
 }
 
-static void core_task(void)
+static void draw_test(void)
 {
-    gfx_init(LCD_SIZE_MOUTH);
+    stop_talking();
+    gfx_lcd_reset();
 
-    while (true)
-    {
-        cmd_t command;
-        queue_remove_blocking(&inter_core_queue, &command);
-        switch (command)
-        {
-            case CMD_LCD_TEST:
-                gfx_draw_test();
-                break;
-            case CMD_LCD_OFF:
-                gfx_lcd_reset();
-                break;
-            case CMD_LCD_MOUTH_SMILE:
-                draw_mouth_smile();
-                break;
-            case CMD_LCD_MOUTH_FROWN:
-                draw_mouth_frown();
-                break;
-            case CMD_LCD_MOUTH_LINE:
-                draw_mouth_line();
-                break;
-            case CMD_LCD_MOUTH_SMIRK:
-                draw_mouth_smirk();
-                break;
-            case CMD_LCD_MOUTH_OPEN:
-                draw_mouth_open();
-                break;
-            case CMD_LCD_MOUTH_OPEN_SMILE:
-                draw_mouth_open_smile();
-                break;
-            case CMD_LCD_MOUTH_ZIG_ZAG:
-                draw_mouth_zigzag();
-                break;
-            default:
-                log_error("Illegal cmd type 0x%02X\n in graphics subsystem\n", command);
-                set_errno(ERR_ID_GRAPHICS_MODULE, EINVAL);
-                break;
-        }
-    }
+    // Label left corner of the mouth
+    Paint_DrawPoint(X_POS_LEFT_CORNER, Y_POS_CORNERS, BLACK, LINE_WIDTH, DOT_FILL_RIGHTUP);
+    DRAW_TEXT(X_POS_LEFT_CORNER, Y_POS_CORNERS, "L");
+
+    // Label right corner of the mouth
+    Paint_DrawPoint(X_POS_RIGHT_CORNER, Y_POS_CORNERS, BLACK, LINE_WIDTH, DOT_FILL_RIGHTUP);
+    DRAW_TEXT(X_POS_RIGHT_CORNER, Y_POS_CORNERS, "R");
+
+    // Label the center of the mouth
+    Paint_DrawPoint(X_POS_CENTER, Y_POS_CORNERS, BLACK, LINE_WIDTH, DOT_FILL_RIGHTUP);
+    DRAW_TEXT(X_POS_CENTER, Y_POS_CORNERS, "C");
+
+    // Send buffer to LCD
+    gfx_send_paint_buffer_to_lcd();
 }
 
 void mouthgfx_init(void)
 {
-    // Initialize the inter-core queue with a mutex to be safe.
-    static const uint SPINLOCK_ID = 0; // If we need more than one of these, we should put them all in the same header.
-    queue_init_with_spinlock(&inter_core_queue, sizeof(cmd_t), INTER_CORE_QUEUE_SIZE, SPINLOCK_ID);
-
-    // Start up the task for the other core
-    multicore_launch_core1(core_task);
+    gfx_init(LCD_SIZE_MOUTH);
 }
 
 void mouthgfx_cmd(cmd_t command)
 {
-    // This function is called from the main thread's core.
-    // Submit the work item to the other core for processing and return.
-    bool added = queue_try_add(&inter_core_queue, &command);
-    if (!added)
+    switch (command)
     {
-        log_error("LCD: Could not add command to work queue. Queue is full.\n");
+        case CMD_LCD_TEST:
+            draw_test();
+            break;
+        case CMD_LCD_OFF:
+            stop_talking();
+            gfx_lcd_reset();
+            break;
+        case CMD_LCD_MOUTH_SMILE:
+            draw_mouth_smile();
+            break;
+        case CMD_LCD_MOUTH_FROWN:
+            draw_mouth_frown();
+            break;
+        case CMD_LCD_MOUTH_LINE:
+            draw_mouth_line();
+            break;
+        case CMD_LCD_MOUTH_SMIRK:
+            draw_mouth_smirk();
+            break;
+        case CMD_LCD_MOUTH_OPEN:
+            draw_mouth_open();
+            break;
+        case CMD_LCD_MOUTH_OPEN_SMILE:
+            draw_mouth_open_smile();
+            break;
+        case CMD_LCD_MOUTH_ZIG_ZAG:
+            draw_mouth_zigzag();
+            break;
+        case CMD_LCD_MOUTH_TALK:
+            start_talking();
+            break;
+        default:
+            log_error("Illegal cmd type 0x%02X\n in graphics subsystem\n", command);
+            set_errno(ERR_ID_GRAPHICS_MODULE, EINVAL);
+            break;
     }
 }
 

@@ -46,9 +46,6 @@ class I2CBus:
         nbytes = int(math.ceil(math.log2(val) / 8))
         nbytes = 1 if nbytes <= 0 else nbytes
 
-        # Convert data to bytes object
-        data_bytes = data.to_bytes(nbytes, 'big')
-
         # Sanity check address and convert to hex string
         assert address >= 0 and address <= 255, f"Address must be a single byte, but is the value {address}"
         hex_addr = hex(address)[2:]  # hex() leads with '0x', so strip that off as well
@@ -56,11 +53,17 @@ class I2CBus:
         # Get the bus instance that has the desired address
         instance = self.address_to_instance_map.get(hex_addr, None)
         if instance is None:
-            logging.warning(f"Cannot find address 0x{hex_addr} on i2c bus.")
+            logging.warning(f"Cannot find address 0x{hex_addr} on i2c bus. Trying to write anyway.")
 
         # Write to the given address on the i2c instance
-        offset = 0
-        self._instance_to_bus_map[instance].write_byte_data(address, offset, data)
+        # If data is more than one byte, we need to use the first byte as the register
+        # Otherwise, use the single byte write function
+        if nbytes > 1:
+            data_bytes = [int(b) for b in data.to_bytes(nbytes, 'big')]
+            self._instance_to_bus_map[instance].write_i2c_block_data(address, data_bytes[0], data_bytes[1:])
+        else:
+            assert nbytes == 1
+            self._instance_to_bus_map[instance].write_byte(address, data)
 
 
 def _detect_all_i2c_instances():

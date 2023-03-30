@@ -149,9 +149,6 @@ static void paint_eyebrow(void)
     //     |                     |
     //     * ------- * --------- *
 
-    UWORD y0;
-    UWORD y1;
-
     // Paint line from bottom left -> top left
     DRAW_SOLID_LINE(X_POS_LEFT_VERTEX, BOTTOM_LEFT_Y(), X_POS_LEFT_VERTEX, TOP_LEFT_Y());
 
@@ -174,8 +171,57 @@ static void paint_eyebrow(void)
     gfx_send_paint_buffer_to_lcd();
 }
 
+static void draw_test(void)
+{
+    gfx_lcd_reset();
+
+    // Draw a rectangle
+    // Top left
+    UWORD top_left_x = 25;
+    UWORD top_left_y = 25;
+    // Top Right
+    UWORD top_right_x = 200;
+    UWORD top_right_y = 25;
+    // Bottom Left
+    UWORD btm_left_x = 25;
+    UWORD btm_left_y = 75;
+    // Bottom Right
+    UWORD btm_right_x = 200;
+    UWORD btm_right_y = 75;
+
+    // Draw TL -> TR
+    DRAW_SOLID_LINE(top_left_x, top_left_y, top_right_x, top_right_y);
+    // Draw BL -> BR
+    DRAW_SOLID_LINE(btm_left_x, btm_left_y, btm_right_x, btm_right_y);
+    // Draw BL -> TL
+    DRAW_SOLID_LINE(btm_left_x, btm_left_y, top_left_x, top_left_y);
+    // Draw BR -> TR
+    DRAW_SOLID_LINE(btm_right_x, btm_right_y, top_right_x, top_right_y);
+
+    // Draw each vertex
+    Paint_DrawPoint(top_left_x, top_left_y, BLACK, LINE_WIDTH, DOT_FILL_RIGHTUP);
+    DRAW_TEXT(top_left_x, top_left_y, "TL");
+
+    Paint_DrawPoint(top_right_x, top_right_y, BLACK, LINE_WIDTH, DOT_FILL_RIGHTUP);
+    DRAW_TEXT(top_right_x, top_right_y, "TR");
+
+    Paint_DrawPoint(btm_left_x, btm_left_y, BLACK, LINE_WIDTH, DOT_FILL_RIGHTUP);
+    DRAW_TEXT(btm_left_x, btm_left_y, "BL");
+
+    Paint_DrawPoint(btm_right_x, btm_right_y, BLACK, LINE_WIDTH, DOT_FILL_RIGHTUP);
+    DRAW_TEXT(btm_right_x, btm_right_y, "BR");
+
+    Paint_DrawString_EN(5, 5, "Graphics Test", &Font20, 0x00F, 0xFFF0);
+
+    // Send buffer to LCD
+    gfx_send_paint_buffer_to_lcd();
+
+}
+
 static void draw(cmd_t command)
 {
+    gfx_lcd_reset();
+
     // Mask off first two bits, these are the subsystem mask
     uint8_t cmd_param = command & 0x3F;
 
@@ -280,7 +326,7 @@ static void core_task(void)
                 break;
             case CMD_LCD_TEST:
                 log_debug("LCD: test\n");
-                gfx_draw_test();
+                draw_test();
                 break;
             default:
                 {

@@ -19,20 +19,16 @@ extern "C" {
 
 #define CMD_MODULE_ID_LEDS  0x00        // 0b0000 0000
 #define CMD_MODULE_ID_LCD   0x40        // 0b0100 0000
-#ifdef MOUTH
-    #define CMD_MODULE_ID_SENSORS  0x80    // 0b1000 0000 // Exclusive to mouth
-#else
+#ifndef MOUTH
     #define CMD_MODULE_ID_SERVO    0x80    // 0b1000 0000 // Exclusive to eyes
 #endif // MOUTH
 
-#ifndef MOUTH
-    /** Which eyebrow are we? */
-    typedef enum {
-        EYE_LEFT_SIDE           = 0,
-        EYE_RIGHT_SIDE          = 1,
-        EYE_UNASSIGNED_SIDE     = 0xFF
-    } side_t;
-#endif // MOUTH
+/** Which eyebrow are we? */
+typedef enum {
+    EYE_LEFT_SIDE           = 0,
+    EYE_RIGHT_SIDE          = 1,
+    EYE_UNASSIGNED_SIDE     = 0xFF
+} side_t;
 
 /**
  * @brief The types of commands we can receive and act on.
@@ -54,21 +50,9 @@ typedef enum {
     CMD_LCD_MOUTH_OPEN              = (CMD_MODULE_ID_LCD        | 0x04),
     CMD_LCD_MOUTH_OPEN_SMILE        = (CMD_MODULE_ID_LCD        | 0x05),
     CMD_LCD_MOUTH_ZIG_ZAG           = (CMD_MODULE_ID_LCD        | 0x06),
+    CMD_LCD_MOUTH_TALK              = (CMD_MODULE_ID_LCD        | 0x07),
 #else
     CMD_LCD_DRAW                    = (CMD_MODULE_ID_LCD        | 0x30),    // See eyebrowsgfx.h for the schema
-#endif // MOUTH
-#ifdef MOUTH
-    // Commands for sensors
-    CMD_SENSORS_READ_TEMPERATURE    = (CMD_MODULE_ID_SENSORS    | 0x00),
-    CMD_SENSORS_READ_HUMIDITY       = (CMD_MODULE_ID_SENSORS    | 0x01),
-    CMD_SENSORS_READ_PRESSURE       = (CMD_MODULE_ID_SENSORS    | 0x02),
-    CMD_SENSORS_READ_ACCEL_X        = (CMD_MODULE_ID_SENSORS    | 0x03),
-    CMD_SENSORS_READ_ACCEL_Y        = (CMD_MODULE_ID_SENSORS    | 0x04),
-    CMD_SENSORS_READ_ACCEL_Z        = (CMD_MODULE_ID_SENSORS    | 0x05),
-    CMD_SENSORS_READ_GYRO_X         = (CMD_MODULE_ID_SENSORS    | 0x06),
-    CMD_SENSORS_READ_GYRO_Y         = (CMD_MODULE_ID_SENSORS    | 0x07),
-    CMD_SENSORS_READ_GYRO_Z         = (CMD_MODULE_ID_SENSORS    | 0x08)
-#else
     // Commands for servos
     CMD_SERVO_TURN                  = (CMD_MODULE_ID_SERVO      | 0x3F)     // Servo commands accept 6 bits converted to degrees of rotation
 #endif // MOUTH

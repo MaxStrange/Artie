@@ -73,18 +73,16 @@ static void blocking_write(uint8_t reg, uint8_t byte)
 {
     // Clear the msb to show that we are writing.
     reg &= ~(1 << 7);
-    myspi_blocking_write(SENSORS_SPI_CS_TEMP, reg, buf, len);
+    myspi_blocking_write(SENSORS_SPI_CS_TEMP, reg, byte);
 }
 
 /** Trigger a soft reset the temperature sensor. */
 static void reset_sensor(void)
 {
     // Magic value required to reset the chip according to the datasheet.
-    uint16_t len = 2;
     uint8_t reg = BME280_REG_RESET;
     uint8_t magic_value = 0xB6;
-    uint8_t bytes[len] = {reg, magic_value};
-    blocking_write(bytes, len);
+    blocking_write(reg, magic_value);
 }
 
 /**
@@ -158,7 +156,7 @@ static uint32_t compensate_humidity(int32_t adc_H)
 
     // Convert to % relative humidity
     float humidity = (uint32_t)(v_x1_u32r >> 12);
-    humidty = humidity / 1024.0f;
+    humidity = humidity / 1024.0f;
 
     return humidity;
 }
