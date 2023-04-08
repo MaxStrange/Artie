@@ -49,7 +49,7 @@ def _load_fw_file(fw_fpath: str):
     """
     mouth_iface_fname = os.environ.get("SWD_CONFIG_MOUTH", "raspberrypi-mouth-swd.cfg")
     openocd_cmds = f'program {fw_fpath} verify reset exit'
-    logging.info(f"Attempting to load {fw_fpath} into LEFT eyebrow MCU...")
+    logging.info(f"Attempting to load {fw_fpath} into MCU...")
     cmd = f'openocd -f interface/{mouth_iface_fname} -f target/rp2040.cfg -c '
     result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
 
