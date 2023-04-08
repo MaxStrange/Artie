@@ -15,6 +15,5 @@
 * This is the circuit board you need for Artie Aardvark.
 * This is a Raspberry Pi Hat which should have female pins soldered to the *underside of the board*,
   then the board should be slotted onto the RPi itself.
-* Supply 9V to this board through the barrel jack. This power supply should be capable of at least
-  2 amps.
 * The micro USB adapter is for a serial (UART) connection to the Raspberry Pi.
+* No need to supply any power to the Raspberry Pi itself. Power is supplied by means of the [bus board](../bus-board-head/REVISIONS.md).
