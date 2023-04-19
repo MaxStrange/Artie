@@ -24,15 +24,15 @@ def _parse_subsystem_led(subparser):
     def _parse_cmd_on(ss):
         p: argparse.ArgumentParser = ss.add_parser("on", help="Turn LED on.")
         p.add_argument("side", choices=["left", "right"], type=str, help="Which eyebrow?")
-        p.add_argument("--on", dest="cmd", default=_cmd_led_on, help="This command has no args.")
+        p.set_defaults(cmd=_cmd_led_on)
     def _parse_cmd_off(ss):
         p = ss.add_parser("off", help="Turn LED off.")
         p.add_argument("side", choices=["left", "right"], type=str, help="Which eyebrow?")
-        p.add_argument("--off", dest="cmd", default=_cmd_led_off, help="This command has no args.")
+        p.set_defaults(cmd=_cmd_led_off)
     def _parse_cmd_heartbeat(ss):
         p = ss.add_parser("heartbeat", help="Change eyebrow LED mode to heartbeat.")
         p.add_argument("side", choices=["left", "right"], type=str, help="Which eyebrow?")
-        p.add_argument("--heartbeat", dest="cmd", default=_cmd_led_heartbeat, help="This command has no args.")
+        p.set_defaults(cmd=_cmd_led_heartbeat)
     parser: argparse.ArgumentParser = subparser.add_parser("led", help="LED subsystem")
     cmd_subparsers = parser.add_subparsers(help="Command")
     _parse_cmd_on(cmd_subparsers)
@@ -55,16 +55,16 @@ def _parse_subsystem_lcd(subparser):
     def _parse_cmd_test(ss):
         p = ss.add_parser("test", help="Draw a test image on the LCD")
         p.add_argument("side", choices=["left", "right"], type=str, help="Which eyebrow?")
-        p.add_argument("--test", dest="cmd", default=_cmd_lcd_test, help="This command has no args.")
+        p.set_defaults(cmd=_cmd_lcd_test)
     def _parse_cmd_off(ss):
         p = ss.add_parser("off", help="Clear the LCD")
         p.add_argument("side", choices=["left", "right"], type=str, help="Which eyebrow?")
-        p.add_argument("--off", dest="cmd", default=_cmd_lcd_off, help="This command has no args.")
+        p.set_defaults(cmd=_cmd_lcd_off)
     def _parse_cmd_draw(ss):
         p = ss.add_parser("draw", help="Draw the given eyebrow configuration on the LCD.")
         p.add_argument("side", choices=["left", "right"], type=str, help="Which eyebrow?")
         p.add_argument("draw_val", metavar="draw-val", nargs=3, choices=["HIGH", "MIDDLE", "LOW", 'H', 'M', 'L'], help="Need three strings, each 'HIGH' ('H'), 'MIDDLE' ('M'), or 'LOW' ('L').")
-        p.add_argument("--draw", dest="cmd", default=_cmd_lcd_draw, help="Reserved.")
+        p.set_defaults(cmd=_cmd_lcd_draw)
     parser: argparse.ArgumentParser = subparser.add_parser("lcd", help="LCD subsystem")
     cmd_subparsers = parser.add_subparsers(help="Command")
     _parse_cmd_test(cmd_subparsers)
@@ -91,7 +91,7 @@ def _parse_subsystem_servo(subparsers):
         p = ss.add_parser("go", help="Drive servo to given value.")
         p.add_argument("side", choices=["left", "right"], type=str, help="Which eyebrow?")
         p.add_argument("go_val", metavar="go-val", type=_check_servo_range, help="Value to drive the servo to. 0 is left. 180 is right. 90 is center.")
-        p.add_argument("--go", dest="cmd", default=_cmd_servo_go, help="Reserved.")
+        p.set_defaults(cmd=_cmd_servo_go)
     parser: argparse.ArgumentParser = subparsers.add_parser("servo", help="Servo subsystem")
     cmd_subparsers = parser.add_subparsers(help="Command")
     _parse_cmd_go(cmd_subparsers)
@@ -103,7 +103,7 @@ def _cmd_firmware_load(args):
 def _parse_subsystem_firmware(subparsers):
     def _parse_cmd_load(ss):
         p = ss.add_parser("load", help="(Re)load the firmware. Targets both sides at once.")
-        p.add_argument("--load", dest="cmd", default=_cmd_firmware_load, help="Reserved.")
+        p.set_defaults(cmd=_cmd_firmware_load)
     parser: argparse.ArgumentParser = subparsers.add_parser("firmware", help="Firmware subsystem")
     cmd_subparsers = parser.add_subparsers(help="Command")
     _parse_cmd_load(cmd_subparsers)
