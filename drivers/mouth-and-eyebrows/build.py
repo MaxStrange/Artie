@@ -44,7 +44,7 @@ if __name__ == "__main__":
     try:
         dockerargs = f"--build-arg DRIVER_TYPE={args.driver} --build-arg FW_IMG={args.fw_image} --build-arg RPC_PORT={4242 if args.driver == 'eyebrows' else 4243}"
         dockercmd = f"docker buildx build --load --platform linux/arm64 -f Dockerfile {dockerargs} -t {args.target_image} ."
-        subprocess.run(dockercmd.split(), cwd=os.path.join(builddpath)).check_returncode()
+        subprocess.run(dockercmd.split(), cwd=builddpath).check_returncode()
     except subprocess.CalledProcessError:
         print("Error running the Docker build. If your error was something like 'ERROR: failed to solve: rpc error', remember that you have to push the base image to a registry. Buildx can't load from local.")
     finally:
