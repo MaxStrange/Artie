@@ -1,0 +1,35 @@
+# TODO
+global:
+  scrape_interval: "30s"
+  scrape_timeout: "10s"
+scrape_configs:
+  # *-node-containers jobs should use the cAdvisor as a Daemonset (https://prometheus.io/docs/guides/cadvisor/)
+  - job_name: artie-controller-node-containers
+  - job_name: artie-audio-node-containers
+  - job_name: artie-vision-node-containers
+
+  # *-node jobs should use the node exporter as a Daemonset (https://prometheus.io/docs/guides/node-exporter/)
+  - job_name: artie-controller-node
+    tls_config:
+      cert_file: /etc/prometheus/cert.pem
+      key_file: /etc/prometheus/pkey.pem
+      insecure_skip_verify: true
+    kubernetes_sd_configs:
+
+  - job_name: artie-audio-node
+    tls_config:
+      cert_file: /etc/prometheus/cert.pem
+      key_file: /etc/prometheus/pkey.pem
+      insecure_skip_verify: true
+    kubernetes_sd_configs:
+
+  - job_name: artie-vision-node
+
+  - job_name: artie-mouth-driver
+
+  - job_name: artie-eyebrows-driver
+
+  - job_name: artie-reset-driver
+
+  # This job is for the Artie data collector service, which exposes a bunch of stuff from the various buses
+  - job_name: artie-data-collector

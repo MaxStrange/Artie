@@ -1,0 +1,27 @@
+name: driver-eyebrows-integration-test
+services:
+  reset-driver:
+    command: python main.py /conf/mcu-fw.elf --port 18861 --loglevel info
+    container_name: eyebrows-itest-reset-driver
+    expose:
+      - 18861
+    image: ${RESET_TEST_IMAGE}
+    environment:
+      - ARTIE_RUN_MODE=integration
+      - LOG_COLLECTOR_HOSTNAME=log-collector
+      - LOG_COLLECTOR_PORT=5170
+      - METRICS_SERVER_PORT=8090
+
+  eyebrows-driver:
+    command: python main.py /conf/mcu-fw.elf --port 18863 --loglevel info
+    container_name: eyebrows-itest-eyebrows-driver
+    depends_on:
+      - reset-driver
+    image: ${EYEBROWS_TEST_IMAGE}
+    ports:
+      - 18863:18863
+    environment:
+      - ARTIE_RUN_MODE=integration
+      - LOG_COLLECTOR_HOSTNAME=log-collector
+      - LOG_COLLECTOR_PORT=5170
+      - METRICS_SERVER_PORT=8090

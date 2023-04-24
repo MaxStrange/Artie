@@ -49,6 +49,8 @@ RTACP uses extended CAN frames. An extended CAN frame looks like this
 [7 bits EOF]
 ```
 
+(Total overhead bits per CAN frame: 64; this accounts for all bits but the Data field)
+
 For RTACP (and all Artie CAN protocols), we only care about the following four fields:
 
 1. ID A (Identifier part A)
@@ -199,7 +201,7 @@ The data bits are as follows:
 [1 bit synchronous/asynchronous] - A zero here indicates an asynchronous request. A 1 indicates a synchronous (blocking) request.
 [7 bit procedure ID] - 7 bits that determine what RPC to execute. The allowable values here are part of the RPC signature,
                        and are defined per device, as each device may have different capabilities.
-[32 bits] - CRC32 over the following data: [1 bit a/synch][7 bit procedure ID][all RPC payload over the whole series of frames, including byte stuffing]
+[16 bits] - CRC16 over the following data: [1 bit a/synch][7 bit procedure ID][all RPC payload over the whole series of frames, including byte stuffing]
 [Remaining data] - RPC data, which may be continued by subsequent TxData frames.
 ```
 
@@ -210,7 +212,7 @@ The data field looks like this:
 ```
 [1 bit, always value = 1]
 [7 bit procedure ID] - the ID of the RPC that was executed.
-[32 bits] - CRC32 over the following data: [1st bit (always 1)][7 bit procedure ID][all return value payload over the whole series of frames, including byte stuffing]
+[16 bits] - CRC16 over the following data: [1st bit (always 1)][7 bit procedure ID][all return value payload over the whole series of frames, including byte stuffing]
 [Remaining data] - Return value data, which may be continued by subsequent RxData frames.
 ```
 
@@ -238,7 +240,7 @@ When a requesting node wants to request an RPC from a remote node, it interacts 
 to call one of the remote node's available RPCs. This library interacts with [MsgPack](./MsgPackSchema.md)
 to pack up the function's arguments into a binary format that we then hand over to the
 RPCACP stack. This stack first assembles the RPC payload (the async/sync bit, the procedure ID, and the MsgPack data),
-then it [stuffs](./ByteStuffing.md) the payload. Next it computes a CRC32 over the stuffed payload. Finally, it shards it
+then it [stuffs](./ByteStuffing.md) the payload. Next it computes a CRC16 over the stuffed payload. Finally, it shards it
 into a StartRPC frame and subsequent TxData frames and handles the interaction with the CAN driver
 to send out the RPC request.
 
@@ -316,7 +318,7 @@ The data field depends on the type of frame:
 A PUB frame's data field consists of the following:
 
 ```
-[32 bits] - CRC32 computed over the byte-stuffed entire payload (before sharding across PUB and DATA frames)
+[16 bits] - CRC16 computed over the byte-stuffed entire payload (before sharding across PUB and DATA frames)
 Rest of the data is byte-stuffed payload, which may be continued by DATA frames.
 ```
 

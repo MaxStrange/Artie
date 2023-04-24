@@ -135,3 +135,10 @@ cli/build/
 *.hex
 *.bin
 build-all.ps1
+
+# Tests
+test-results/
+
+# Scratch stuff
+rpyc-examples/
+telemetry-example/

@@ -1,0 +1,46 @@
+name: logging-integration-tests
+labels:
+  - docker-image
+  - integration
+dependencies:
+  - eyebrows-driver-sanity-tests: ""
+  - container-eyebrows: docker-image
+  - container-reset: docker-image
+  - log-collector: docker-image
+  - artie-cli: docker-image
+type: test
+steps:
+  - job: docker-compose-test-suite
+    compose-fname: compose.logging.yaml
+    compose-docker-image-variables:
+      - RESET_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: container-reset
+      - EYEBROWS_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: container-eyebrows
+      - LOG_COLLECTOR_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: log-collector
+    cli-image:
+      dependency:
+        name: docker-image
+        producing-task: artie-cli
+    steps:
+      - test-name: init-mcu
+        cmd-to-run-in-cli: "artie-cli help"
+        expected-outputs:
+          - what: "Writing 0x0 to "
+            where: log-collector
+          - what: "Mocking MCU FW load."
+            where: log-collector
+      - test-name: fw-load
+        cmd-to-run-in-cli: "artie-cli eyebrows fw load"
+        expected-outputs:
+          - what: "Writing 0x0 to "
+            where: log-collector
+          - what: "Mocking MCU FW load."
+            where: log-collector

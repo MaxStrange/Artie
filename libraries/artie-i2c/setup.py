@@ -7,6 +7,7 @@ setup(
     packages=["artie_i2c"],
     package_dir={"artie_i2c": "src/artie_i2c"},
     install_requires=[
+        "artie-util",
         "smbus2",
     ]
 )

@@ -13,40 +13,49 @@ therefore meant to be run on the Controller Node,
 and it needs to be run inside a container that
 has access to both SWD and I2C on the Controller Node.
 """
+from artie_driver_client import client as adc
 from artie_i2c import i2c
+from artie_swd import swd
+from artie_util import artie_logging as alog
 from artie_util import boardconfig_controller as board
+from artie_util import util
 import argparse
-import errno
-import logging
 import numpy as np
 import os
-import RPi.GPIO as GPIO
-import subprocess
+import rpyc
 import time
-import zerorpc
+
+SERVICE_NAME = "eyebrows-service"
 
 # I2C address for each eyebrow MCU
 MCU_ADDRESS_MAP = {
-    "left": 0x17,
-    "right": 0x18,
+    "left": board.I2C_ADDRESS_EYEBROWS_MCU_LEFT,
+    "right": board.I2C_ADDRESS_EYEBROWS_MCU_RIGHT,
 }
 
 CMD_MODULE_ID_LEDS = 0x00
 CMD_MODULE_ID_LCD = 0x40
 CMD_MODULE_ID_SERVO = 0x80
 
-class DriverServer:
-    def __init__(self, fw_fpath: str):
-        # Set up GPIO (for reset pin)
-        self._reset_pin = board.EYEBROWS_RESET_PIN
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self._reset_pin, GPIO.OUT)
-        GPIO.output(self._reset_pin, GPIO.LOW)
+@rpyc.service
+class DriverServer(rpyc.Service):
+    def __init__(self, fw_fpath: str, ipv6=False):
+        self._fw_fpath = fw_fpath
+        self._ipv6 = ipv6
 
-        # Load the FW files
-        self.fw_fpath = fw_fpath
-        self._left_i2c, self._right_i2c = self._initialize_mcus()
+        # Load FW
+        self._initialize_mcus()
 
+    @rpyc.exposed
+    @alog.function_counter("whoami")
+    def whoami(self) -> str:
+        """
+        Return the name of this service and the version.
+        """
+        return f"artie-eyebrow-driver:{util.get_git_tag()}"
+
+    @rpyc.exposed
+    @alog.function_counter("led_on")
     def led_on(self, side: str):
         """
         RPC method to turn led on.
@@ -55,11 +64,13 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
-        logging.info(f"Received request for {side} LED -> ON.")
+        alog.test(f"Received request for {side} LED -> ON.", tests=['eyebrows-driver-unit-tests:led-on'])
         address = self._get_address(side)
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x00
         i2c.write_bytes_to_address(address, led_on_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("led_off")
     def led_off(self, side: str):
         """
         RPC method to turn led off.
@@ -68,11 +79,13 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
-        logging.info(f"Received request for {side} LED -> OFF.")
+        alog.test(f"Received request for {side} LED -> OFF.", tests=['eyebrows-driver-unit-tests:led-off'])
         address = self._get_address(side)
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x01
         i2c.write_bytes_to_address(address, led_on_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("led_heartbeat")
     def led_heartbeat(self, side: str):
         """
         RPC method to turn the led to heartbeat mode.
@@ -81,11 +94,13 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
-        logging.info(f"Received request for {side} LED -> HEARTBEAT.")
+        alog.test(f"Received request for {side} LED -> HEARTBEAT.", tests=['eyebrows-driver-unit-tests:led-heartbeat'])
         address = self._get_address(side)
         led_heartbeat_bytes = CMD_MODULE_ID_LEDS | 0x02
         i2c.write_bytes_to_address(address, led_heartbeat_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("lcd_test")
     def lcd_test(self, side: str):
         """
         RPC method to test the LCD.
@@ -94,11 +109,13 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
-        logging.info(f"Received request for {side} LCD -> TEST.")
+        alog.test(f"Received request for {side} LCD -> TEST.", tests=['eyebrows-driver-unit-tests:lcd-test'])
         address = self._get_address(side)
         lcd_test_bytes = CMD_MODULE_ID_LCD | 0x11
         i2c.write_bytes_to_address(address, lcd_test_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("lcd_off")
     def lcd_off(self, side: str):
         """
         RPC method to turn the LCD off.
@@ -107,11 +124,13 @@ class DriverServer:
         ----
         - side: One of 'left' or 'right'
         """
-        logging.info(f"Received request for {side} LCD -> OFF.")
+        alog.test(f"Received request for {side} LCD -> OFF.", tests=['eyebrows-driver-unit-tests:lcd-off'])
         address = self._get_address(side)
         lcd_off_bytes = CMD_MODULE_ID_LCD | 0x22
         i2c.write_bytes_to_address(address, lcd_off_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("lcd_draw")
     def lcd_draw(self, side: str, eyebrow_state):
         """
         RPC method to draw a specified eyebrow state to the LCD.
@@ -119,9 +138,9 @@ class DriverServer:
         Args
         ----
         - side: One of 'left' or 'right'
-        - eyebrow_stat: A list of 'H' or 'L'
+        - eyebrow_state: A list of 'H' or 'L'
         """
-        logging.info(f"Received request for {side} LCD -> DRAW.")
+        alog.test(f"Received request for {side} LCD -> DRAW.", tests=['eyebrows-driver-unit-tests:lcd-draw'])
         address = self._get_address(side)
         # An eyebrow state is encoded as follows:
         # Six bits (3 msb, 3 lsb)
@@ -151,13 +170,17 @@ class DriverServer:
         lcd_draw_bytes = CMD_MODULE_ID_LCD | eyebrow_state_bytes
         i2c.write_bytes_to_address(address, lcd_draw_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("firmware_load")
     def firmware_load(self):
         """
         RPC method to (re)load the FW on both MCUs.
         """
-        logging.info("Reloading FW...")
+        alog.info("Reloading FW...")
         self._initialize_mcus()
 
+    @rpyc.exposed
+    @alog.function_counter("servo_go")
     def servo_go(self, side: str, servo_degrees: float):
         """
         RPC method to move the servo to the given location.
@@ -167,11 +190,11 @@ class DriverServer:
         - side: One of 'left' or 'right'
         - servo_degrees: Any value in the interval [0, 180]
         """
-        logging.info(f"Received request for {side} SERVO -> GO.")
+        alog.test(f"Received request for {side} SERVO -> GO.", tests=['eyebrows-driver-unit-tests:servo-go'])
 
         if servo_degrees < 0 or servo_degrees > 180:
             errmsg = f"Need a servo value in range [0, 180] but got {servo_degrees}"
-            logging.error(errmsg)
+            alog.error(errmsg)
             raise ValueError(errmsg)
 
         address = self._get_address(side)
@@ -189,46 +212,10 @@ class DriverServer:
         address = MCU_ADDRESS_MAP.get(side, None)
         if address is None:
             errmsg = f"Given side: '{side}', but must be 'left' or 'right'."
-            logging.error(errmsg)
+            alog.error(errmsg)
             raise ValueError(errmsg)
         else:
             return address
-
-    def _load_fw_file(self, fw_fpath: str, side: str):
-        """
-        Attempt to load the FW file into the appropriate MCU.
-
-        Parameters
-        ----------
-        - fw_fpath: File path of the .elf file to load.
-        - side: Either 'right' or 'left'.
-
-        """
-        left_iface_fname = os.environ.get("SWD_CONFIG_LEFT", "raspberrypi-swd.cfg")
-        right_iface_fname = os.environ.get("SWD_CONFIG_RIGHT", "raspberrypi-right-swd.cfg")
-        openocd_cmds = f'program {fw_fpath} verify reset exit'
-        match side:
-            case "left":
-                logging.info(f"Attempting to load {fw_fpath} into LEFT eyebrow MCU...")
-                cmd = f'openocd -f interface/{left_iface_fname} -f target/rp2040.cfg -c '
-                result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
-            case "right":
-                logging.info(f"Attempting to load {fw_fpath} into RIGHT eyebrow MCU...")
-                cmd = f'openocd -f interface/{right_iface_fname} -f target/rp2040.cfg -c '
-                result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
-            case _:
-                errmsg = f"Invalid argument for MCU side. Given {side}, but must be 'left' or 'right'"
-                logging.error(errmsg)
-                raise ValueError(errmsg)
-
-        if result.returncode != 0:
-            logging.error(f"Non-zero return code when attempting to load FW. Got return code {result.returncode}")
-            logging.error(f"{side.capitalize()} eyebrow MCU may be non-responsive.")
-            logging.error(f"Got stdout and stderr from openocd subprocess:")
-            logging.error(f"STDOUT: {result.stdout}")
-            logging.error(f"STDERR: {result.stderr}")
-        else:
-            logging.info("Loaded FW successfully.")
 
     def _check_mcu(self, mcu: str):
         """
@@ -239,51 +226,62 @@ class DriverServer:
         addr = MCU_ADDRESS_MAP[mcu]
         i2cinstance = i2c.check_for_address(addr)
         if i2cinstance is None:
-            logging.error(f"Cannot find {mcu} on the I2C bus. Eyebrow will not be available.")
-
-        return i2cinstance
+            alog.error(f"Cannot find {mcu} on the I2C bus. Eyebrow will not be available.")
 
     def _initialize_mcus(self):
         """
         Attempt to load FW files into the two eyebrow MCUs.
-
-        Returns
-        -------
-        - (left i2c instance, right i2c instnce)
         """
         # Check that we have FW files
-        if not os.path.isfile(self.fw_fpath):
-            logging.error(f"Given a FW file path of {self.fw_fpath}, but it doesn't exist.")
-            exit(errno.ENOENT)
+        if not os.path.isfile(self._fw_fpath):
+            msg = f"Given a FW file path of {self._fw_fpath}, but it doesn't exist."
+            alog.error(msg)
+            raise FileNotFoundError(msg)
+
+        left_iface_fname = os.environ.get("SWD_CONFIG_LEFT", None)
+        if left_iface_fname is None:
+            alog.warning(f"The SWD_CONFIG_LEFT env variable is not set. Will attempt a default location/name.")
+            left_iface_fname = "raspberrypi-swd.cfg"
+
+        right_iface_fname = os.environ.get("SWD_CONFIG_RIGHT", None)
+        if right_iface_fname is None:
+            alog.warning(f"The SWD_CONFIG_RIGHT env variable is not set. Will attempt a default location/name.")
+            right_iface_fname = "raspberrypi-right-swd.cfg"
+
+        if util.in_test_mode():
+            alog.test("Mocking MCU FW load.", tests=['eyebrows-driver-unit-tests:init-mcu'])
 
         # Use SWD to load the two FW files
-        self._load_fw_file(self.fw_fpath, "left")
-        self._load_fw_file(self.fw_fpath, "right")
-        GPIO.output(self._reset_pin, GPIO.HIGH)
-        time.sleep(0.1)  # Give it a moment to reset
-        GPIO.output(self._reset_pin, GPIO.LOW)
-        time.sleep(1)    # Give the MCUs a moment to come back online
+        swd.load_fw_file(self._fw_fpath, left_iface_fname)
+        swd.load_fw_file(self._fw_fpath, right_iface_fname)
+        adc.reset(board.MCU_RESET_ADDR_RL_EYEBROWS, ipv6=self._ipv6)
+        time.sleep(0.1)  # Give it a moment to come back online
 
         # Sanity check that both MCUs are present on the I2C bus
-        i2cinstance_l = self._check_mcu("left")
-        i2cinstance_r = self._check_mcu("right")
-
-        return i2cinstance_l, i2cinstance_r
+        self._check_mcu("left")
+        self._check_mcu("right")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("fw_fpath", metavar="fw-fpath", type=str, help="The path to the FW file. It must be an .elf file.")
+    parser.add_argument("--ipv6", action='store_true', help="Use IPv6 if given, otherwise IPv4.")
     parser.add_argument("-l", "--loglevel", type=str, default="info", choices=["debug", "info", "warning", "error"], help="The log level.")
-    parser.add_argument("-p", "--port", type=int, default=4242, help="The port to bind for the RPC server.")
+    parser.add_argument("-p", "--port", type=int, default=18863, help="The port to bind for the RPC server.")
     args = parser.parse_args()
 
     # Set up logging
-    format = "%(asctime)s %(threadName)s %(levelname)s: %(message)s"
-    logging.basicConfig(format=format, level=getattr(logging, args.loglevel.upper()))
+    alog.init(SERVICE_NAME, args)
 
-    driver_server = DriverServer(args.fw_fpath)
+    # Generate our self-signed certificate (if not already present)
+    certfpath = "/etc/cert.pem"
+    keyfpath = "/etc/pkey.pem"
+    util.generate_self_signed_cert(certfpath, keyfpath, days=None, force=True)
 
-    # Set up RPC client to accept method invocations
-    server = zerorpc.Server(driver_server)
-    server.bind(f"tcp://0.0.0.0:{args.port}")
-    server.run()
+    # If we are in testing mode, we need to manually initialize some stuff
+    if util.in_test_mode():
+        i2c.manually_initialize(i2c_instances=[0], instance_to_address_map={0: [MCU_ADDRESS_MAP['left'], MCU_ADDRESS_MAP['right']]})
+
+    # Instantiate the single (multi-tenant) server instance and block forever, serving
+    server = DriverServer(args.fw_fpath, ipv6=args.ipv6)
+    t = util.create_rpc_server(server, keyfpath, certfpath, args.port, ipv6=args.ipv6)
+    t.start()

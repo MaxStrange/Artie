@@ -1,0 +1,25 @@
+global:
+  scrape_interval: "30s"
+  scrape_timeout: "10s"
+scrape_configs:
+  - job_name: reset-driver
+    tls_config:
+      cert_file: /etc/prometheus/cert.pem
+      key_file: /etc/prometheus/pkey.pem
+      insecure_skip_verify: true
+    dns_sd_configs:
+      - names:
+          - reset-driver
+        type: A
+        port: 8090
+
+  - job_name: eyebrows-driver
+    tls_config:
+      cert_file: /etc/prometheus/cert.pem
+      key_file: /etc/prometheus/pkey.pem
+      insecure_skip_verify: true
+    dns_sd_configs:
+      - names:
+          - eyebrows-driver
+        type: A
+        port: 8090

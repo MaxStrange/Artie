@@ -21,13 +21,12 @@ This is the board config for the controller node.
 
 
 ########################## CONFIGURATION v0.2 #####################################
-# Reset addresses:
-# 0x00 -> Unassigned
-# 0x01 -> Right and Left Eyebrows
-# 0x02 -> Mouth
-# 0x03 -> Head Sensor Node
-# 0x04 -> Pump Control
-# 0x05 - 0x1F -> Unassigned
+# Reset addresses
+MCU_RESET_ADDR_RL_EYEBROWS = 0x00
+MCU_RESET_ADDR_MOUTH = 0x01
+MCU_RESET_ADDR_HEAD_SENSORS = 0x02
+MCU_RESET_ADDR_PUMP_CTL = 0x03
+MCU_RESET_BROADCAST = 0xFF
 
 # SWD - these MCUs are not on CAN bus. They update by means of SWD.
 ## Mouth
@@ -65,3 +64,7 @@ LED_PIN = 18  # GPIO 18 (BCM mode -> physical pin 12, at least on RPi 4B)
 # I2C
 I2C_SDA = 2  # GPIO 2 (BCM mode -> physical pin 3)
 I2C_SCL = 3  # GPIO 3 (BCM mode -> physical pin 5)
+I2C_ADDRESS_EYEBROWS_MCU_LEFT = 0x17
+I2C_ADDRESS_EYEBROWS_MCU_RIGHT = 0x18
+I2C_ADDRESS_MOUTH_MCU = 0x19
+I2C_ADDRESS_RESET_MCU = 0x20

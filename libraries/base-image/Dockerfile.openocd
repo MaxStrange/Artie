@@ -1,0 +1,26 @@
+### Image to build OpenOCD (RPi variant)
+FROM debian:bullseye
+
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    automake \
+    autoconf \
+    build-essential \
+    texinfo \
+    libtool \
+    libftdi-dev \
+    libusb-1.0-0-dev \
+    pkg-config \
+    git
+
+WORKDIR /repos
+RUN git clone https://github.com/raspberrypi/openocd.git --branch rp2040 --recursive --depth=1
+
+WORKDIR /repos/openocd
+RUN ./bootstrap && \
+    ./configure --enable-ftdi --enable-sysfsgpio --enable-bcm2835gpio && \
+    make -j4 && \
+    make install
+
+# You'll typically want these two lines in derived images
+# COPY --from=OPENOCDIMG /usr/local/share/openocd /usr/local/share/openocd
+# COPY --from=OPENOCDIMG /usr/local/bin/openocd /usr/local/bin/

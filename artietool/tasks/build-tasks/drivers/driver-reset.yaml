@@ -1,0 +1,41 @@
+name: container-reset
+labels:
+  - docker-image
+dependencies:
+  - fw-reset: fw-files
+  - artie-base-image: docker-image
+  - open-ocd-image: docker-image
+artifacts:
+  - name: docker-image
+    type: docker-image
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image
+    img-base-name: artie-reset-driver
+    buildx: true
+    dockerfile-dpath: "${REPO_ROOT}/drivers/reset-mcu-driver"
+    dockerfile: Dockerfile
+    dependency-files:
+      - dependency:
+          name: fw-files
+          producing-task: fw-reset
+          match: ".+\\.elf"
+    build-context: "."
+    build-args:
+      - FW_FILE_NAME:
+          dependency:
+            name: fw-files
+            producing-task: fw-reset
+            match: ".+\\.elf"
+      - RPC_PORT: 4243
+      - GIT_TAG: ${GIT_TAG}
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image
+            producing-task: artie-base-image
+      - OPENOCD_IMG:
+          dependency:
+            name: docker-image
+            producing-task: open-ocd-image

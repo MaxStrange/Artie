@@ -1,0 +1,38 @@
+name: reset-driver-unit-tests
+labels:
+  - docker-image
+  - unit
+dependencies:
+  - reset-driver-sanity-tests: ""
+  - container-reset: docker-image
+  - artie-cli: docker-image
+type: test
+steps:
+  - job: single-container-cli-suite
+    docker-image-under-test:
+      dependency:
+        name: docker-image
+        producing-task: container-reset
+    cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --port 18861 --loglevel info"
+    dut-port-mappings:
+      - 18861: 18861
+    cli-image:
+      dependency:
+        name: docker-image
+        producing-task: artie-cli
+    steps:
+      - test-name: init-mcu
+        cmd-to-run-in-cli: "artie-cli help"
+        expected-outputs:
+          - what: "Mocking MCU FW load."
+            where: ${DUT}
+      - test-name: reset-single-mcu
+        cmd-to-run-in-cli: "artie-cli reset mcu 0x0"
+        expected-outputs:
+          - what: "Writing 0x0 to "
+            where: ${DUT}
+      - test-name: reset-all-mcus
+        cmd-to-run-in-cli: "artie-cli reset mcu 0xFF"
+        expected-outputs:
+          - what: "Resetting ALL MCU-class devices"
+            where: ${DUT}

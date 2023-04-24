@@ -1,0 +1,27 @@
+name: yocto-controller-module
+labels:
+  - yocto
+dependencies:
+  - container-eyebrows: docker-image
+  - container-mouth: docker-image
+artifacts:
+  - name: yocto-image
+    type: yocto-image
+cli-args:
+  - name: --yocto-image
+    default: artie-image-release
+    choices:
+      - artie-image-dev
+      - artie-image-release
+    help: "The Yocto image to build for Controller Module."
+type: build
+steps:
+  - job: yocto-build
+    artifacts:
+      - yocto-image
+    repo: https://github.com/MaxStrange/artie-controller-node.git
+    script: |
+      ./setup.sh
+      source ./poky/oe-init-build-env "$PWD"/build && bitbake artie-image-dev
+      ./create-img.sh
+    binary-fname: pi.img

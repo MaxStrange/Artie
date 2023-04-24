@@ -1,0 +1,63 @@
+name: mouth-driver-unit-tests
+labels:
+  - docker-image
+  - unit
+dependencies:
+  - mouth-driver-sanity-tests: ""
+  - container-mouth: docker-image
+  - artie-cli: docker-image
+type: test
+steps:
+  - job: single-container-cli-suite
+    docker-image-under-test:
+      dependency:
+        name: docker-image
+        producing-task: container-mouth
+    cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --port 18862 --loglevel info"
+    dut-port-mappings:
+      - 18862: 18862
+    cli-image:
+      dependency:
+        name: docker-image
+        producing-task: artie-cli
+    steps:
+      - test-name: init-mcu
+        cmd-to-run-in-cli: "artie-cli help"
+        expected-outputs:
+          - what: "Mocking MCU FW load."
+            where: ${DUT}
+      - test-name: led-on
+        cmd-to-run-in-cli: "artie-cli mouth led on"
+        expected-outputs:
+          - what: "LED -> ON"
+            where: ${DUT}
+      - test-name: led-off
+        cmd-to-run-in-cli: "artie-cli mouth led off"
+        expected-outputs:
+          - what: "LED -> OFF"
+            where: ${DUT}
+      - test-name: led-heartbeat
+        cmd-to-run-in-cli: "artie-cli mouth led heartbeat"
+        expected-outputs:
+          - what: "LED -> HEARTBEAT"
+            where: ${DUT}
+      - test-name: lcd-test
+        cmd-to-run-in-cli: "artie-cli mouth lcd test"
+        expected-outputs:
+          - what: "LCD -> TEST"
+            where: ${DUT}
+      - test-name: lcd-off
+        cmd-to-run-in-cli: "artie-cli mouth lcd off"
+        expected-outputs:
+          - what: "LCD -> OFF"
+            where: ${DUT}
+      - test-name: lcd-draw
+        cmd-to-run-in-cli: "artie-cli mouth lcd draw smile"
+        expected-outputs:
+          - what: "LCD -> Draw smile"
+            where: ${DUT}
+      - test-name: fw-load
+        cmd-to-run-in-cli: "artie-cli mouth fw load"
+        expected-outputs:
+          - what: "Mocking MCU FW load."
+            where: ${DUT}
