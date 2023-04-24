@@ -1,0 +1,18 @@
+name: metrics-collector
+labels:
+  - docker-image
+  - telemetry
+dependencies: ""
+artifacts:
+  - name: docker-image
+    type: docker-image
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image
+    img-base-name: artie-metrics-collector
+    buildx: false
+    dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/prometheus"
+    dockerfile: Dockerfile
+    build-context: "."

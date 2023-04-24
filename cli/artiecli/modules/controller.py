@@ -1,8 +1,18 @@
 import argparse
+import errno
+import platform
 import socket
-from artie_i2c import i2c
+
+try:
+    from artie_i2c import i2c
+except ModuleNotFoundError:
+    i2c = None
 
 def _send_to_leddaemon(cmd: str):
+    if platform.system() != "Linux":
+        print("Cannot open a systemd socket when not running on Linux.")
+        exit(errno.ENOSYS)
+
     s = socket.socket(family=socket.AF_UNIX)
     s.connect("/tmp/leddaemonconnection")
     s.send(cmd.encode())
@@ -18,10 +28,18 @@ def _cmd_led_heartbeat(args):
     _send_to_leddaemon("heartbeat")
 
 def _cmd_i2c_list(args):
+    if i2c is None:
+        print("No i2c bus available.")
+        exit(errno.ENXIO)
+
     for i in i2c.list_all_instances():
         print(i)
 
 def _cmd_i2c_scan(args):
+    if i2c is None:
+        print("No i2c bus available.")
+        exit(errno.ENXIO)
+
     instances = i2c.list_all_instances()
     if args.instance == 'ALL':
         for instance in instances:
@@ -42,40 +60,55 @@ def _check_i2c_instance_arg_type(arg):
 
         return value
 
-def _parse_subsystem_i2c(subparser):
-    def _parse_cmd_list(ss):
-        p: argparse.ArgumentParser = ss.add_parser("list", help="List all i2c instances")
-        p.set_defaults(cmd=_cmd_i2c_list)
-    def _parse_cmd_scan(ss):
-        p: argparse.ArgumentParser = ss.add_parser("scan", help="Scan one ore more i2c instances for devices")
-        p.add_argument("instance", default="ALL", type=_check_i2c_instance_arg_type, help="Either an integer corresponding to an i2c instance or 'ALL'")
-        p.set_defaults(cmd=_cmd_i2c_scan)
-    parser: argparse.ArgumentParser = subparser.add_parser("i2c", help="i2c subsystem")
-    cmd_subparsers = parser.add_subparsers(help="Command")
-    _parse_cmd_list(cmd_subparsers)
-    _parse_cmd_scan(cmd_subparsers)
+def _fill_led_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentParser):
+    subparsers = parser.add_subparsers(title="led", description="The LED subsystem")
 
-def _parse_subsystem_led(subparser):
-    def _parse_cmd_on(ss):
-        p: argparse.ArgumentParser = ss.add_parser("on", help="Turn LED on.")
-        p.set_defaults(cmd=_cmd_led_on)
-    def _parse_cmd_off(ss):
-        p = ss.add_parser("off", help="Turn LED off.")
-        p.set_defaults(cmd=_cmd_led_off)
-    def _parse_cmd_heartbeat(ss):
-        p = ss.add_parser("heartbeat", help="Change eyebrow LED mode to heartbeat.")
-        p.set_defaults(cmd=_cmd_led_heartbeat)
-    parser: argparse.ArgumentParser = subparser.add_parser("led", help="LED subsystem")
-    cmd_subparsers = parser.add_subparsers(help="Command")
-    _parse_cmd_on(cmd_subparsers)
-    _parse_cmd_off(cmd_subparsers)
-    _parse_cmd_heartbeat(cmd_subparsers)
+    # Args that are useful for all LED commands
+    option_parser = argparse.ArgumentParser(parents=[parent], add_help=False)
+    #group = option_parser.add_argument_group("led", "LED Subsystem Options")
 
-def add_subparser(subparsers):
-    """
-    Add the subargs for the controller module.
-    """
-    parser: argparse.ArgumentParser = subparsers.add_parser("controller", help="Controller module")
-    subsystem_subparsers = parser.add_subparsers(help="Subsystem")
-    _parse_subsystem_i2c(subsystem_subparsers)
-    _parse_subsystem_led(subsystem_subparsers)
+    # For each LED command, add the actual command and any args
+    ## 'on' command
+    p = subparsers.add_parser("on", help="Turn LED on.", parents=[option_parser])
+    p.set_defaults(cmd=_cmd_led_on)
+
+    ## 'off' command
+    p = subparsers.add_parser("off", help="Turn LED off.", parents=[option_parser])
+    p.set_defaults(cmd=_cmd_led_off)
+
+    ## 'heartbeat' command
+    p = subparsers.add_parser("heartbeat", help="Turn LED to heartbeat mode.", parents=[option_parser])
+    p.set_defaults(cmd=_cmd_led_heartbeat)
+
+def _fill_i2c_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentParser):
+    subparsers = parser.add_subparsers(title="i2c", description="The i2c subsystem")
+
+    # Args that are useful for all i2c commands
+    option_parser = argparse.ArgumentParser(parents=[parent], add_help=False)
+    #group = option_parser.add_argument_group("i2c", "i2c Subsystem Options")
+
+    # For each I2C command, add the actual command and any args
+    ## List command
+    list_parser = subparsers.add_parser("list", help="List all i2c instances on the bus.", parents=[option_parser])
+    list_parser.set_defaults(cmd=_cmd_i2c_list)
+
+    ## Scan command
+    scan_parser = subparsers.add_parser("scan", help="Scan one or more i2c instances for devices.", parents=[option_parser])
+    scan_parser.add_argument("instance", default="ALL", type=_check_i2c_instance_arg_type, help="Either an integer corresponding to an i2c instance or 'ALL'")
+    scan_parser.set_defaults(cmd=_cmd_i2c_scan)
+
+def fill_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentParser):
+    subparsers = parser.add_subparsers(title="controller", description="The controller module's subsystems")
+
+    # Args that are useful for all controller module commands
+    option_parser = argparse.ArgumentParser(parents=[parent], add_help=False)
+    #group = option_parser.add_argument_group("Controller Module", "Controller Module Options")
+
+    # Add all the commands for each subystem
+    ## I2C
+    i2c_parser = subparsers.add_parser("i2c", parents=[option_parser])
+    _fill_i2c_subparser(i2c_parser, option_parser)
+
+    ## LED
+    led_parser = subparsers.add_parser("led", parents=[option_parser])
+    _fill_led_subparser(led_parser, option_parser)

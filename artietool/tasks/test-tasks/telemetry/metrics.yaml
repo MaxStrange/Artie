@@ -1,0 +1,36 @@
+name: metrics-integration-tests
+labels:
+  - docker-image
+  - integration
+dependencies:
+  - container-eyebrows: docker-image
+  - container-reset: docker-image
+  - metrics-collector: docker-image
+  - artie-cli: docker-image
+type: test
+steps:
+  - job: docker-compose-test-suite
+    compose-fname: compose.metrics.yaml
+    compose-docker-image-variables:
+      - RESET_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: container-reset
+      - EYEBROWS_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: container-eyebrows
+      - METRICS_COLLECTOR_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: metrics-collector
+    cli-image:
+      dependency:
+        name: docker-image
+        producing-task: artie-cli
+    steps:
+      - test-name: init-mcu
+        cmd-to-run-in-cli: "artie-cli help"
+        expected-outputs:
+          - what: "Test Passed"
+            where: metrics-collector

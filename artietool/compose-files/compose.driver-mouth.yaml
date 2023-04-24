@@ -1,0 +1,27 @@
+name: driver-mouth-integration-test
+services:
+  reset-driver:
+    command: python main.py /conf/mcu-fw.elf --port 18861 --loglevel info
+    container_name: mouth-itest-reset-driver
+    expose:
+      - 18861
+    image: ${RESET_TEST_IMAGE}
+    environment:
+      - ARTIE_RUN_MODE=integration
+      - LOG_COLLECTOR_HOSTNAME=log-collector
+      - LOG_COLLECTOR_PORT=5170
+      - METRICS_SERVER_PORT=8090
+
+  mouth-driver:
+    command: python main.py /conf/mcu-fw.elf --port 18862 --loglevel info
+    container_name: mouth-itest-mouth-driver
+    depends_on:
+      - reset-driver
+    image: ${MOUTH_TEST_IMAGE}
+    ports:
+      - 18862:18862
+    environment:
+      - ARTIE_RUN_MODE=integration
+      - LOG_COLLECTOR_HOSTNAME=log-collector
+      - LOG_COLLECTOR_PORT=5170
+      - METRICS_SERVER_PORT=8090

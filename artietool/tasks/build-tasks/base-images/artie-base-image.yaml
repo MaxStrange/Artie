@@ -1,0 +1,24 @@
+name: artie-base-image
+labels:
+  - docker-image
+  - base-image
+dependencies: ""
+artifacts:
+  - name: docker-image
+    type: docker-image
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image
+    img-base-name: artie-base
+    buildx: true
+    dockerfile-dpath: "${REPO_ROOT}/libraries/base-image"
+    dockerfile: Dockerfile
+    build-context: "."
+    dependency-files:
+      - "${REPO_ROOT}/libraries/artie-util"
+      - "${REPO_ROOT}/libraries/artie-i2c"
+      - "${REPO_ROOT}/libraries/artie-gpio"
+      - "${REPO_ROOT}/libraries/artie-swd"
+      - "${REPO_ROOT}/libraries/artie-driver-client"

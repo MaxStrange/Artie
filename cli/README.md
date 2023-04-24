@@ -22,3 +22,6 @@ Artie's Controller Module comes pre-installed with this CLI program.
 To use it, plug a USB cable into the UART terminal of Artie's Controller Module enclosure,
 then use whatever serial console you want to communicate. The program `artie-cli` should be
 available in the Controller Module system's path.
+
+You can also use Artie CLI from your development machine, but it will require authentication
+into the Kubernetes cluster.

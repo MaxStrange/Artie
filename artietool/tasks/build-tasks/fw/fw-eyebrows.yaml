@@ -1,0 +1,31 @@
+name: fw-eyebrows
+labels:
+  - firmware
+dependencies:
+  - pico-base-image: docker-image
+artifacts:
+  - name: docker-image
+    type: docker-image
+  - name: fw-files
+    type: fw-files
+type: build
+steps:
+  - job: pico-fw-build
+    artifacts:
+      - docker-image
+      - fw-files
+    img-base-name: artie-eyebrows
+    buildx: false
+    dockerfile-dpath: "${REPO_ROOT}/firmware/eyebrows/build"
+    dockerfile: Dockerfile
+    build-context: ".."
+    build-args:
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image
+            producing-task: pico-base-image
+    fw-files-in-container:
+      - /pico/src/build/eyebrows.elf
+      - /pico/src/build/eyebrows.hex
+      - /pico/src/build/eyebrows.bin
+      - /pico/src/build/eyebrows.uf2

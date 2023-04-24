@@ -1,0 +1,16 @@
+name: eyebrows-driver-sanity-tests
+labels:
+  - docker-image
+  - sanity
+dependencies:
+  - container-eyebrows: docker-image
+type: test
+steps:
+  - job: single-container-sanity-suite
+    steps:
+      - test-name: start-eyebrows-driver
+        docker-image-under-test:
+          dependency:
+            name: docker-image
+            producing-task: container-eyebrows
+        cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --loglevel info --help"

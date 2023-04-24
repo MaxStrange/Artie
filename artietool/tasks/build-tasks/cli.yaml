@@ -1,0 +1,17 @@
+name: artie-cli
+labels:
+  - docker-image
+dependencies: ""
+artifacts:
+  - name: docker-image
+    type: docker-image
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image
+    img-base-name: artie-cli
+    buildx: false
+    dockerfile-dpath: "${REPO_ROOT}/cli/test"
+    dockerfile: Dockerfile
+    build-context: ".."

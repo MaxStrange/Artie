@@ -2,6 +2,8 @@
 
 This repository contains the code for a robot that I am slowly working on.
 
+**This code is pre-release: you cannot yet build an Artie bot - not all of the software and hardware is ready!**
+
 The purpose of Artie is twofold: data collection and testing developmental robotics theories.
 
 The vision is that Artie will be fully open source, 3D-printable, and as cheap as is feasible,
@@ -10,6 +12,9 @@ while still being easy to use and extend.
 ## Get Started
 
 Before you can use Artie, you need to build him.
+
+**Please note:** you cannot yet build an Artie! These instructions will certainly change, the bill of materials
+will change, the schematics will change, etc.
 
 ### Building Artie
 
@@ -21,19 +26,60 @@ Building Artie is composed of the following steps:
 
 [See here for the full instructions](./docs/building/building-artie-main.md)
 
-### Deploying Experiments
+### Using Artie
 
-Once you have a functioning Artie, feel free to play around with the following:
+The Artie ecosystem consists of the following:
 
-* [Command Line Interface (CLI)](./cli/README.md) - this is a way to interface with Artie on a low-level. Use
-  this for things like testing his electrical and hardware connections.
-* [Use a pre-defined experiment](./docs/deploying/deploying-pre-built-experiments.md) - Artie makes use of experiment
-  configuration files to deploy experiments. There are a few already ready to go.
-* [Make your own experiment](./docs/deploying/custom-building-experiments.md) - Once you are comfortable with Artie,
-  you can start defining your own experiments.
+* *Artie*: The actual robot itself - the PCBs, 3D printed parts, the single board computers (SBCs),
+           microcontroller units (MCUs), sensors, actuators, LCDs, etc.
+    - *Firmware*: The MCU firmware.
+    - *Yocto Images*: The custom embedded Linux images.
+    - *Libraries*: Libraries shared between all the software components.
+    - *Drivers*: Applications that run on the SBCs and interface with hardware.
+* *Artie CLI*: The simplest way to control a physical Artie. Used mostly for testing.
+* *Artie Tool*: A single tool to flash, test, build, release, etc.
+* (Planned) *Artie Workbench*: A web app that allows an authenticated user to control and configure Artie.
+* (Planned) *Demo Stack*: A demo that uses traditional robotics algorithms to control Artie.
+* (Planned) *Reference Stack*: A reference implementation of developmental robotics theories used to control Artie.
+* (Planned) *Simulator*: A simulated environment and simulated Artie for training and testing without a physical bot.
 
 Artie is meant to be used to collect data in real-life social situations as well as to test
 theories of developmental robotics.
+
+### Artie Out of the Box
+
+There are three planned ways to deploy an Artie:
+
+* **Cloud**
+  - You own, operate, and maintain Artie's hardware
+  - Artie compute required for administration is provided by the cloud
+  - Any additional compute required for experiments or workload is provided by the cloud
+* **Fog**
+  - You own, operate, and maintain Artie's hardware
+  - Artie compute required for administration is owned, operated, and maintained by you in the same network as Artie
+  - Any additional compute required for experiments or workload is provided by the cloud
+* **Edge**
+  - You own, operate, and maintain Artie's hardware
+  - Artie compute required for administration is owned, operated, and maintained by you in the same network as Artie
+  - Any additional compute required for experiments or workload is provided by you locally in the same network as Artie
+
+TODO: Explain how to get started with Artie "out of the box".
+
+## Architecture
+
+Here are a few links to architectural discussions:
+
+### Overviews
+
+* [Architecture Overview](./docs/architecture/overview.md)
+* [Security Overview](./docs/architecture/security.md)
+
+### Low-Level
+
+* [CAN Protocols](./docs/sdk/CANProtocol.md) - We overlay several protocols on top of CAN. This document describes them in detail.
+* [MsgPack Schema](./docs/sdk/MsgPackSchema.md) - We use [MsgPack](https://msgpack.org/) for some of the serialization/deserialization.
+
+TODO: We should probably have a 1:1 mapping of Artie bots to Elasticsearch nodes.
 
 ## Motivation
 
@@ -100,5 +146,5 @@ A few reasons:
   - [Hiwonder](https://www.robotshop.com/products/hiwonder-tonypi-ai-intelligent-vision-humanoid-robot-powered-by-raspberry-pi-4b-4gb-advanced-kit)
 
 Artie is built from the ground up explicitly for the purpose of developmental robotics.
-He's also open source, and as cheap as is feasible (though it turns out, that that's still
+He's also open source, and as cheap as is feasible (though it turns out, that's still
 pretty expensive).

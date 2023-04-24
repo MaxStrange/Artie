@@ -1,0 +1,42 @@
+name: container-eyebrows
+labels:
+  - docker-image
+dependencies:
+  - fw-eyebrows: fw-files
+  - artie-base-image: docker-image
+  - open-ocd-image: docker-image
+artifacts:
+  - name: docker-image
+    type: docker-image
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image
+    img-base-name: artie-eyebrow-driver
+    buildx: true
+    dockerfile-dpath: "${REPO_ROOT}/drivers/mouth-and-eyebrows"
+    dockerfile: Dockerfile
+    dependency-files:
+      - dependency:
+          name: fw-files
+          producing-task: fw-eyebrows
+          match: ".+\\.elf"
+    build-context: "."
+    build-args:
+      - DRIVER_TYPE: eyebrows
+      - FW_FILE_NAME:
+          dependency:
+            name: fw-files
+            producing-task: fw-eyebrows
+            match: ".+\\.elf"
+      - RPC_PORT: 18861
+      - GIT_TAG: ${GIT_TAG}
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image
+            producing-task: artie-base-image
+      - OPENOCD_IMG:
+          dependency:
+            name: docker-image
+            producing-task: open-ocd-image

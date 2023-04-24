@@ -5,7 +5,6 @@ This driver is responsible for:
 
 * Loading mouth MCU firmware
 * Animating the mouth
-* Reading sensor values from mouth PCB
 
 This driver accepts ZeroRPC requests and controls the
 MCU over the Controller Node's I2C bus. It is therefore
@@ -13,19 +12,19 @@ meant to be run on the Controller Node, and it needs to
 be run inside a container that has access to both SWD
 and I2C on the Controller Node.
 """
+from artie_driver_client import client as adc
+from artie_gpio import gpio
 from artie_i2c import i2c
+from artie_swd import swd
 from artie_util import boardconfig_controller as board
+from artie_util import artie_logging as alog
+from artie_util import util
 import argparse
-import errno
-import logging
 import os
-import RPi.GPIO as GPIO
-import struct
-import subprocess
+import rpyc
 import time
-import zerorpc
 
-MCU_MOUTH_ADDRESS = 0x19
+SERVICE_NAME = "mouth-driver"
 
 CMD_MODULE_ID_LEDS = 0x00
 CMD_MODULE_ID_LCD = 0x40
@@ -40,58 +39,75 @@ MOUTH_DRAWING_CHOICES = {
     "ZIG-ZAG":      (CMD_MODULE_ID_LCD | 0x06),
 }
 
-class DriverServer:
-    def __init__(self, fw_fpath: str):
-        # Set up GPIO for reset pin
-        self._reset_pin = board.MOUTH_RESET_PIN
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self._reset_pin, GPIO.OUT)
-        GPIO.output(self._reset_pin, GPIO.LOW)
+@rpyc.service
+class DriverServer(rpyc.Service):
+    def __init__(self, fw_fpath: str, ipv6=False):
+        self._fw_fpath = fw_fpath
+        self._ipv6 = ipv6
 
         # Load the FW file
-        self.fw_fpath = fw_fpath
-        self._i2c = self._initialize_mcu()
+        self._initialize_mcu()
 
+    @rpyc.exposed
+    @alog.function_counter("whoami")
+    def whoami(self) -> str:
+        """
+        Return the name of this service and the version.
+        """
+        return f"artie-mouth-driver:{util.get_git_tag()}"
+
+    @rpyc.exposed
+    @alog.function_counter("led_on")
     def led_on(self):
         """
         RPC method to turn led on.
         """
-        logging.info("Received request for mouth LED -> ON.")
+        alog.test("Received request for mouth LED -> ON.", tests=['mouth-driver-unit-tests:led-on'])
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x00
-        i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, led_on_bytes)
+        i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, led_on_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("led_off")
     def led_off(self):
         """
         RPC method to turn led off.
         """
-        logging.info("Received request for mouth LED -> OFF.")
+        alog.test("Received request for mouth LED -> OFF.", tests=['mouth-driver-unit-tests:led-off'])
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x01
-        i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, led_on_bytes)
+        i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, led_on_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("led_heartbeat")
     def led_heartbeat(self):
         """
         RPC method to turn the led to heartbeat mode.
         """
-        logging.info("Received request for mouth LED -> HEARTBEAT.")
+        alog.test("Received request for mouth LED -> HEARTBEAT.", tests=['mouth-driver-unit-tests:led-heartbeat'])
         led_heartbeat_bytes = CMD_MODULE_ID_LEDS | 0x02
-        i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, led_heartbeat_bytes)
+        i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, led_heartbeat_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("lcd_test")
     def lcd_test(self):
         """
         RPC method to test the LCD.
         """
-        logging.info("Received request for mouth LCD -> TEST.")
+        alog.test("Received request for mouth LCD -> TEST.", tests=['mouth-driver-unit-tests:lcd-test'])
         lcd_test_bytes = CMD_MODULE_ID_LCD | 0x11
-        i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, lcd_test_bytes)
+        i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, lcd_test_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("lcd_off")
     def lcd_off(self):
         """
         RPC method to turn the LCD off.
         """
-        logging.info("Received request for mouth LCD -> OFF.")
+        alog.test("Received request for mouth LCD -> OFF.", tests=['mouth-driver-unit-tests:lcd-off'])
         lcd_off_bytes = CMD_MODULE_ID_LCD | 0x22
-        i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, lcd_off_bytes)
+        i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, lcd_off_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("lcd_draw")
     def lcd_draw(self, val: str):
         """
         RPC method to draw the given configuration on the mouth LCD.
@@ -100,47 +116,34 @@ class DriverServer:
         ----
         - val: One of the available MOUTH_DRAWING_CHOICES (a string).
         """
-        logging.info(f"Received request for mouth LCD -> Draw {val}")
-        lcd_draw_bytes = MOUTH_DRAWING_CHOICES[val]
-        i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, lcd_draw_bytes)
+        alog.test(f"Received request for mouth LCD -> Draw {val}", tests=['mouth-driver-unit-tests:lcd-draw'])
+        lcd_draw_bytes = MOUTH_DRAWING_CHOICES.get(val, None)
+        if lcd_draw_bytes is None:
+            lcd_draw_bytes = MOUTH_DRAWING_CHOICES.get(val.upper(), None)
 
+        if lcd_draw_bytes is None:
+            raise ValueError(f"Cannot draw {val} - choose from: {MOUTH_DRAWING_CHOICES}")
+
+        i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, lcd_draw_bytes)
+
+    @rpyc.exposed
+    @alog.function_counter("lcd_talk")
     def lcd_talk(self):
         """
         RPC method to have the mouth enter talking mode on LCD.
         """
-        logging.info("Received request for mouth LCD -> Talking mode.")
+        alog.info("Received request for mouth LCD -> Talking mode.")
         lcd_talk_bytes = CMD_MODULE_ID_LCD | 0x07
-        i2c.write_bytes_to_address(MCU_MOUTH_ADDRESS, lcd_talk_bytes)
+        i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, lcd_talk_bytes)
 
+    @rpyc.exposed
+    @alog.function_counter("firmware_load")
     def firmware_load(self):
         """
         RPC method to (re)load the FW on the mouth MCU.
         """
-        logging.info("Reloading FW...")
+        alog.info("Reloading FW...")
         self._initialize_mcu()
-
-    def _load_fw_file(self, fw_fpath: str):
-        """
-        Attempt to load the FW file.
-
-        Parameters
-        ----------
-        - fw_fpath: File path of the .elf file to load.
-        """
-        mouth_iface_fname = os.environ.get("SWD_CONFIG_MOUTH", "raspberrypi-mouth-swd.cfg")
-        openocd_cmds = f'program {fw_fpath} verify reset exit'
-        logging.info(f"Attempting to load {fw_fpath} into LEFT eyebrow MCU...")
-        cmd = f'openocd -f interface/{mouth_iface_fname} -f target/rp2040.cfg -c '
-        result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
-
-        if result.returncode != 0:
-            logging.error(f"Non-zero return code when attempting to load FW. Got return code {result.returncode}")
-            logging.error(f"Mouth MCU may be non-responsive.")
-            logging.error(f"Got stdout and stderr from openocd subprocess:")
-            logging.error(f"STDOUT: {result.stdout}")
-            logging.error(f"STDERR: {result.stderr}")
-        else:
-            logging.info("Loaded FW successfully.")
 
     def _check_mcu(self):
         """
@@ -148,11 +151,9 @@ class DriverServer:
         Log the results and return `None` if not found or the correct I2C bus instance
         if it is.
         """
-        i2cinstance = i2c.check_for_address(MCU_MOUTH_ADDRESS)
+        i2cinstance = i2c.check_for_address(board.I2C_ADDRESS_MOUTH_MCU)
         if i2cinstance is None:
-            logging.error("Cannot find mouth on the I2C bus. Mouth will not be available.")
-
-        return i2cinstance
+            alog.error("Cannot find mouth on the I2C bus. Mouth will not be available.")
 
     def _initialize_mcu(self):
         """
@@ -163,36 +164,48 @@ class DriverServer:
         - The i2c instance of the mouth MCU
         """
         # Check that we have FW files
-        if not os.path.isfile(self.fw_fpath):
-            logging.error(f"Given a FW file path of {self.fw_fpath}, but it doesn't exist.")
-            exit(errno.ENOENT)
+        if not os.path.isfile(self._fw_fpath):
+            msg = f"Given a FW file path of {self._fw_fpath}, but it doesn't exist."
+            alog.error(msg)
+            raise FileNotFoundError(msg)
+
+        mouth_iface_fname = os.environ.get("SWD_CONFIG_MOUTH", None)
+        if mouth_iface_fname is None:
+            alog.warning(f"The SWD_CONFIG_MOUTH env variable is not set. Will attempt a default location/name.")
+            mouth_iface_fname = "raspberrypi-mouth-swd.cfg"
+
+        if util.in_test_mode():
+            alog.test("Mocking MCU FW load.", tests=['mouth-driver-unit-tests:init-mcu'])
 
         # Use SWD to load the FW file
-        self._load_fw_file(self.fw_fpath)
-        GPIO.output(self._reset_pin, GPIO.HIGH)
-        time.sleep(0.1)  # Give it a moment to reset
-        GPIO.output(self._reset_pin, GPIO.LOW)
-        time.sleep(1)    # Give the MCU a moment to come back online
+        swd.load_fw_file(self._fw_fpath, mouth_iface_fname)
+        adc.reset(board.MCU_RESET_ADDR_MOUTH, ipv6=self._ipv6)
+        time.sleep(0.1)  # Give it a moment to come back online
 
         # Sanity check that the MCU is present on the I2C bus
-        i2cinstance = self._check_mcu()
-
-        return i2cinstance
+        self._check_mcu()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("fw_fpath", metavar="fw-fpath", type=str, help="The path to the FW file. It must be an .elf file.")
+    parser.add_argument("--ipv6", action='store_true', help="Use IPv6 if given, otherwise IPv4.")
     parser.add_argument("-l", "--loglevel", type=str, default="info", choices=["debug", "info", "warning", "error"], help="The log level.")
-    parser.add_argument("-p", "--port", type=int, default=4243, help="The port to bind for the RPC server.")
+    parser.add_argument("-p", "--port", type=int, default=18862, help="The port to bind for the RPC server.")
     args = parser.parse_args()
 
     # Set up logging
-    format = "%(asctime)s %(threadName)s %(levelname)s: %(message)s"
-    logging.basicConfig(format=format, level=getattr(logging, args.loglevel.upper()))
+    alog.init(SERVICE_NAME, args)
 
-    driver_server = DriverServer(args.fw_fpath)
+    # Generate our self-signed certificate (if not already present)
+    certfpath = "/etc/cert.pem"
+    keyfpath = "/etc/pkey.pem"
+    util.generate_self_signed_cert(certfpath, keyfpath, days=None, force=True)
 
-    # Set up RPC client to accept method invocations
-    server = zerorpc.Server(driver_server)
-    server.bind(f"tcp://0.0.0.0:{args.port}")
-    server.run()
+    # If we are in testing mode, we need to manually initialize some stuff
+    if util.in_test_mode():
+        i2c.manually_initialize(i2c_instances=[0], instance_to_address_map={0: [board.I2C_ADDRESS_MOUTH_MCU]})
+
+    # Instantiate the single (multi-tenant) server instance and block forever, serving
+    server = DriverServer(args.fw_fpath, ipv6=args.ipv6)
+    t = util.create_rpc_server(server, keyfpath, certfpath, args.port, ipv6=args.ipv6)
+    t.start()

@@ -1,0 +1,18 @@
+name: open-ocd-image
+labels:
+  - docker-image
+  - base-image
+dependencies: ""
+artifacts:
+  - name: docker-image
+    type: docker-image
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image
+    img-base-name: openocd-base
+    buildx: true
+    dockerfile-dpath: "${REPO_ROOT}/libraries/base-image"
+    dockerfile: Dockerfile.openocd
+    build-context: "."
