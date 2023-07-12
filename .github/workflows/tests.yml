@@ -1,0 +1,48 @@
+name: artie-tests
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+    branches:
+      - 'main'
+env:
+  DOCKER_REPO: maxfieldstrange/artie
+permissions: read-all
+jobs:
+  export-variables:
+    name: export-variables
+    runs-on: ubuntu-22.04
+    outputs:
+      docker-tag: ${{ steps.step1.outputs.tag }}
+    steps:
+      - id: step1
+        run: echo "tag=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build
+    runs-on: ubuntu-22.04
+    needs: export-variables
+    env:
+      DOCKER_TAG: ${{needs.export-variables.outputs.docker-tag}}
+    steps:
+      - id: setup
+        uses: ./.github/actions/artie-setup-base
+      - id: build
+        name: Build Docker Images
+        run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG
+
+  test:
+    name: test
+    needs:
+      - export-variables
+      - build
+    runs-on: ubuntu-22.04
+    env:
+      DOCKER_TAG: ${{needs.export-variables.outputs.docker-tag}}
+    steps:
+      - id: setup
+        uses: ./.github/actions/artie-setup-base
+      - id: test
+        name: Run Tests
+        run: python3 artie-tool.py test all --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1

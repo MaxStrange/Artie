@@ -1,0 +1,16 @@
+name: 'Set up Artie Base'
+description: 'Set up the basic requirements for Artie builds'
+runs:
+  using: "composite"
+  steps:
+    - id: checkout
+      name: Checkout
+      uses: actions/checkout@v3
+    - id: python
+      name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - id: install
+      name: Install Dependencies
+      run: pip install -r requirements.txt
