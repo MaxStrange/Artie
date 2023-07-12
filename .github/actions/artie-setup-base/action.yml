@@ -3,9 +3,6 @@ description: 'Set up the basic requirements for Artie builds'
 runs:
   using: "composite"
   steps:
-    - id: checkout
-      name: Checkout
-      uses: actions/checkout@v3
     - id: python
       name: Set up Python
       uses: actions/setup-python@v4
@@ -14,3 +11,10 @@ runs:
     - id: install
       name: Install Dependencies
       run: pip install -r requirements.txt
+      shell: bash
+    - id: qemu
+      name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    - id: buildx
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
