@@ -8,7 +8,6 @@ from ..infrastructure import task
 from ..infrastructure import task_importer
 from collections.abc import Iterable
 import argparse
-import logging
 import os
 
 # Populate the BUILD_TASKS list by parsing all the 'build' config files
@@ -66,7 +65,7 @@ def build(args):
     docker.clean_build_location(args, common.repo_root())
 
     # No more logging after this: flush the logger
-    logging.shutdown()
+    common.shutdown_logging()
 
     # Print the results for human consumption
     retcode = 0

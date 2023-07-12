@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics-collector
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: metrics-collector
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: metrics-collector
+      {{- tpl (toYaml .Values.labels) . | nindent 6 }}
+  annotations:
+  replicas: 1
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  strategy:
+  {{- .Values.telemetryUpdateStrategy | toYaml | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: metrics-collector
+        {{- tpl (toYaml .Values.labels) . | nindent 8 }}
+      annotations:
+    spec:
+      priorityClassName: {{ .Values.telemetryPriorityClass }}
+      restartPolicy: {{ .Values.telemetryRestartPolicy }}
+      containers:
+        - name: metrics-collector
+          image: {{ tpl .Values.images.metricsCollector . }}
+          env:
+            {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-collector-{{ .Values.artieId }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: metrics-collector
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  selector:
+    app.kubernetes.io/component: metrics-collector
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.ports.metricsCollector }}
+      targetPort: {{ .Values.ports.metricsCollector }}
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: metrics-collector-hpa
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: metrics-collector
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  maxReplicas: 3
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: metrics-collector
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75

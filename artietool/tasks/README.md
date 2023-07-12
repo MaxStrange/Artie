@@ -3,7 +3,7 @@
 A task file is a YAML file that conforms to the following specification.
 
 ```yaml
-name: container-eyebrows
+name: driver-eyebrows
 labels:
     - docker-image
 dependencies:
@@ -33,6 +33,7 @@ type: build
     * [test](#test)
     * [flash](#flash)
     * [release](#release)
+    * [deploy](#deploy)
 
 ## Artifact
 
@@ -45,6 +46,7 @@ An *artifact* is composed of the following items:
     * *docker-image*: A Docker image name (including tag and repo); the name of the image produced is specified in the `steps` (see below).
     * *files*: A collection of one or more files.
     * *yocto-image*: A Yocto image binary.
+    * *helm-chart*: A Helm chart that has been deployed to the cluster.
 
 ## Build
 
@@ -93,7 +95,7 @@ steps:
 
 - *steps*: A list of `job` items, each of which must be one of the following:
     * [docker-build](#docker-build-job)
-    * [fw-build](#firmware-file-job)
+    * [file-transfer-from-container](#file-transfer-from-container)
     * [yocto-build](#yocto-image-job)
 
 ### Docker Build Job
@@ -113,13 +115,13 @@ steps:
     * *match*: (Optional) If the artifact we require for this build-arg produces a list of files (it is of `files` type),
                you can filter out the files you need by using a regular expression here. Match should produce exactly one file.
 
-### Firmware File Job
+### File Transfer From Container
 
 We build our firmware files by first building a Docker image,
 then starting that image as a container, which should build the firmware files.
 
-Arguments are the same as for [docker build](#docker-build-job), but also include the following:
-
+- *artifacts*: Same as [docker-build](#docker-build-job)
+- *image*: Composed of a `dependency` item or a string name of the Docker image to pull (if a public image).
 - *fw-files-in-container*: The list of file paths to copy out of the container. These will be the fw-files artifact that this job produces.
 
 ### Yocto Image Job
@@ -144,7 +146,7 @@ labels:
   - sanity
 dependencies:
   - eyebrows-driver-sanity-tests: ""
-  - container-eyebrows: docker-image
+  - driver-eyebrows: docker-image
   - artie-cli: docker-image
 type: test
 steps:
@@ -152,7 +154,7 @@ steps:
     docker-image-under-test:
       dependency:
         name: docker-image
-        producing-task: container-eyebrows
+        producing-task: driver-eyebrows
     cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --port 18863 --loglevel info --mode unit"
     dut-port-mappings:
       - 18863: 18863
@@ -187,6 +189,7 @@ Available job values:
 * [single-container-sanity-suite](#sanity-test-job)
 * [single-container-cli-suite](#unit-test-job)
 * [docker-compose-test-suite](#integration-test-job)
+* [hardware-test-job](#hardware-test-job)
 
 ### Sanity Test Job
 
@@ -230,6 +233,23 @@ A sanity test job looks like this:
   - *expected-outputs*: As [above](#unit-test-job), but `where` cannot be `${DUT}`, but may be a container name as specified
                         in the compose file.
 
+Note that Docker compose tests require compose files, and these compose files MUST include a `networks` section that
+specifies a Docker network that the test will create. Since the test creates it, it should be labeled in the Compose
+file as `external`. See the example Compose files.
+
+### Hardware Test Job
+
+- *job*: hardware-test-suite; this depends on a particular helm deployment, then deploys a CLI Docker image which authenticates against
+         the cluster that contains the Artie under test. For each test, this CLI Docker image is run with a particular command,
+         and the output is checked.
+- *cli-image*: As [above](#unit-test-job).
+- *steps*:
+  - *test-name*: The name of the individual test.
+  - *cmd-to-run-in-cli*: The command to run in the CLI continer.
+  - *expected-outputs*: As [above](#unit-test-job), but `where` cannot be `${DUT}`, but may be of the form `daemonsets/<name of daemonset>`
+  or `deployments/<name of deployment>`
+  as specified in the Helm chart.
+
 ## Flash
 
 This specification is not yet implemented.
@@ -237,6 +257,27 @@ This specification is not yet implemented.
 ## Release
 
 This specification is not yet implemented.
+
+## Deploy
+
+All deployments start with:
+
+- *name*: Same as for [build](#build)
+- *labels*: Same as for [build](#build)
+- *dependencies*: Same as for [build](#build)
+- *type*: deploy
+- *steps*: A list of `job` items, each of which must be one of the following:
+    * [add](#add-deployment-job)
+
+### Add Deployment Job
+
+- *job*: add; This adds a deployment.
+- *what*: One of the following:
+    * *artie-base*: The common set of containers that other deployments typically depend on.
+    * *artie-teleop*: The set of containers required to run the [teleop](../../docs/out-of-the-box/teleop.md) workload.
+    * *artie-demo*: The set of containers required to run the [demo stack](../../docs/out-of-the-box/deploy-demo.md) workload.
+    * *artie-reference*: The set of containers required to run the [reference stack](../../docs/out-of-the-box/deploy-artie-reference-stack.md) workload.
+- *chart*: Path to the chart, relative to artietool directory. E.g., `deploy-files/artie-teleop`.
 
 ## Constants
 

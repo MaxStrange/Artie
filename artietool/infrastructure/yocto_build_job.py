@@ -3,8 +3,6 @@ from .. import common
 from . import artifact
 from . import job
 from . import result
-import argparse
-import logging
 import os
 import shutil
 import subprocess
@@ -19,7 +17,7 @@ class YoctoBuildJob(job.Job):
         self.git_repo_location = os.path.join(common.repo_root(), common.get_random_dirname())
 
     def __call__(self, args) -> result.JobResult:
-        logging.info("Building Yocto image for controller module...")
+        common.info("Building Yocto image for controller module...")
 
         # Check if we are on Linux. If not, there's no point in continuing.
         if sys.platform != "linux":

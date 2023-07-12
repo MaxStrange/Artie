@@ -3,7 +3,7 @@ labels:
   - docker-image
   - sanity
 dependencies:
-  - container-eyebrows: docker-image
+  - driver-eyebrows: docker-image
 type: test
 steps:
   - job: single-container-sanity-suite
@@ -12,5 +12,5 @@ steps:
         docker-image-under-test:
           dependency:
             name: docker-image
-            producing-task: container-eyebrows
+            producing-task: driver-eyebrows
         cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --loglevel info --help"

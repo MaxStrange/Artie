@@ -12,7 +12,6 @@ from ..infrastructure import task_importer
 from typing import Iterable
 import argparse
 import datetime
-import logging
 import os
 
 # Populate the 'TEST_TASKS' list by parsing all the 'test' config files
@@ -26,7 +25,8 @@ TEST_CLASSES = [
     "all-stress",
     "all-fw",
     "all-containers",
-    "all-yocto"
+    "all-yocto",
+    "all-on-board",
 ]
 
 def _create_test_folder_tag(args) -> str:
@@ -45,7 +45,7 @@ def _test_class_of_items(args):
     tasks = []
     match args.module:
         case "all":
-            tasks = [t for t in TEST_TASKS] if args.include_yocto else [t for t in TEST_TASKS if task.Labels.YOCTO not in t.labels]
+            tasks = [t for t in TEST_TASKS if task.Labels.HARDWARE not in t.labels] if args.include_yocto else [t for t in TEST_TASKS if task.Labels.YOCTO not in t.labels and task.Labels.HARDWARE not in t.labels]
         case "all-fw":
             tasks = [t for t in TEST_TASKS if task.Labels.FIRMWARE in t.labels]
         case "all-containers":
@@ -60,6 +60,8 @@ def _test_class_of_items(args):
             tasks = [t for t in TEST_TASKS if task.Labels.INTEGRATION in t.labels]
         case "all-sanity":
             tasks = [t for t in TEST_TASKS if task.Labels.SANITY in t.labels]
+        case "all-on-board":
+            tasks = [t for t in TEST_TASKS if task.Labels.HARDWARE in t.labels]
         case _:
             raise ValueError(f"{args.module} is invalid for some reason")
 
@@ -114,12 +116,12 @@ def test(args):
     git_tag = _create_test_folder_tag(args.docker_tag if hasattr(args, 'docker_tag') and args.docker_tag else common.git_tag())
     subfolder_dpath = os.path.join(args.results_folder, f"{timestamp}-{git_tag}")
     if os.path.isdir(subfolder_dpath):
-        logging.error(f"Can't create log results because {subfolder_dpath} is already a folder somehow.")
+        common.error(f"Can't create log results because {subfolder_dpath} is already a folder somehow.")
     else:
         os.makedirs(subfolder_dpath)
 
     # No more logging after this: flush the logger
-    logging.shutdown()
+    common.shutdown_logging()
 
     # Print the results for human consumption
     retcode = 0
@@ -152,6 +154,7 @@ def fill_subparser(parser_test: argparse.ArgumentParser, parent: argparse.Argume
     group.add_argument("--include-yocto", action='store_true', help="When testing with 'all', we typically exclude Yocto images. Use this flag if you want to include them in 'all'.")
     group.add_argument("--results-folder", default=common.default_test_results_location())
     group.add_argument("--test-timeout-s", default=30, type=int, help="Default timeout for all tests.")
+    group.add_argument("--skip-teardown", action='store_true', help="If given, we do not tear down the Docker compose project(s) in the case of a failure - useful for debugging.")
 
     # Add the all* classes of tasks
     for name in TEST_CLASSES:

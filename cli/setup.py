@@ -5,7 +5,9 @@ setup(
     python_requires=">=3.10,<3.12",
     license="MIT",
     install_requires=[
-        "rpyc==5.3.1"
+        "rpyc==5.3.1",
+        "requests<2.29.0",
+        "kubernetes==28.*"
     ],
     packages=["artiecli", "artiecli.modules"],
     entry_points={

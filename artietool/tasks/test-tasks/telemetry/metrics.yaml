@@ -3,10 +3,11 @@ labels:
   - docker-image
   - integration
 dependencies:
-  - container-eyebrows: docker-image
-  - container-reset: docker-image
+  - driver-eyebrows: docker-image
+  - driver-reset: docker-image
   - metrics-collector: docker-image
   - artie-cli: docker-image
+  - artie-api-server: docker-image
 type: test
 steps:
   - job: docker-compose-test-suite
@@ -15,15 +16,19 @@ steps:
       - RESET_TEST_IMAGE:
           dependency:
             name: docker-image
-            producing-task: container-reset
+            producing-task: driver-reset
       - EYEBROWS_TEST_IMAGE:
           dependency:
             name: docker-image
-            producing-task: container-eyebrows
+            producing-task: driver-eyebrows
       - METRICS_COLLECTOR_TEST_IMAGE:
           dependency:
             name: docker-image
             producing-task: metrics-collector
+      - ARTIE_API_SERVER_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: artie-api-server
     cli-image:
       dependency:
         name: docker-image

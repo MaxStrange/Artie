@@ -1,5 +1,6 @@
 from .. import docker
 from .. import common
+from .. import kube
 import abc
 import os
 
@@ -66,7 +67,6 @@ class YoctoImageArtifact(Artifact):
     """
     A Yocto Image binary file.
     """
-
     def fill_item(self, args, producing_job):
         if not hasattr(producing_job, 'binary_fname'):
             raise ValueError(f"YoctoImageArtifact is trying to configure itself, but its producing job does not have a 'binary_fname' attribute, so we don't know where to find the resulting Yocto image binary. Artifact: {self}; Producing Job: {producing_job}")
@@ -75,12 +75,13 @@ class YoctoImageArtifact(Artifact):
 
     def mark_if_cached(self, args):
         self.built = self.item is not None and os.path.isfile(self.item)
+        if self.built:
+            add_artifact(args, self)
 
 class DockerImageArtifact(Artifact):
     """
     A Docker image name.
     """
-
     def fill_item(self, args, producing_job):
         if not hasattr(producing_job, 'img_base_name'):
             raise ValueError(f"DockerImageArtifact is trying to configure itself, but its producing job does not have a 'img_base_name' attribute, so we don't know what the Docker image's name is. Artifact: {self}; Producing Job: {producing_job}")
@@ -89,30 +90,77 @@ class DockerImageArtifact(Artifact):
         self.item = str(self._docker_image)
 
     def mark_if_cached(self, args):
-        self.built = self.item is not None and docker.check_if_docker_image_exists(args, self._docker_image)
+        self.built = self.item is not None and docker.check_and_pull_if_docker_image_exists(args, self._docker_image)
+        if self.built:
+            add_artifact(args, self)
+
+class HelmChartArtifact(Artifact):
+    """
+    A Helm chart name, version, and chart reference (path or URL).
+
+    self.item evaluates to a HelmChart item with the fields `name`, `version` and `chart`.
+    """
+    def fill_item(self, args, producing_job):
+        if not hasattr(producing_job, 'chart_name'):
+            raise ValueError(f"HelmChartArtifact is trying to configure itself, but its producing job does not have a 'chart_name' attribute, so we don't know what the Helm chart should be called.")
+        elif not hasattr(producing_job, 'chart_version'):
+            raise ValueError(f"HelmChartArtifact is trying to configure itself, but its producing job does not have a 'chart_version' attribute, so we don't know which version it refers to.")
+        elif not hasattr(producing_job, 'chart_reference'):
+            raise ValueError(f"HelmChartArtifact is trying to configure itself, but its producing job does not have a 'chart_reference' attribute, so we don't know where to find the chart.")
+
+        self.item = kube.HelmChart(producing_job.chart_name, producing_job.chart_version, producing_job.chart_reference)
+
+    def mark_if_cached(self, args):
+        self.built = self.item is not None and kube.check_if_helm_chart_is_deployed(args, self.item.name)
+        if self.built:
+            add_artifact(args, self)
 
 class FilesArtifact(Artifact):
     """
     A collection of one or more files.
 
     self.item evaluates to a list of fw file paths found in the build directory.
-    """
 
+    Currently makes a heavy assumption that the files were produced by a job
+    that transfers them from a Docker container.
+    """
     def fill_item(self, args, producing_job):
         if not hasattr(producing_job, 'fw_fpaths_in_container'):
             raise ValueError(f"FilesArtifact is trying to configure itself, but its producing job does not have a 'fw_fpath_in_container' attribute, so we don't know where to get the files. Artifact: {self}; Producing Job: {producing_job}")
 
+        if not hasattr(producing_job, 'image'):
+            raise ValueError(f"FilesArtifact is trying to configure itself, but its producing job does not have an 'image' attribute; this attribute is needed to add an appropriate tag to the files for data providence. Artifact: {self}; Producing Job: {producing_job}")
+
+        # Need the tag of the Docker image that produced this file so we can figure out what it is going to be called.
+        if hasattr(producing_job.image, 'evaluate'):
+            # Unfortunately, we can't get this Docker tag at this point. We'll have to put a placeholder in the tag.
+            tag = "*"
+            self._docker_image_dependency = producing_job.image  # We'll use this later to fill in the placeholder
+        else:
+            tag = docker.get_tag_from_name(producing_job.image)
+
+        # Determine the target locations of the files.
         self.item = []
         for fwfpath in producing_job.fw_fpaths_in_container:
             fwfname_no_ext, suf = os.path.splitext(os.path.basename(fwfpath))
-            target = os.path.join(args.artifact_folder, fwfname_no_ext) + "-" + common.git_tag() + suf
+            target = os.path.join(args.artifact_folder, fwfname_no_ext) + "-" + tag + suf
             self.item.append(target)
 
     def mark_if_cached(self, args):
         if self.item is None:
             self.built = False
-        else:
-            self.built = all([os.path.isfile(fpath) for fpath in self.item])
+            return
+
+        # At this point, we should be able to figure out the tag, so we can figure out the names of the files
+        if hasattr(self, '_docker_image_dependency'):
+            docker_image_name = self._docker_image_dependency.evaluate(args).item
+            tag = docker.get_tag_from_name(docker_image_name)
+            updated_items = [target.replace('*', tag) for target in self.item]
+            self.item = updated_items
+
+        self.built = all([os.path.isfile(fpath) for fpath in self.item])
+        if self.built:
+            add_artifact(args, self)
 
 def add_artifact(args, artifact: Artifact):
     """

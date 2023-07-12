@@ -2,7 +2,7 @@
 Machinery for handling Docker containers.
 """
 from . import common
-from typing import Dict
+from typing import Any, Dict
 import json
 import logging
 import os
@@ -73,13 +73,13 @@ def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName
     """
     tmpdpath = os.path.join(builddpath, "tmp")
     os.makedirs(tmpdpath, exist_ok=True)
-    logging.info(f"Building Docker image and tagging it as {str(docker_image_name)}")
+    common.info(f"Building Docker image and tagging it as {str(docker_image_name)}")
 
     # Retrieve dependencies
     if fpaths:
         for fpath in fpaths:
             tmp_fpath = os.path.join(tmpdpath, os.path.basename(fpath))
-            logging.info(f"Copying {fpath} to {tmp_fpath}")
+            common.info(f"Copying {fpath} to {tmp_fpath}")
             if os.path.isfile(fpath):
                 shutil.copyfile(fpath, tmp_fpath)
             else:
@@ -92,7 +92,7 @@ def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName
         dockercmd = f"docker buildx build --load --platform linux/arm64 -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
     else:
         dockercmd = f"docker build -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
-    logging.info(f"Running: {dockercmd}")
+    common.info(f"Running: {dockercmd}")
     subprocess.run(dockercmd.split(), cwd=builddpath).check_returncode()
 
     # Push the Docker image to the chosen repo (if given)
@@ -101,25 +101,25 @@ def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName
 
     return docker_image_name
 
-def check_if_docker_image_exists(args, imgname: DockerImageName) -> bool:
+def check_and_pull_if_docker_image_exists(args, imgname: DockerImageName) -> bool:
     """
     Returns whether the given Docker image exists and pulls it if it exists remotely and can be pulled.
     """
-    logging.info(f"Checking if {imgname} exists locally...")
+    common.info(f"Checking if {imgname} exists locally...")
     docker_image_ids = subprocess.run(f"docker images {imgname} --quiet".split(), capture_output=True).stdout.decode('utf-8').split()
     for img_id in docker_image_ids:
         if img_id != '':
-            logging.info(f"Found {imgname} locally")
+            common.info(f"Found {imgname} locally")
             return True
 
     # Can't find it locally. Check if we can pull it.
-    logging.info(f"Can't find {imgname} locally. Trying to pull it.")
+    common.info(f"Can't find {imgname} locally. Trying to pull it.")
     try:
         pull_docker_image(args, imgname)
-        logging.info(f"Pulled {imgname}")
+        common.info(f"Pulled {imgname}")
         return True
     except Exception as e:
-        logging.info(f"Cannot find {imgname} locally or remotely, or was unable to pull it from remote: {e}")
+        common.info(f"Cannot find {imgname} locally or remotely, or was unable to pull it from remote: {e}")
         return False
 
 def clean_docker_containers():
@@ -144,7 +144,7 @@ def clean_docker_containers():
         short_id = docker_id[:8]
 
         # Stop the container
-        logging.info(f"Sending stop signal to container {short_id}...")
+        common.info(f"Sending stop signal to container {short_id}...")
         stop_docker_container(docker_id)
 
 def construct_docker_image_name(args, name, repo_prefix=None, tag=None) -> DockerImageName:
@@ -162,6 +162,24 @@ def construct_docker_image_name(args, name, repo_prefix=None, tag=None) -> Docke
         repo_prefix = repo_prefix + "/" if repo_prefix and not repo_prefix.endswith('/') else repo_prefix
 
     return DockerImageName(repo_prefix, name, tag)
+
+def get_tag_from_name(docker_image_name: str|DockerImageName) -> str:
+    """
+    Returns the tag name of the docker image.
+    """
+    if issubclass(type(docker_image_name), DockerImageName):
+        return docker_image_name.tag
+    else:
+        # Thank you, Stack Overflow: https://stackoverflow.com/questions/74990220/how-to-use-docker-image-tag-parsing-regex-in-javascript
+        # With a minor modification
+        r = re.compile("^(?P<repository>[\w.\-_]+(?::\d+|)|)(?:/|)(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+|))(:(?P<tag>[\w.\-_]{1,127})|)$")
+        o = r.match(docker_image_name)
+        if not o:
+            errmsg = f"Could not understand the given string as a Docker image ID: {docker_image_name}"
+            common.error(errmsg)
+            raise ValueError(errmsg)
+        # for the future, in case you are wondering, groupdict will also get: 'repository' and 'image'
+        return o.groupdict().get('tag', "")
 
 def get_extra_docker_build_args(args):
     """
@@ -186,22 +204,22 @@ def compose(project_name: str, cwd: str, fname: str, startup_timeout_s: int, env
     Returns a dict of Docker container names to container pids (which are strings).
     """
     cmd = f"docker compose -p {project_name} -f {fname} up --detach --no-build --no-color --quiet-pull --wait-timeout {startup_timeout_s} --force-recreate --always-recreate-deps --renew-anon-volumes"
-    logging.info(f"Running {cmd} with environment variables: {envs}")
+    common.info(f"Running {cmd} with environment variables: {envs}")
     envs = envs | os.environ  # Merge our dict with the current shell's environment (this is a dict-merge syntax introduced in 3.9)
     p = subprocess.run(cmd.split(), cwd=cwd, capture_output=True, env=envs)
     if p.returncode != 0:
-        logging.error(f"Failed to run cmd: {cmd}")
-        logging.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
-        logging.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
+        common.error(f"Failed to run cmd: {cmd}")
+        common.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
+        common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
         p.check_returncode()
 
     # Now return all the Docker pids we launched
     cmd = f"docker compose -p {project_name} -f {fname} ps --format json"
     p = subprocess.run(cmd.split(), cwd=cwd, capture_output=True, env=envs, timeout=startup_timeout_s)
     if p.returncode != 0:
-        logging.error(f"Failed to run cmd: {cmd}")
-        logging.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
-        logging.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
+        common.error(f"Failed to run cmd: {cmd}")
+        common.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
+        common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
         p.check_returncode()
     json_output = p.stdout.decode('utf-8')
     decoded_output = json.loads(json_output)
@@ -213,22 +231,22 @@ def compose_down(project_name: str, cwd: str, fname: str, envs=None):
     Brings down a docker compose and cleans up all the containers.
     """
     cmd = f"docker compose -p {project_name} -f {fname} down --remove-orphans --volumes"
-    logging.info(f"Running {cmd} with environment variables: {envs}")
+    common.info(f"Running {cmd} with environment variables: {envs}")
     envs = envs | os.environ  # Merge our dict with the current shell's environment (this is a dict-merge syntax introduced in 3.9)
     p = subprocess.run(cmd.split(), cwd=cwd, capture_output=True, env=envs)
     if p.returncode != 0:
-        logging.error(f"Failed to run cmd: {cmd}")
-        logging.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
-        logging.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
+        common.error(f"Failed to run cmd: {cmd}")
+        common.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
+        common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
         p.check_returncode()
 
     # Now remove all the containers we just stopped
     cmd = f"docker compose -p {project_name} -f {fname} rm --force --stop --volumes"
     p = subprocess.run(cmd.split(), cwd=cwd, capture_output=True, env=envs)
     if p.returncode != 0:
-        logging.error(f"Failed to run cmd: {cmd}")
-        logging.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
-        logging.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
+        common.error(f"Failed to run cmd: {cmd}")
+        common.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
+        common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
         p.check_returncode()
 
 def docker_copy(image: str, paths_in_container: list, path_on_host: str):
@@ -250,7 +268,7 @@ def docker_copy(image: str, paths_in_container: list, path_on_host: str):
 
     # Do the actual copy
     for path in paths_in_container:
-        logging.info(f"Copying {short_id}:{path} to {path_on_host}...")
+        common.info(f"Copying {short_id}:{path} to {path_on_host}...")
         targetpath = os.path.join(path_on_host, path)
         if os.path.isfile(targetpath):
             os.remove(targetpath)
@@ -263,11 +281,11 @@ def docker_copy(image: str, paths_in_container: list, path_on_host: str):
                 items = subprocess.run(f"docker exec {docker_id} ls {os.path.dirname(path)}".split(), capture_output=True, encoding='utf-8').stdout
             except Exception:
                 items = "Could not run the debugging command to find any items in the container."
-            logging.error(f"Could not run the docker cp command. Items found in container: {items}; error: {e}")
+            common.error(f"Could not run the docker cp command. Items found in container: {items}; error: {e}")
             raise e
 
     # Stop the container
-    logging.info(f"Sending stop signal to container {short_id}...")
+    common.info(f"Sending stop signal to container {short_id}...")
     stop_docker_container(docker_id)
     p.wait()
 
@@ -302,15 +320,11 @@ def get_container(name_or_pid: str) -> Container:
         ret = None
     return ret
 
-def is_simplified_name(name: str) -> bool:
-    pattern = re.compile(".+/.+:.+")
-    return not pattern.match(name)
-
 def docker_login(args):
     """
     Log in to the Docker API.
     """
-    logging.info(f"Attempting to log into Docker registry: {args.docker_repo} with username {args.docker_username}")
+    common.info(f"Attempting to log into Docker registry: {args.docker_repo} with username {args.docker_username}")
     pswd = args.docker_password if args.docker_password is not None else os.environ.get("ARTIE_TOOL_DOCKER_PASSWORD", None)
     if pswd is None:
         raise ValueError(f"Given a docker username ({args.docker_username}) for registry {args.docker_repo}, but no password was found in --docker-password or ARTIE_TOOL_DOCKER_PASSWORD")
@@ -322,16 +336,66 @@ def docker_login(args):
     else:
         client.login(username=args.docker_username, password=pswd)
 
+def check_for_network(network_name: str) -> bool:
+    """
+    Returns `True` if we can find a Docker network with the given name. `False` otherwise.
+    """
+    client = docker.from_env()
+    networks = client.networks.list(network_name)
+    return len(networks) > 0
+
+def remove_network(network_name: str):
+    """
+    Removes the Docker network with the given name from the system. If the network cannot be
+    found, we do nothing.
+    """
+    if not check_for_network(network_name):
+        return
+
+    client = docker.from_env()
+    networks = client.networks.list(network_name)
+    if len(networks) > 1:
+        raise ValueError(f"Cannot delete network with name {network_name}. Found multiple matching networks somehow: {[n.name for n in networks]}")
+    network = networks[0]
+
+    # Ensure there are no containers using this network. If there are any, remove them - they shouldn't still be using this network.
+    # Sometimes this can happen if a test times out waiting for a container to exit. We do our best to clean up, but sometimes we can't
+    # guarantee it.
+    network.reload()
+    for container in network.containers:
+        common.warning(f"A container ({container.name}) is still using network {network_name}. Attempting to stop the container.")
+        container.stop()
+        if container.status == "running":
+            common.warning(f"Container {container.name} did not stop. Attempting to kill.")
+            container.kill()
+            if container.status == "running":
+                container.wait(timeout=10)
+                if container.status == "running":
+                    common.error(f"Container {container.name} cannot be stopped or killed. Attempting to remove network, but will likely fail.")
+
+    network.remove()
+
+def add_network(network_name: str, exists_okay=False):
+    """
+    Adds a Docker network with the given name to this system. If the network already exists, we
+    raise an ValueError exception, unless exists_okay=True.
+    """
+    if not exists_okay and check_for_network(network_name):
+        raise ValueError(f"Cannot create Docker network {network_name} as it already exists.")
+
+    client = docker.from_env()
+    client.networks.create(network_name)
+
 def _try_pull_once(docker_image_name: DockerImageName):
     client = docker.from_env()
     try:
         ret = client.api.pull(f"{docker_image_name.repo}{docker_image_name.name}", docker_image_name.tag, stream=True, decode=True)
         for line in ret:
             if 'error' in line:
-                logging.warning(line)
+                common.warning(line)
                 return Exception(f"{line['error']}")
             else:
-                logging.info(line['status'] if 'status' in line else line)
+                common.info(line['status'] if 'status' in line else line)
     except docker_errors.APIError as e:
         return e
 
@@ -350,9 +414,9 @@ def pull_docker_image(args, imgname: DockerImageName, nretries=3):
     err = None
     for i in range(nretries):
         if i == 0:
-            logging.info(f"Pulling Docker image {imgname}...")
+            common.info(f"Pulling Docker image {imgname}...")
         else:
-            logging.warning(f"Pulling failed. Retrying {imgname}...")
+            common.warning(f"Pulling failed. Retrying {imgname}...")
             time.sleep(1)
 
         err = _try_pull_once(imgname)
@@ -368,10 +432,10 @@ def _try_push_once(docker_image_name: DockerImageName):
         ret = client.api.push(f"{docker_image_name.repo}{docker_image_name.name}", docker_image_name.tag, stream=True, decode=True)
         for line in ret:
             if 'error' in line:
-                logging.warning(line)
+                common.warning(line)
                 return Exception(f"{line['error']}")
             else:
-                logging.info(line['status'] if 'status' in line else line)
+                common.info(line['status'] if 'status' in line else line)
     except docker_errors.APIError as e:
         return e
 
@@ -387,16 +451,16 @@ def push_docker_image(args, docker_image_name: DockerImageName, nretries=3):
     err = None
     for i in range(nretries):
         if i == 0:
-            logging.info(f"Pushing Docker image {docker_image_name}...")
+            common.info(f"Pushing Docker image {docker_image_name}...")
         else:
-            logging.warning(f"Pushing failed. Retrying {docker_image_name}...")
+            common.warning(f"Pushing failed: {err}: Retrying {docker_image_name}...")
             time.sleep(1)
 
         err = _try_push_once(docker_image_name)
-        if err:
-            continue
+        if err is None:
+            break
 
-    if err:
+    if err is not None:
         raise Exception(f"Could not push {docker_image_name}: {err}")
 
 def run_docker_container(image_name, cmd, timeout_s=30, log_to_stdout=False, **kwargs):
@@ -415,10 +479,15 @@ def run_docker_container(image_name, cmd, timeout_s=30, log_to_stdout=False, **k
     - kwargs: Additional kwargs to pass onto the Docker SDK.
     """
     client = docker.from_env()
-    logging.info(f"Running command: {cmd}")
+    common.info(f"Running command: {cmd} ; using kwargs: {kwargs}")
     stdout = common.manage_timeout(client.containers.run, timeout_s, image_name, cmd, remove=True, stdout=True, stderr=True, **kwargs)
+
     if log_to_stdout and stdout is not None:
-        logging.info(f"Docker output: {stdout.decode()}")
+        common.info(f"Docker output: {stdout.decode()}")
+
+    if stdout is not None:
+        stdout = stdout.decode()
+
     return stdout
 
 def stop_docker_container(image_id):
@@ -440,6 +509,6 @@ def start_docker_container(image_name: str|DockerImageName, cmd, **kwargs):
     - kwargs: Keyword arguments for docker.run() command. See https://docker-py.readthedocs.io/en/stable/containers.html#docker.models.containers.ContainerCollection.run
     """
     client = docker.from_env()
-    logging.info(f"Running command: {cmd}")
+    common.info(f"Running command: {cmd}")
     container = client.containers.run(str(image_name), cmd, remove=True, detach=True, **kwargs)
     return container

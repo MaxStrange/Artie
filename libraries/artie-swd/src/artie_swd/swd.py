@@ -43,5 +43,5 @@ def load_fw_file(fw_fpath: str, iface_fname: str):
         alog.update_histogram(duration_s, f"swd-load-{alog.HISTOGRAM_SUFFIX_SECONDS}", unit=alog.Units.SECONDS, description="Histogram of SWD load durations.", attributes={"swd.error": True})
         alog.update_counter(1, "swd-errors", unit=alog.Units.TIMES, description="Number of times SWD fails.")
     else:
-        alog.info("Loaded FW successfully.")
+        alog.test("Loaded FW successfully.", tests=['*-hardware-tests:init-mcu'])
         alog.update_histogram(duration_s, f"swd-load-{alog.HISTOGRAM_SUFFIX_SECONDS}", unit=alog.Units.SECONDS, description="Histogram of SWD load durations.", attributes={"swd.error": False})

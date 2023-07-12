@@ -54,16 +54,20 @@ There are three planned ways to deploy an Artie:
   - You own, operate, and maintain Artie's hardware
   - Artie compute required for administration is provided by the cloud
   - Any additional compute required for experiments or workload is provided by the cloud
+  - [See here for how to get started with this route](./docs/out-of-the-box/cloud.md)
 * **Fog**
   - You own, operate, and maintain Artie's hardware
   - Artie compute required for administration is owned, operated, and maintained by you in the same network as Artie
   - Any additional compute required for experiments or workload is provided by the cloud
+  - [See here for how to get started with this route](./docs/out-of-the-box/fog.md)
 * **Edge**
   - You own, operate, and maintain Artie's hardware
   - Artie compute required for administration is owned, operated, and maintained by you in the same network as Artie
   - Any additional compute required for experiments or workload is provided by you locally in the same network as Artie
+  - [See here for how to get started with this route](./docs/out-of-the-box/edge.md)
 
-TODO: Explain how to get started with Artie "out of the box".
+**Note that since Artie is so early in development, none of these are viable options yet!**
+**Additionally, Edge is the highest priority for development, while the other options are ones I hope to get to, but may not.**
 
 ## Architecture
 
@@ -71,7 +75,8 @@ Here are a few links to architectural discussions:
 
 ### Overviews
 
-* [Architecture Overview](./docs/architecture/overview.md)
+* [Architecture Overview for the whole System](./docs/architecture/overview.md)
+* [Architecture Overview for the Robot Itself](./docs/architecture/artie-overview.md)
 * [Security Overview](./docs/architecture/security.md)
 
 ### Low-Level

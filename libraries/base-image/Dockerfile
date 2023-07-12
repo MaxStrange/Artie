@@ -35,8 +35,8 @@ WORKDIR /tmp/artie-swd
 RUN pip install .
 RUN rm -rf /tmp/artie-swd
 
-# Build artie-driver-client
-COPY ./tmp/artie-driver-client /tmp/artie-driver-client/
-WORKDIR /tmp/artie-driver-client
+# Build artie-service-client
+COPY ./tmp/artie-service-client /tmp/artie-service-client/
+WORKDIR /tmp/artie-service-client
 RUN pip install .
-RUN rm -rf /tmp/artie-driver-client
+RUN rm -rf /tmp/artie-service-client

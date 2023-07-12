@@ -18,6 +18,9 @@ class Job(abc.ABC):
     def __call__(self, args) -> result.JobResult:
         pass
 
+    def __str__(self) -> str:
+        return self.name if self.name else "'Job name not known'"
+
     def claim_artifacts(self):
         """
         Copy the Artifact references that this Job is responsible for from the parent_task,
@@ -58,3 +61,10 @@ class Job(abc.ABC):
         """
         for art in self.artifacts:
             art.built = True
+
+    def mark_if_cached(self, args):
+        """
+        Mark each artifact as built if it can be found on disk.
+        """
+        for art in self.artifacts:
+            art.mark_if_cached(args)

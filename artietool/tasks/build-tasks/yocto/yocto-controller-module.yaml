@@ -2,8 +2,8 @@ name: yocto-controller-module
 labels:
   - yocto
 dependencies:
-  - container-eyebrows: docker-image
-  - container-mouth: docker-image
+  - driver-eyebrows: docker-image
+  - driver-mouth: docker-image
 artifacts:
   - name: yocto-image
     type: yocto-image

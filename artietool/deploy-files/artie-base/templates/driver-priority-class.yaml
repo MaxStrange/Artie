@@ -1,0 +1,12 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.driverPriorityClass }}
+  labels:
+    app.kubernetes.io/component: driver-priority-class
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+value: 1000
+description: "This priority class is meant for Artie's drivers or equivalent. Most Artie priority classes should be lower than this."
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority

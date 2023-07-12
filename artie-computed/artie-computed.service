@@ -1,0 +1,12 @@
+[Unit]
+Description=Artie Compute Node Daemon
+After=k3s.service
+BindsTo=k3s.service
+
+[Service]
+Type=simple
+RemainAfterExit=no
+ExecStart=sleep infinity
+
+[Install]
+WantedBy=multi-user.target

@@ -98,6 +98,10 @@ class JobResult:
             s += os.linesep.join(traceback.format_exception(self.error))
         return s
 
+    # For API compatability with TaskResult
+    def get_artifacts(self) -> List[artifact.Artifact]:
+        return self.artifacts
+
 class TaskResult:
     def __init__(self, name: str, job_results: List[JobResult|TestResult]):
         """

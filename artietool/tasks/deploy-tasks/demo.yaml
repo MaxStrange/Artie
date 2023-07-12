@@ -1,0 +1,12 @@
+name: demo
+labels:
+  - container-set
+dependencies:
+artifacts:
+  - name: artie-demo
+    type: helm-chart
+type: deploy
+steps:
+  - job: add
+    what: artie-demo
+    chart: deploy-files/artie-demo

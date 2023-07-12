@@ -12,12 +12,13 @@ meant to be run on the Controller Node, and it needs to
 be run inside a container that has access to both SWD
 and I2C on the Controller Node.
 """
-from artie_driver_client import client as adc
+from artie_service_client import client as asc
 from artie_gpio import gpio
 from artie_i2c import i2c
 from artie_swd import swd
 from artie_util import boardconfig_controller as board
 from artie_util import artie_logging as alog
+from artie_util import rpycserver
 from artie_util import util
 import argparse
 import os
@@ -40,13 +41,21 @@ MOUTH_DRAWING_CHOICES = {
 }
 
 @rpyc.service
-class DriverServer(rpyc.Service):
+class DriverServer(rpycserver.Service):
     def __init__(self, fw_fpath: str, ipv6=False):
         self._fw_fpath = fw_fpath
         self._ipv6 = ipv6
+        self._current_display = None
+        self._led_state = None
 
         # Load the FW file
         self._initialize_mcu()
+
+        # Set up the starting display
+        self.lcd_draw("SMILE")
+
+        # Set up the LED
+        self.led_heartbeat()
 
     @rpyc.exposed
     @alog.function_counter("whoami")
@@ -65,6 +74,7 @@ class DriverServer(rpyc.Service):
         alog.test("Received request for mouth LED -> ON.", tests=['mouth-driver-unit-tests:led-on'])
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x00
         i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, led_on_bytes)
+        self._led_state = 'on'
 
     @rpyc.exposed
     @alog.function_counter("led_off")
@@ -75,6 +85,7 @@ class DriverServer(rpyc.Service):
         alog.test("Received request for mouth LED -> OFF.", tests=['mouth-driver-unit-tests:led-off'])
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x01
         i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, led_on_bytes)
+        self._led_state = 'off'
 
     @rpyc.exposed
     @alog.function_counter("led_heartbeat")
@@ -85,6 +96,16 @@ class DriverServer(rpyc.Service):
         alog.test("Received request for mouth LED -> HEARTBEAT.", tests=['mouth-driver-unit-tests:led-heartbeat'])
         led_heartbeat_bytes = CMD_MODULE_ID_LEDS | 0x02
         i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, led_heartbeat_bytes)
+        self._led_state = 'heartbeat'
+
+    @rpyc.exposed
+    @alog.function_counter("led_get")
+    def led_get(self):
+        """
+        RPC method to get the LED state.
+        """
+        alog.test(f"Received request for mouth LED -> State: {self._led_state}", tests=['mouth-driver-unit-tests:led-get'])
+        return self._led_state
 
     @rpyc.exposed
     @alog.function_counter("lcd_test")
@@ -116,7 +137,7 @@ class DriverServer(rpyc.Service):
         ----
         - val: One of the available MOUTH_DRAWING_CHOICES (a string).
         """
-        alog.test(f"Received request for mouth LCD -> Draw {val}", tests=['mouth-driver-unit-tests:lcd-draw'])
+        alog.test(f"Received request for mouth LCD -> Draw {val}", tests=['mouth-driver-unit-tests:lcd-draw-*'])
         lcd_draw_bytes = MOUTH_DRAWING_CHOICES.get(val, None)
         if lcd_draw_bytes is None:
             lcd_draw_bytes = MOUTH_DRAWING_CHOICES.get(val.upper(), None)
@@ -125,6 +146,16 @@ class DriverServer(rpyc.Service):
             raise ValueError(f"Cannot draw {val} - choose from: {MOUTH_DRAWING_CHOICES}")
 
         i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, lcd_draw_bytes)
+        self._current_display = val
+
+    @rpyc.exposed
+    @alog.function_counter("lcd_get")
+    def lcd_get(self) -> str:
+        """
+        RPC method to get the current value we think we are drawing.
+        """
+        alog.test(f"Received request for mouth LCD -> {self._current_display}", tests=['mouth-driver-unit-tests:lcd-get'])
+        return self._current_display
 
     @rpyc.exposed
     @alog.function_counter("lcd_talk")
@@ -132,18 +163,26 @@ class DriverServer(rpyc.Service):
         """
         RPC method to have the mouth enter talking mode on LCD.
         """
-        alog.info("Received request for mouth LCD -> Talking mode.")
+        alog.test("Received request for mouth LCD -> Talking mode.", tests=['mouth-driver-unit-tests:lcd-draw-talk'])
         lcd_talk_bytes = CMD_MODULE_ID_LCD | 0x07
         i2c.write_bytes_to_address(board.I2C_ADDRESS_MOUTH_MCU, lcd_talk_bytes)
+        self._current_display = "TALKING"
 
     @rpyc.exposed
     @alog.function_counter("firmware_load")
     def firmware_load(self):
         """
         RPC method to (re)load the FW on the mouth MCU.
+        This will also reinitialize the LED and LCD.
         """
         alog.info("Reloading FW...")
         self._initialize_mcu()
+
+        # Set up the starting display
+        self.lcd_draw("SMILE")
+
+        # Set up the LED
+        self.led_heartbeat()
 
     def _check_mcu(self):
         """
@@ -179,7 +218,7 @@ class DriverServer(rpyc.Service):
 
         # Use SWD to load the FW file
         swd.load_fw_file(self._fw_fpath, mouth_iface_fname)
-        adc.reset(board.MCU_RESET_ADDR_MOUTH, ipv6=self._ipv6)
+        asc.reset(board.MCU_RESET_ADDR_MOUTH, ipv6=self._ipv6)
         time.sleep(0.1)  # Give it a moment to come back online
 
         # Sanity check that the MCU is present on the I2C bus

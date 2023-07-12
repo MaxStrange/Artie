@@ -1,0 +1,12 @@
+name: artie
+labels:
+  - container-set
+dependencies:
+artifacts:
+  - name: artie-reference
+    type: helm-chart
+type: deploy
+steps:
+  - job: add
+    what: artie-reference
+    chart: deploy-files/artie-reference

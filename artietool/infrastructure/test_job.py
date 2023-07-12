@@ -9,7 +9,7 @@ from .. import docker
 from enum import Enum
 from enum import unique
 import datetime
-import logging
+import os
 import time
 import traceback
 
@@ -49,17 +49,17 @@ class ExpectedOutput:
         if self.cli:
             return None
 
-        logging.info(f"Checking {test_name}'s DUT(s) for output...")
+        common.info(f"Checking {test_name}'s DUT(s) for output...")
         container = docker.get_container(self.pid)
         if container is None:
             return result.TestResult(test_name, producing_task_name=task_name, status=result.TestStatuses.FAIL, msg=f"Could not find container corresponding to {self.evaluated_where(args)}")
 
         timestamp = datetime.datetime.now().timestamp()
         try:
-            logging.info(f"Reading logs from {container.name} to find '{self.what}'...")
+            common.info(f"Reading logs from {container.name} to find '{self.what}'...")
             for line in container.logs(stream=True, follow=True):
                 if args.docker_logs:
-                    logging.info(line.decode())
+                    common.info(line.decode())
 
                 if self.what in line.decode():
                     return result.TestResult(test_name, producing_task_name=task_name, status=result.TestStatuses.SUCCESS)
@@ -75,19 +75,21 @@ class ExpectedOutput:
         """
         Same as check, but uses logs to do the checking, instead of the where and is typically used for CLI containers.
         """
-        logging.info(f"Checking {test_name}'s DUT(s) for output in logs...")
+        common.info(f"Checking {test_name}'s DUT(s) for output in logs...")
         if self.what in logs:
             return result.TestResult(test_name, task_name, result.TestStatuses.SUCCESS)
         else:
             return result.TestResult(test_name, task_name, result.TestStatuses.FAIL)
 
 class CLITest:
-    def __init__(self, test_name: str, cli_image: str, cmd_to_run_in_cli: str, expected_outputs: List[ExpectedOutput]) -> None:
+    def __init__(self, test_name: str, cli_image: str, cmd_to_run_in_cli: str, expected_outputs: List[ExpectedOutput], need_to_access_cluster=False, network=None) -> None:
         self.test_name = test_name
         self.cli_image = cli_image
         self.cmd_to_run_in_cli = cmd_to_run_in_cli
         self.expected_outputs = expected_outputs
         self.producing_task_name = None  # Filled in by Job
+        self.need_to_access_cluster = need_to_access_cluster
+        self.network = network
 
     def __call__(self, args) -> result.TestResult:
         # Launch the CLI command
@@ -101,10 +103,10 @@ class CLITest:
 
         # If we got more than one result, let's log the various problems and just return the first failing one
         if len(results) > 1:
-            logging.error(f"Multiple failures detected in {self.test_name}. Returning the first detected failure and logging all of them.")
+            common.error(f"Multiple failures detected in {self.test_name}. Returning the first detected failure and logging all of them.")
 
         for r in results:
-            logging.error(f"Error in test {self.test_name}: {r.to_verbose_str()}")
+            common.error(f"Error in test {self.test_name}: {r.to_verbose_str()}")
 
         if results:
             return results[0]
@@ -147,7 +149,7 @@ class CLITest:
 
         Return None if success or a failing TestResult otherwise.
         """
-        logs = self._try_ntimes(args, 3)
+        logs = self._try_ntimes(args, 5)
 
         expected_cli_out = self._find_expected_cli_out(args)
         if expected_cli_out is not None:
@@ -161,14 +163,21 @@ class CLITest:
         Try running the CLI command up to `n` times to guard against transient timing errors. Yuck.
         """
         cli_img = self._evaluated_cli_image(args)
-        kwargs = {'network_mode': 'host'}
+        kwargs = {'network_mode': 'host'} if self.network is None else {'network': self.network}
+
+        # Add kubeconfig if we need it
+        if self.need_to_access_cluster:
+            bind = {'bind': '/mnt/kube_config', 'mode': 'ro'}
+            kube_config_dpath = os.path.dirname(args.kube_config)
+            kwargs['volumes'] = {kube_config_dpath: bind}
+
         for i in range(n):
             try:
                 logs = docker.run_docker_container(cli_img, self.cmd_to_run_in_cli, timeout_s=args.test_timeout_s, log_to_stdout=args.docker_logs, **kwargs)
                 return logs
             except Exception:
                 if i != n - 1:
-                    logging.warning(f"Got an exception while trying to run CLI. Will try {n - (i+1)} more times.")
+                    common.warning(f"Got an exception while trying to run CLI. Will try {n - (i+1)} more times.")
                     time.sleep(1)
                 else:
                     raise
@@ -223,23 +232,23 @@ class TestJob(job.Job):
             except Exception as e:
                 # Log exception if --enable-error-tracing
                 if args.enable_error_tracing:
-                    logging.error(f"Error running test {t.test_name}: {''.join(traceback.format_exception(e))}")
+                    common.error(f"Error running test {t.test_name}: {''.join(traceback.format_exception(e))}")
                 else:
-                    logging.error(f"Test {t.test_name} failed due to an exception ({e})")
+                    common.error(f"Test {t.test_name} failed due to an exception ({e})")
 
                 # Add this result
                 results.append(result.TestResult(t.test_name, producing_task_name=self.parent_task.name, status=TestStatuses.FAIL, exception=e))
 
                 # Mark all remaining tests as DID_NOT_RUN if user is not using --force-completion
                 if args.force_completion:
-                    logging.info("--force-completion argument detected. Running rest of tests in this task.")
+                    common.info("--force-completion argument detected. Running rest of tests in this task.")
                 elif not args.force_completion and i + 1 < len(self.steps):
-                    logging.info("Marking rest of this task's tests as DID_NOT_RUN. Use --force-completion flag to change this behavior.")
+                    common.info("Marking rest of this task's tests as DID_NOT_RUN. Use --force-completion flag to change this behavior.")
                     for remaining_test in self.steps[i+1:]:
                         results.append(result.TestResult(remaining_test.test_name, producing_task_name=self.parent_task.name, status=TestStatuses.DID_NOT_RUN))
                     return results
                 else:
-                    logging.info(f"Finished test: {t.test_name}")
+                    common.info(f"Finished test: {t.test_name}")
                     return results
         return results
 
@@ -257,5 +266,6 @@ class TestJob(job.Job):
     def teardown(self, args):
         """
         Clean up after ourselves. Should be overridden by the subclass.
+        Note that subclasses should honor the --skip-teardown arg.
         """
         pass

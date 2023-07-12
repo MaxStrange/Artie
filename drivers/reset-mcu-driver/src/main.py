@@ -19,8 +19,10 @@ from artie_i2c import i2c
 from artie_swd import swd
 from artie_util import boardconfig_controller as board
 from artie_util import artie_logging as alog
+from artie_util import rpycserver
 from artie_util import util
 import argparse
+import datetime
 import os
 import rpyc
 import time
@@ -28,7 +30,7 @@ import time
 SERVICE_NAME = "reset-driver"
 
 @rpyc.service
-class ResetMcuDriver(rpyc.Service):
+class ResetMcuDriver(rpycserver.Service):
     """
     This class is a Singleton service. Each time a client
     connects to our server, the one instance of this Service object
@@ -111,12 +113,15 @@ class ResetMcuDriver(rpyc.Service):
         if addr == board.MCU_RESET_BROADCAST:
             alog.test("Resetting ALL MCU-class devices", tests=['reset-all-mcus'])
 
+        ts = datetime.datetime.now().timestamp()
         try:
-            alog.test(f"Writing {hex(addr)} to {hex(board.I2C_ADDRESS_RESET_MCU)}", tests=['reset-single-mcu'])
+            alog.test(f"Writing {hex(addr)} to {hex(board.I2C_ADDRESS_RESET_MCU)}", tests=['reset-single-mcu', '*-hardware-tests:init-mcu', '*-hardware-tests:fw-load'])
             i2c.write_bytes_to_address(board.I2C_ADDRESS_RESET_MCU, [addr])
         except Exception as e:
             alog.exception(f"Could not reset target {addr}", e, stack_trace=True)
             return False
+        duration_s = datetime.datetime.now().timestamp() - ts
+        alog.update_histogram(duration_s, f"adc-reset-{alog.HISTOGRAM_SUFFIX_SECONDS}", unit=alog.Units.SECONDS, description="Durations of reset calls over the network.")
         return True
 
 if __name__ == "__main__":

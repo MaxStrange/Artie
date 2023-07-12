@@ -1,7 +1,7 @@
 from . import artie_logging as alog
+from . import constants
 from rpyc.utils.server import ThreadPoolServer
 from rpyc.utils.authenticators import SSLAuthenticator
-import enum
 import getpass
 import os
 import platform
@@ -41,16 +41,6 @@ if platform.system() == "Linux":
     have_i2c_access = is_root or in_i2c_group
 else:
     alog.warning("Detected that we are not on Linux. Certain functionality will be limited.")
-
-class ArtieRunModes(enum.StrEnum):
-    """
-    The different types of run modes.
-    """
-    PRODUCTION = "production"
-    DEVELOPMENT = "development"
-    SANITY_TESTING = "sanity"
-    UNIT_TESTING = "unit"
-    INTEGRATION_TESTING = "integration"
 
 def create_rpc_server(server, keyfpath: str, certfpath: str, port: int, ipv6=False):
     """
@@ -110,7 +100,7 @@ def get_git_tag() -> str:
     """
     Retrieve the git tag from the environment variables.
     """
-    return os.environ.get('ARTIE_GIT_TAG', 'unversioned')
+    return os.environ.get(constants.ArtieEnvVariables.ARTIE_GIT_TAG, 'unversioned')
 
 def generate_self_signed_cert(certfpath, keyfpath, days=30, force=False):
     """
@@ -136,14 +126,14 @@ def in_test_mode() -> bool:
     """
     Returns True if we are in a testing mode.
     """
-    test_modes = set([ArtieRunModes.UNIT_TESTING, ArtieRunModes.SANITY_TESTING, ArtieRunModes.INTEGRATION_TESTING])
-    return os.environ.get('ARTIE_RUN_MODE', 'production') in test_modes
+    test_modes = set([constants.ArtieRunModes.UNIT_TESTING, constants.ArtieRunModes.SANITY_TESTING, constants.ArtieRunModes.INTEGRATION_TESTING])
+    return os.environ.get(constants.ArtieEnvVariables.ARTIE_RUN_MODE, constants.ArtieRunModes.PRODUCTION) in test_modes
 
-def mode() -> ArtieRunModes:
+def mode() -> constants.ArtieRunModes:
     """
     Return the run mode we are in.
     """
-    return ArtieRunModes(os.environ.get('ARTIE_RUN_MODE', 'production'))
+    return constants.ArtieRunModes(os.environ.get(constants.ArtieEnvVariables.ARTIE_RUN_MODE, constants.ArtieRunModes.PRODUCTION))
 
 def on_linux() -> bool:
     """

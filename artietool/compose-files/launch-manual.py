@@ -76,6 +76,8 @@ def determine_image_dependencies(fpath: str) -> List[str]:
                 docker_images.append((depname, retrieve_latest_docker_image("artie-log-collector")))
             case "METRICS_COLLECTOR_TEST_IMAGE":
                 docker_images.append((depname, retrieve_latest_docker_image("artie-metrics-collector")))
+            case "ARTIE_API_SERVER_TEST_IMAGE":
+                docker_images.append((depname, retrieve_latest_docker_image("artie-api-server")))
             case _:
                 print(f"Unrecognized value for a dependant image. Program me! {depname}")
                 exit(1)

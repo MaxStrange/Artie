@@ -1,0 +1,16 @@
+name: api-server-sanity-tests
+labels:
+  - docker-image
+  - sanity
+dependencies:
+  - artie-api-server: docker-image
+type: test
+steps:
+  - job: single-container-sanity-suite
+    steps:
+      - test-name: start-api-server
+        docker-image-under-test:
+          dependency:
+            name: docker-image
+            producing-task: artie-api-server
+        cmd-to-run-in-dut: "./run.sh --help"

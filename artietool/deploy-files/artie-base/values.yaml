@@ -1,0 +1,100 @@
+# Default values for artie-base.
+replicaCount: 1
+
+labels:
+  app.kubernetes.io/name: artie-base
+  helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace \"+\" \"_\" }}"
+  app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+  app.kubernetes.io/instance: "{{ .Release.Name }}"
+  app.kubernetes.io/version: "{{ .Chart.AppVersion }}"
+  app.kubernetes.io/part-of: artie
+  artie/artie-id: "{{ .Values.artieId }}"
+
+# namespace: The namespace that we deploy to
+namespace: artie
+
+# minReadySeconds: The default minimum number of seconds a pod should run without crashing for it to be considered working.
+minReadySeconds: 10
+
+# driverUpdateStrategy: The default update strategy for drivers is to take down the current running driver, then start the new one. It is important not to have more than one copy running at the same time.
+driverUpdateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
+# telemetryUpdateStrategy: The default update strategy for telemetry deployments. For these, it is important to always have at least one running, so don't remove the old one until the new one is in place.
+telemetryUpdateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 0
+
+# driverPriorityClass: The priority class for drivers.
+driverPriorityClass: driver-priority-level
+
+# telemetryPriorityClass: The priority class for telemetry deployments.
+telemetryPriorityClass: telemetry-priority-level
+
+# driverRestartPolicy: The restart policy for drivers.
+driverRestartPolicy: Always
+
+# telemetryRestartPolicy: The restart policy for telemetry deployments.
+telemetryRestartPolicy: Always
+
+# constantKeys: A list of constants for label or annotation keys.
+constantKeys:
+  artieId: artie/artie-id
+  controllerNodeTaint: artie/controller-node
+  nodeRole: artie/node-role
+  physicalBotNodeTaint: artie/physical-bot-node
+
+# baseEnvironment: Common env variables for most of the containers.
+baseEnvironment:
+  - name: ARTIE_RUN_MODE
+    value: production
+  - name: ARTIE_ID
+    value: "{{ .Values.artieId }}"
+  - name: ARTIE_GIT_TAG
+    value: "{{ .Values.imageTag }}"
+  - name: LOG_COLLECTOR_HOSTNAME
+    value: "{{ .Values.logCollectorHostName }}-{{ .Values.artieId }}"
+  - name: LOG_COLLECTOR_PORT
+    value: "{{ .Values.ports.logCollector }}"
+  - name: METRICS_SERVER_PORT
+    value: "{{ .Values.ports.metricsCollector }}"
+
+# controllerNodeName: The name of the controller node in the Artie bot.
+controllerNodeName: "controller-node"
+
+# logCollectorHostName: The hostname of the log collector service.
+logCollectorHostName: "log-collector"
+
+# artieApiServerHostName: The hostname of the Artie API server service.
+artieApiServerHostName: "artie-api-server"
+
+# ports: The various ports we need
+ports:
+  resetDriver: 18861
+  mouthDriver: 18862
+  eyebrowsDriver: 18863
+  logCollector: 5170
+  metricsCollector: 8090
+  artieApiServer: 8782
+
+# images: The various images.
+images:
+  resetDriver: "maxfieldstrange/artie-reset-driver:{{ .Values.imageTag }}"
+  mouthDriver: "maxfieldstrange/artie-mouth-driver:{{ .Values.imageTag }}"
+  eyebrowsDriver: "maxfieldstrange/artie-eyebrow-driver:{{ .Values.imageTag }}"
+  logCollector: "maxfieldstrange/artie-log-collector:{{ .Values.imageTag }}"
+  metricsCollector: "maxfieldstrange/artie-metrics-collector:{{ .Values.imageTag }}"
+  artieApiServer: "maxfieldstrange/artie-api-server:{{ .Values.imageTag }}"
+
+# --------------- Stuff the user is expected to override --------------------
+
+# imageTag: The tag we use for all the images in this deployment. Images are only guaranteed to work with other images of the same tag, so we do not provide a means by which to mix tags.
+imageTag: 02c4e35a
+
+# artieId: The ID of the Artie we are deploying to.
+artieId: artie-001

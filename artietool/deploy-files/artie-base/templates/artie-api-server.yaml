@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: artie-api-server
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: artie-api-server
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: artie-api-server
+      {{- tpl (toYaml .Values.labels) . | nindent 6 }}
+  annotations:
+  replicas: 1
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  strategy:
+  {{- .Values.telemetryUpdateStrategy | toYaml | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: artie-api-server
+        {{- tpl (toYaml .Values.labels) . | nindent 8 }}
+      annotations:
+    spec:
+      priorityClassName: {{ .Values.telemetryPriorityClass }}
+      restartPolicy: {{ .Values.telemetryRestartPolicy }}
+      containers:
+        - name: artie-api-server
+          image: {{ tpl .Values.images.artieApiServer . }}
+          env:
+            {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ .Values.artieApiServerHostname }}-{{ .Values.artieId }}"
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: artie-api-server
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  selector:
+    app.kubernetes.io/component: artie-api-server
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.ports.artieApiServer }}
+      targetPort: {{ .Values.ports.artieApiServer }}
+      protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: artie-api-server-hpa
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: artie-api-server
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  maxReplicas: 3
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: artie-api-server
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
