@@ -56,9 +56,15 @@ def connect(host, port=None, ipv6=False):
     connection = factory.ssl_connect(host, port, ipv6=ipv6)
     return _ConnectionWrapper(connection)
 
+def in_test_mode(args) -> bool:
+    """
+    Returns True if we are in unit-test mode.
+    """
+    return args.unit_test
+
 def int_or_hex_type(val):
     """
-    Check if he given argument is an int or if it is a string that can be converted
+    Check if the given argument is an int or if it is a string that can be converted
     to an int, including hexadecimal format (e.g., 0xFF).
 
     Also checks octal (0o) and binary (0b).
@@ -73,3 +79,9 @@ def int_or_hex_type(val):
         return int(val, base=8)
     else:
         return int(val)
+
+def format_print_result(msg: str, module: str, submodule: str, artie_id: str):
+    """
+    Prints ({artie_id}) {module} {submodule}: {msg}
+    """
+    print(f"({artie_id}) {module} {submodule}: {msg}")

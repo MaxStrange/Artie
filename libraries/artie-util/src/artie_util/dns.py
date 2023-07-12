@@ -1,7 +1,10 @@
 """
 This module contains mappings from hostnames to IP addresses/Kubernetes Services, etc.
 """
+from . import constants
+from . import util
 import enum
+import os
 
 @enum.unique
 class Lookups(enum.Enum):
@@ -26,7 +29,7 @@ _services = {
     Lookups.MOUTH_DRIVER: "mouth-driver",
 }
 
-def lookup(item: Lookups):
+def lookup(item: Lookups, artie_id=None):
     """
     Look up the given item and return a tuple of the form (host (str), port (int))
     Raise a KeyError if we can't find the given item.
@@ -34,4 +37,15 @@ def lookup(item: Lookups):
     if item not in _ports:
         raise KeyError(f"Item {item} cannot be found in Artie's DNS library. Allowable values: {_ports.keys()}")
 
-    return _services[item], _ports[item]
+    # If we are running on Kubernetes, we need to include Artie's ID
+    if artie_id is None:
+        artie_id = os.getenv(constants.ArtieEnvVariables.ARTIE_ID, None)
+
+    # If we are in Docker Compose, we don't include the artie-id
+    if util.in_test_mode() or util.mode() == constants.ArtieRunModes.INTEGRATION_TESTING:
+        artie_id = None
+
+    if artie_id:
+        return f"{_services[item]}-{artie_id}", _ports[item]
+    else:
+        return _services[item], _ports[item]

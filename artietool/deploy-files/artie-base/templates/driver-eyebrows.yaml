@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: eyebrows-driver
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: eyebrows-driver
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: eyebrows-driver
+      {{- tpl (toYaml .Values.labels) . | nindent 6 }}
+  annotations:
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  updateStrategy:
+  {{- .Values.driverUpdateStrategy | toYaml | nindent 4 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: eyebrows-driver
+        {{- tpl (toYaml .Values.labels) . | nindent 8 }}
+      annotations:
+    spec:
+      nodeSelector:
+        {{ .Values.constantKeys.nodeRole }}: {{ tpl .Values.controllerNodeName . }}
+        {{ .Values.constantKeys.artieId }}: {{ .Values.artieId }}
+      priorityClassName: {{ .Values.driverPriorityClass }}
+      tolerations:
+        - key: {{ .Values.constantKeys.physicalBotNodeTaint }}
+          operator: Exists
+        - key: {{ .Values.constantKeys.controllerNodeTaint }}
+          operator: Exists
+      restartPolicy: {{ .Values.driverRestartPolicy }}
+      containers:
+        - name: eyebrows-driver
+          image: {{ tpl .Values.images.eyebrowsDriver . }}
+          command: ["python", "main.py", "/conf/mcu-fw.elf", "--port", "{{ .Values.ports.eyebrowsDriver }}", "--loglevel", "info"]
+          env:
+            {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
+          securityContext:
+            # TODO: Scope this down
+            privileged: true
+          volumeMounts:
+            # TODO: Scope this down by using udev to assign a persistent name to devices
+            - name: dev
+              mountPath: /dev
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+          type: Directory
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eyebrows-driver-{{ .Values.artieId }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: eyebrows-driver
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  annotations:
+    description: {{ .Chart.Description }}
+spec:
+  selector:
+    app.kubernetes.io/component: eyebrows-driver
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.ports.eyebrowsDriver }}
+      targetPort: {{ .Values.ports.eyebrowsDriver }}
+      protocol: TCP
+  type: ClusterIP

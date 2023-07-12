@@ -1,10 +1,16 @@
 name: metrics-integration-test
+networks:
+  metrics-itest:
+    external: true
+
 services:
   reset-driver:
     command: python main.py /conf/mcu-fw.elf --port 18861 --loglevel info
-    container_name: eyebrows-itest-reset-driver
+    container_name: metrics-itest-reset-driver
     expose:
       - 18861
+    networks:
+      - metrics-itest
     image: ${RESET_TEST_IMAGE}
     environment:
       - ARTIE_RUN_MODE=integration
@@ -14,12 +20,14 @@ services:
 
   eyebrows-driver:
     command: python main.py /conf/mcu-fw.elf --port 18863 --loglevel info
-    container_name: eyebrows-itest-eyebrows-driver
+    container_name: metrics-itest-eyebrows-driver
     depends_on:
       - reset-driver
     image: ${EYEBROWS_TEST_IMAGE}
-    ports:
-      - 18863:18863
+    expose:
+      - 18863
+    networks:
+      - metrics-itest
     environment:
       - ARTIE_RUN_MODE=integration
       - LOG_COLLECTOR_HOSTNAME=log-collector
@@ -32,5 +40,25 @@ services:
     depends_on:
       - eyebrows-driver
       - reset-driver
+      - artie-api-server
+    networks:
+      - metrics-itest
     environment:
       - TEST_ENV=1
+
+  artie-api-server:
+    container_name: metrics-itest-api-server
+    image: ${ARTIE_API_SERVER_TEST_IMAGE}
+    depends_on:
+      - eyebrows-driver
+      - reset-driver
+    expose:
+      - 8782:8782
+    networks:
+      - metrics-itest
+    environment:
+      - ARTIE_RUN_MODE=integration
+      - LOG_COLLECTOR_HOSTNAME=log-collector
+      - LOG_COLLECTOR_PORT=5170
+      - METRICS_SERVER_PORT=8090
+      - PORT=8782

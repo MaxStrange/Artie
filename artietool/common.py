@@ -1,10 +1,16 @@
 """
 Common stuff for Artie Tool modules.
 """
+from typing import Tuple
+import argparse
+import fabric
+import invoke
+import ipaddress
 import logging
 import os
 import random
 import shutil
+import socket
 import string
 import subprocess
 import threading
@@ -14,6 +20,9 @@ try:
 except ModuleNotFoundError:
     logging.error("'docker' not installed. Make sure to install dependencies with 'pip install -r requirements.txt'")
     exit(1)
+
+# The name of our logger
+LOGGER_NAME = 'artietool'
 
 class Colors:
     OKGREEN = '\033[92m'
@@ -43,6 +52,37 @@ class PropagatingThread(threading.Thread):
         else:
             return None
 
+
+############### Logging Wrapper ####################
+def critical(msg: str):
+    logging.getLogger(LOGGER_NAME).critical(msg)
+
+def debug(msg: str):
+    logging.getLogger(LOGGER_NAME).debug(msg)
+
+def error(msg: str):
+    logging.getLogger(LOGGER_NAME).error(msg)
+
+def info(msg: str):
+    logging.getLogger(LOGGER_NAME).info(msg)
+
+def warning(msg: str):
+    logging.getLogger(LOGGER_NAME).warning(msg)
+
+def shutdown_logging():
+    logging.shutdown()
+
+###################################################
+
+def argparse_file_path_type(arg: str) -> str:
+    """
+    Validates that the given file path exists on disk. To be used as the type argument in argparse.
+    """
+    if not os.path.exists(arg):
+        raise argparse.ArgumentError()
+    else:
+        return arg
+
 def register_task(choices):
     """
     Decorator to add a Task to the given list, for registering with argparse.
@@ -50,7 +90,7 @@ def register_task(choices):
     def decorator(cls):
         instantiated_task = cls()
         choices.append(instantiated_task)
-        logging.debug(f"Registered {instantiated_task.name} task with argparse choices")
+        debug(f"Registered {instantiated_task.name} task with argparse choices")
         return cls
     return decorator
 
@@ -99,7 +139,7 @@ def copy_artie_libs(dest):
     for lib in libs:
         destpath = os.path.join(dest, os.path.basename(lib))
         if not os.path.exists(destpath):
-            logging.info(f"Trying to copy {lib} to {destpath}")
+            info(f"Trying to copy {lib} to {destpath}")
             try:
                 shutil.copytree(lib, destpath)
             except FileExistsError:
@@ -192,6 +232,9 @@ def manage_timeout(func, timeout_s: int, *args, **kwargs):
             name = func.__name__
         else:
             name = type(func)
+        # Timeout. But let's wait a little longer to hopefully allow the thread to complete so the resources
+        # such as Docker containers get cleaned up.
+        t.join(timeout=10)
         raise TimeoutError(f"Trying to run function {name} failed with a timeout.")
     return wrapper.ret
 
@@ -213,4 +256,87 @@ def set_up_logging(args):
     format = "[<%(asctime)s> %(processName)s (%(levelname)s)]: %(message)s"
     if not hasattr(args, "loglevel"):
         setattr(args, "loglevel", "info")
-    logging.basicConfig(format=format, level=getattr(logging, args.loglevel.upper()), force=True)
+    level = getattr(logging, args.loglevel.upper())
+
+    stream_handler= logging.StreamHandler()
+    handlers = [stream_handler]
+    if args.output:
+        file_handler = logging.FileHandler(args.output)
+        handlers += [file_handler]
+
+    # Set up root logger to log only at WARNING or above
+    rootlevel = level if level > logging.WARNING else logging.WARNING
+    logging.basicConfig(format=format, level=rootlevel, force=True, handlers=handlers)
+
+    # Set up our logger to be whatever user has requested or else the default
+    logger = logging.getLogger(LOGGER_NAME)
+    logger.setLevel(level)
+
+def scp_to(ip: str, uname: str, password: str, target: str, dest: str):
+    """
+    Copy the file from `target` on the local machine to the `dest` on the remote machine.
+    """
+    c = fabric.Connection(ip, uname, forward_agent=True, connect_timeout=30, connect_kwargs={'password': password})
+    c.put(target, remote=dest)
+
+def ssh(cmd: str, ip: str, uname: str, password: str, timeout_s=30, fail_okay=False):
+    """
+    Execute the given command at the given remote host. Will handle 'sudo' password use
+    if the command invokes sudo.
+
+    If `fail_okay` is given, we ignore any errors on the server that result from running
+    the given command.
+    """
+    c = fabric.Connection(ip, uname, forward_agent=True, connect_timeout=30, connect_kwargs={'password': password})
+    sudopass = invoke.watchers.Responder(pattern=r'\[sudo\] password:', response=password)
+    c.run(cmd, pty=True, watchers=[sudopass], timeout=timeout_s, hide=True, warn=fail_okay)
+
+def _resolve_hostname(user_input: str) -> str:
+    """
+    Resolve the given raw user input (which may be an IP address or a hostname) to an IP address.
+    Attempt to resolve to IPv4, fallback to IPv6 if not available.
+    """
+    try:
+        addrinfo = socket.getaddrinfo(user_input, 6443)
+    except socket.gaierror as e:
+        raise ValueError(f"Could not resolve the given IP address or hostname: {user_input}: {e}")
+
+    for info in addrinfo:
+        family, t, proto, canonname, sockaddr = info
+        if family == socket.AddressFamily.AF_INET:
+            # As soon as we find an IPv4, break (otherwise we'll use whatever IPv6 we find last)
+            ip, port = sockaddr
+            break
+        elif family == socket.AddressFamily.AF_INET6:
+            ip, port, _, _ = sockaddr
+
+    return ip
+
+def validate_input_ip(user_input: str) -> str:
+    """
+    Validates that the input is an IP address and returns it if so. Otherwise throws an exception.
+    If the IP address is a hostname, tries to resolve it to an IP address.
+    """
+    try:
+        ip = _resolve_hostname(user_input)
+    except ValueError as e:
+        print(e)
+        raise argparse.ArgumentError()
+
+    try:
+        _ = ipaddress.ip_address(ip)
+    except ValueError:
+        raise argparse.ArgumentError()
+    return ip
+
+def verify_ssh_connection(ip: str, uname: str, password: str) -> Tuple[bool, Exception|None]:
+    """
+    Return whether we can access the given IP address with the given credentials or not.
+    If we can't, we return the exception we got while trying (if any).
+    """
+    c = fabric.Connection(ip, uname, forward_agent=True, connect_timeout=30, connect_kwargs={'password': password})
+    try:
+        c.run("echo 'testing connection to Artie from Artie Tool'", timeout=30, hide=True)
+        return True, None
+    except Exception as e:
+        return False, e

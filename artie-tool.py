@@ -8,11 +8,15 @@ as in `python artie-tool.py test --help`
 from artietool import common
 from artietool import docker
 from artietool.build import build
+from artietool.deploy import deploy
 from artietool.flash import flash
+from artietool.install import install
+from artietool.install import uninstall
 from artietool.release import release
 from artietool.test import test
 import argparse
 import multiprocessing
+import os
 import signal
 
 def handle_sigint(sig, stack_frame):
@@ -60,6 +64,7 @@ if __name__ == "__main__":
     group = option_parser.add_argument_group("Global", "Global Options")
     group.add_argument("-l", "--loglevel", type=str, default="info", choices=["debug", "info", "warning", "error"], help="The log level.")
     group.add_argument("-e", "--enable-error-tracing", action='store_true', help="If given, error messages will include stack traces when possible.")
+    group.add_argument("-o", "--output", type=str, default=None, help="If given, should be a path to a file we will create and log to.")
     group.add_argument("--artifact-folder", default=common.default_build_location())
     group.add_argument("--force-build", action='store_true', help="If given, build tasks will run even if they already have their artifacts built.")
     group.add_argument("--docker-logs", action='store_true', help="If given, we print Docker logs as we receive them (normally they are hidden).")
@@ -68,6 +73,8 @@ if __name__ == "__main__":
     group.add_argument("--docker-tag", default=common.git_tag(), type=str, help="The tag (not name) of the Docker images we build (if any). If not given, we use the git hash.")
     group.add_argument("--docker-password", default=None, type=str, help="The password to use for docker login. For CI, please use the environment variable ARTIE_TOOL_DOCKER_PASSWORD. If both are given, we use this arg instead of the env variable.")
     group.add_argument("--docker-username", default=None, type=str, help="The username for docker login. If not given, we do not attempt to login before pushing images.")
+    group.add_argument("--kube-config", default=None, type=common.argparse_file_path_type, help="Path to a Kube Config file if you do not store yours in the default location. If you do not know what this is, you can safely ignore it.")
+    group.add_argument("--kube-timeout-s", default=180, type=int, help="Timeout (s) for commands that deal with the K8S cluster.")
     group.add_argument("--nprocs", default=multiprocessing.cpu_count(), type=int, help="If given, we will use at most this many processes to parallelize the command.")
 
     # Parser for build command
@@ -86,6 +93,18 @@ if __name__ == "__main__":
     parser_flash = subparsers.add_parser("flash", parents=[option_parser])
     flash.fill_subparser(parser_flash, option_parser)
 
+    # Parser for the install command
+    parser_install = subparsers.add_parser("install", parents=[option_parser])
+    install.fill_subparser(parser_install, option_parser)
+
+    # Parser for the uninstall command
+    parser_uninstall = subparsers.add_parser("uninstall", parents=[option_parser])
+    uninstall.fill_subparser(parser_uninstall, option_parser)
+
+    # Parser for the deploy command
+    parser_deploy = subparsers.add_parser("deploy", parents=[option_parser])
+    deploy.fill_subparser(parser_deploy, option_parser)
+
     # Parser for clean command
     parser_clean = subparsers.add_parser("clean", parents=[option_parser])
     parser_clean.add_argument("--all", action='store_true', help="If given, we will also remove everything in build-artifacts/")
@@ -97,6 +116,8 @@ if __name__ == "__main__":
 
     # Parse the args
     args = parser.parse_args()
+    if not hasattr(args, 'kube_config') or args.kube_config is None:
+        args.kube_config = os.path.join(os.path.expanduser('~'), ".kube", "config.artie")
 
     # Set up logging
     common.set_up_logging(args)

@@ -2,8 +2,8 @@ from typing import Dict
 from typing import List
 from . import dependency
 from . import test_job
+from .. import common
 from .. import docker
-import logging
 import time
 
 class SingleContainerCLISuiteJob(test_job.TestJob):
@@ -30,15 +30,19 @@ class SingleContainerCLISuiteJob(test_job.TestJob):
             step.link_pids_to_expected_outs(args, {docker_image_name: self._dut_container.id})
 
         # Give some time for the container to initialize before we start testing it
-        logging.info("Waiting for DUT to come online...")
+        common.info("Waiting for DUT to come online...")
         time.sleep(min(args.test_timeout_s / 3, 10))
 
     def teardown(self, args):
         """
         Shutdown any Docker containers still at large.
         """
+        if args.skip_teardown:
+            common.info(f"--skip-teardown detected. You will need to manually clean up the Docker containers.")
+            return
+
         super().teardown(args)
-        logging.info(f"Tearing down. Stopping docker container...")
+        common.info(f"Tearing down. Stopping docker container...")
         try:
             self._dut_container.stop()
         except docker.docker_errors.NotFound:

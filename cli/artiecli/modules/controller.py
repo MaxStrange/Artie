@@ -10,7 +10,7 @@ except ModuleNotFoundError:
 
 def _send_to_leddaemon(cmd: str):
     if platform.system() != "Linux":
-        print("Cannot open a systemd socket when not running on Linux.")
+        print("Cannot open a systemd socket when not running on Linux. This command is meant to be run only from the controller node locally.")
         exit(errno.ENOSYS)
 
     s = socket.socket(family=socket.AF_UNIX)
@@ -29,7 +29,7 @@ def _cmd_led_heartbeat(args):
 
 def _cmd_i2c_list(args):
     if i2c is None:
-        print("No i2c bus available.")
+        print("No i2c bus available. This command is meant to be run only from the controller node locally.")
         exit(errno.ENXIO)
 
     for i in i2c.list_all_instances():
@@ -37,7 +37,7 @@ def _cmd_i2c_list(args):
 
 def _cmd_i2c_scan(args):
     if i2c is None:
-        print("No i2c bus available.")
+        print("No i2c bus available. This command is meant to be run only from the controller node locally.")
         exit(errno.ENXIO)
 
     instances = i2c.list_all_instances()
@@ -69,15 +69,15 @@ def _fill_led_subparser(parser: argparse.ArgumentParser, parent: argparse.Argume
 
     # For each LED command, add the actual command and any args
     ## 'on' command
-    p = subparsers.add_parser("on", help="Turn LED on.", parents=[option_parser])
+    p = subparsers.add_parser("on", help="[Controller Node locally only] Turn LED on.", parents=[option_parser])
     p.set_defaults(cmd=_cmd_led_on)
 
     ## 'off' command
-    p = subparsers.add_parser("off", help="Turn LED off.", parents=[option_parser])
+    p = subparsers.add_parser("off", help="[Controller Node locally only] Turn LED off.", parents=[option_parser])
     p.set_defaults(cmd=_cmd_led_off)
 
     ## 'heartbeat' command
-    p = subparsers.add_parser("heartbeat", help="Turn LED to heartbeat mode.", parents=[option_parser])
+    p = subparsers.add_parser("heartbeat", help="[Controller Node locally only] Turn LED to heartbeat mode.", parents=[option_parser])
     p.set_defaults(cmd=_cmd_led_heartbeat)
 
 def _fill_i2c_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentParser):
@@ -89,11 +89,11 @@ def _fill_i2c_subparser(parser: argparse.ArgumentParser, parent: argparse.Argume
 
     # For each I2C command, add the actual command and any args
     ## List command
-    list_parser = subparsers.add_parser("list", help="List all i2c instances on the bus.", parents=[option_parser])
+    list_parser = subparsers.add_parser("list", help="[Controller Node locally only] List all i2c instances on the bus.", parents=[option_parser])
     list_parser.set_defaults(cmd=_cmd_i2c_list)
 
     ## Scan command
-    scan_parser = subparsers.add_parser("scan", help="Scan one or more i2c instances for devices.", parents=[option_parser])
+    scan_parser = subparsers.add_parser("scan", help="[Controller Node locally only] Scan one or more i2c instances for devices.", parents=[option_parser])
     scan_parser.add_argument("instance", default="ALL", type=_check_i2c_instance_arg_type, help="Either an integer corresponding to an i2c instance or 'ALL'")
     scan_parser.set_defaults(cmd=_cmd_i2c_scan)
 

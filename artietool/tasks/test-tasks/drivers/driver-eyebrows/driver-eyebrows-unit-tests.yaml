@@ -4,7 +4,7 @@ labels:
   - unit
 dependencies:
   - eyebrows-driver-sanity-tests: ""
-  - container-eyebrows: docker-image
+  - driver-eyebrows: docker-image
   - artie-cli: docker-image
 type: test
 steps:
@@ -12,7 +12,7 @@ steps:
     docker-image-under-test:
       dependency:
         name: docker-image
-        producing-task: container-eyebrows
+        producing-task: driver-eyebrows
     cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --port 18863 --loglevel info"
     dut-port-mappings:
       - 18863: 18863
@@ -26,43 +26,58 @@ steps:
         expected-outputs:
           - what: "Mocking MCU FW load."
             where: ${DUT}
+      - test-name: led-get
+        cmd-to-run-in-cli: "artie-cli eyebrows led get --side left --unit-test"
+        expected-outputs:
+          - what: "LED -> State: heartbeat"
+            where: ${DUT}
       - test-name: led-on
-        cmd-to-run-in-cli: "artie-cli eyebrows led on --side left"
+        cmd-to-run-in-cli: "artie-cli eyebrows led on --side left --unit-test"
         expected-outputs:
           - what: "left LED -> ON"
             where: ${DUT}
       - test-name: led-off
-        cmd-to-run-in-cli: "artie-cli eyebrows led off --side right"
+        cmd-to-run-in-cli: "artie-cli eyebrows led off --side right --unit-test"
         expected-outputs:
           - what: "right LED -> OFF"
             where: ${DUT}
       - test-name: led-heartbeat
-        cmd-to-run-in-cli: "artie-cli eyebrows led heartbeat --side both"
+        cmd-to-run-in-cli: "artie-cli eyebrows led heartbeat --side both --unit-test"
         expected-outputs:
           - what: "left LED -> HEARTBEAT"
             where: ${DUT}
+      - test-name: lcd-get
+        cmd-to-run-in-cli: "artie-cli eyebrows lcd get --side right --unit-test"
+        expected-outputs:
+          - what: "right eyebrow LCD -> State: ['M', 'H', 'M']"
+            where: ${DUT}
       - test-name: lcd-test
-        cmd-to-run-in-cli: "artie-cli eyebrows lcd test --side both"
+        cmd-to-run-in-cli: "artie-cli eyebrows lcd test --side both --unit-test"
         expected-outputs:
           - what: "right LCD -> TEST"
             where: ${DUT}
       - test-name: lcd-off
-        cmd-to-run-in-cli: "artie-cli eyebrows lcd off --side left"
+        cmd-to-run-in-cli: "artie-cli eyebrows lcd off --side left --unit-test"
         expected-outputs:
           - what: "left LCD -> OFF"
             where: ${DUT}
       - test-name: lcd-draw
-        cmd-to-run-in-cli: "artie-cli eyebrows lcd draw H H L --side left"
+        cmd-to-run-in-cli: "artie-cli eyebrows lcd draw H H L --side left --unit-test"
         expected-outputs:
           - what: "left LCD -> DRAW"
             where: ${DUT}
       - test-name: fw-load
-        cmd-to-run-in-cli: "artie-cli eyebrows fw load"
+        cmd-to-run-in-cli: "artie-cli eyebrows fw load --unit-test"
         expected-outputs:
           - what: "Mocking MCU FW load."
             where: ${DUT}
+      - test-name: servo-get
+        cmd-to-run-in-cli: "artie-cli eyebrows servo get --side right --unit-test"
+        expected-outputs:
+          - what: "right servo position -> 90.00"
+            where: ${DUT}
       - test-name: servo-go
-        cmd-to-run-in-cli: "artie-cli eyebrows servo go 45 --side right"
+        cmd-to-run-in-cli: "artie-cli eyebrows servo go 45 --side right --unit-test"
         expected-outputs:
           - what: "right SERVO -> GO"
             where: ${DUT}

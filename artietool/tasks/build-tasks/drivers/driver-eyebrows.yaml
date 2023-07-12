@@ -1,4 +1,4 @@
-name: container-eyebrows
+name: driver-eyebrows
 labels:
   - docker-image
 dependencies:

@@ -1,0 +1,12 @@
+name: teleop
+labels:
+  - container-set
+dependencies:
+artifacts:
+  - name: artie-teleop
+    type: helm-chart
+type: deploy
+steps:
+  - job: add
+    what: artie-teleop
+    chart: deploy-files/artie-teleop

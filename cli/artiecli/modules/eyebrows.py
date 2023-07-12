@@ -1,10 +1,83 @@
+from .. import apiclient
 from .. import common
+from typing import List
 import argparse
 
-def _connect_client(args):
-    ip = "localhost"
-    port = 18863
-    connection = common.connect(ip, port, ipv6=args.ipv6)
+class EyebrowClient(apiclient.APIClient):
+    def __init__(self, args) -> None:
+        super().__init__(args)
+
+    def led_on(self, side: str):
+        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'on'})
+        if response.status_code != 200:
+            common.format_print_result(f"Error setting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+
+    def led_off(self, side: str):
+        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'off'})
+        if response.status_code != 200:
+            common.format_print_result(f"Error setting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+
+    def led_heartbeat(self, side: str):
+        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'heartbeat'})
+        if response.status_code != 200:
+            common.format_print_result(f"Error setting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+
+    def led_get(self, side: str):
+        response = self.get(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id})
+        if response.status_code != 200:
+            common.format_print_result(f"Error getting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+        else:
+            common.format_print_result(f"{side} LED value: {response.json().get('state')}", module='eyebrows', submodule='LED', artie_id=response.json().get('artie-id'))
+
+    def lcd_test(self, side: str):
+        response = self.post(f"/eyebrows/lcd/{side}/test", params={'artie-id': self.artie_id})
+        if response.status_code != 200:
+            common.format_print_result(f"Error testing {side} LCD: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+
+    def lcd_off(self, side: str):
+        response = self.post(f"/eyebrows/lcd/{side}/off", params={'artie-id': self.artie_id})
+        if response.status_code != 200:
+            common.format_print_result(f"Error clearing {side} LCD: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+
+    def lcd_draw(self, side: str, draw_val: List[str]):
+        body = {
+            "vertices": [arg[0] for arg in draw_val]
+        }
+        response = self.post(f"/eyebrows/lcd/{side}", body=body, params={'artie-id': self.artie_id})
+        if response.status_code != 200:
+            common.format_print_result(f"Error setting {side} LCD: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+
+    def lcd_get(self, side: str):
+        response = self.get(f"/eyebrows/lcd/{side}", params={'artie-id': self.artie_id})
+        if response.status_code != 200:
+            common.format_print_result(f"Error getting {side} LCD value: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+        else:
+            common.format_print_result(f"Display value: {response.json().get('vertices')}", module='eyebrows', submodule='LCD', artie_id=response.json().get('artie-id'))
+
+    def servo_go(self, side: str, go_val: float):
+        response = self.post(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id, 'degrees': f"{go_val:0.2f}"})
+        if response.status_code != 200:
+            common.format_print_result(f"Error setting {side} Servo: {response}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
+
+    def servo_get(self, side: str):
+        response = self.get(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id})
+        if response.status_code != 200:
+            common.format_print_result(f"Error getting {side} Servo: {response}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
+        else:
+            common.format_print_result(f"{side} servo position in degrees: {response.json().get('degrees')}", module='eyebrows', submodule='servo', artie_id=response.json().get('artie-id'))
+
+    def firmware_load(self):
+        response = self.post(f"/eyebrows/fw", params={'artie-id': self.artie_id})
+        if response.status_code != 200:
+            common.format_print_result(f"Error reloading eyebrow FW: {response}", module='eyebrows', submodule='FW', artie_id=self.artie_id)
+
+def _connect_client(args) -> common._ConnectionWrapper | EyebrowClient:
+    if common.in_test_mode(args):
+        ip = "localhost"
+        port = 18863
+        connection = common.connect(ip, port, ipv6=args.ipv6)
+    else:
+        connection = EyebrowClient(args)
     return connection
 
 #########################################################################################
@@ -35,9 +108,25 @@ def _cmd_led_heartbeat(args):
     else:
         client.led_heartbeat(args.side)
 
+def _cmd_led_get(args):
+    client = _connect_client(args)
+    if args.side == "both":
+        client.led_get("left")
+        client.led_get("right")
+    else:
+        client.led_get(args.side)
+
 #########################################################################################
 ################################# LCD Subsystem #########################################
 #########################################################################################
+def _cmd_lcd_get(args):
+    client = _connect_client(args)
+    if args.side == "both":
+        client.lcd_get("left")
+        client.lcd_get("right")
+    else:
+        client.lcd_get(args.side)
+
 def _cmd_lcd_test(args):
     client = _connect_client(args)
     if args.side == "both":
@@ -66,6 +155,14 @@ def _cmd_lcd_draw(args):
 #########################################################################################
 ################################# Servo Subsystem #######################################
 #########################################################################################
+def _cmd_servo_get(args):
+    client = _connect_client(args)
+    if args.side == "both":
+        client.servo_get("left")
+        client.servo_get("right")
+    else:
+        client.servo_get(args.side)
+
 def _cmd_servo_go(args):
     client = _connect_client(args)
     if args.side == "both":
@@ -119,6 +216,10 @@ def _fill_servo_subparser(parser: argparse.ArgumentParser, parent: argparse.Argu
     p.add_argument("go_val", metavar="go-val", type=_check_servo_range, help="Value to drive the servo to. 0 is left. 180 is right. 90 is center.")
     p.set_defaults(cmd=_cmd_servo_go)
 
+    # 'get' command
+    p = subparsers.add_parser("get", help="Get a best estimate of the servo's position in degrees", parents=[option_parser])
+    p.set_defaults(cmd=_cmd_servo_get)
+
 def _fill_lcd_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentParser):
     subparsers = parser.add_subparsers(title="lcd", description="The LCD subsystem")
 
@@ -136,6 +237,9 @@ def _fill_lcd_subparser(parser: argparse.ArgumentParser, parent: argparse.Argume
     p = subparsers.add_parser("draw", help="Draw the given eyebrow configuration on the LCD.", parents=[option_parser])
     p.add_argument("draw_val", metavar="draw-val", nargs=3, choices=["HIGH", "MIDDLE", "LOW", 'H', 'M', 'L'], help="Need three strings, each 'HIGH' ('H'), 'MIDDLE' ('M'), or 'LOW' ('L').")
     p.set_defaults(cmd=_cmd_lcd_draw)
+
+    p = subparsers.add_parser("get", help="Get the LCD's current display", parents=[option_parser])
+    p.set_defaults(cmd=_cmd_lcd_get)
 
 def _fill_led_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentParser):
     subparsers = parser.add_subparsers(title="led", description="The LED subsystem")
@@ -157,6 +261,10 @@ def _fill_led_subparser(parser: argparse.ArgumentParser, parent: argparse.Argume
     ## 'heartbeat' command
     p = subparsers.add_parser("heartbeat", help="Turn LED to heartbeat mode.", parents=[option_parser])
     p.set_defaults(cmd=_cmd_led_heartbeat)
+
+    ## 'get' command
+    p = subparsers.add_parser("get", help="Get the current LED state.", parents=[option_parser])
+    p.set_defaults(cmd=_cmd_led_get)
 
 def fill_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentParser):
     subparsers = parser.add_subparsers(title="eyebrows", description="The eyebrow module's subsystems")

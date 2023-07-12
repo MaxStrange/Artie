@@ -10,10 +10,9 @@ artifacts:
     type: fw-files
 type: build
 steps:
-  - job: pico-fw-build
+  - job: docker-build
     artifacts:
       - docker-image
-      - fw-files
     img-base-name: artie-mouth
     buildx: false
     dockerfile-dpath: "${REPO_ROOT}/firmware/mouth/build"
@@ -24,6 +23,13 @@ steps:
           dependency:
             name: docker-image
             producing-task: pico-base-image
+  - job: file-transfer-from-container
+    artifacts:
+      - fw-files
+    image:
+      dependency:
+        name: docker-image
+        producing-task: fw-mouth
     fw-files-in-container:
       - /pico/src/build/mouth.elf
       - /pico/src/build/mouth.hex

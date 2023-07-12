@@ -71,39 +71,7 @@ static void limit_switch_callback(uint gpio, uint32_t events)
     }
 }
 
-void servo_init(void)
-{
-    log_info("Init servo\n");
-
-    // Initialize limit switch left with interrupt (active low)
-    // First pin is used to enable interrupts for GPIO and to add a default handler for all pins.
-    gpio_set_irq_enabled_with_callback(LIMIT_SWITCH_LEFT, GPIO_IRQ_EDGE_FALL, true, &limit_switch_callback);
-
-    // Initialize limit switch right with interrupt (active low)
-    // Additional pin interrupts are enabled like this.
-    gpio_set_irq_enabled(LIMIT_SWITCH_RIGHT, GPIO_IRQ_EDGE_FALL, true);
-
-    // Clock division calculation for the PWM counter
-    // We want PWM_PERIOD_MS for our period (in ms)
-    float sysclock_frequency_hz = (float)clock_get_hz(clk_sys);
-    float default_timer_period_ms = ((float)COUNT_TOP / sysclock_frequency_hz) * (1000.0f); // multiply by a thousand to get ms
-    float division = (float)PWM_PERIOD_MS / default_timer_period_ms;
-
-    // Initialize servo pin for PWM. Configure PWM to count to count_top in PWM_PERIOD_MS ms.
-    gpio_set_function(SERVO_PWM_PIN, GPIO_FUNC_PWM);
-    uint slice_num = pwm_gpio_to_slice_num(SERVO_PWM_PIN);
-    pwm_config cfg = pwm_get_default_config();
-    pwm_config_set_wrap(&cfg, COUNT_TOP);
-    pwm_config_set_clkdiv(&cfg, division);
-
-    // Start the PWM signal
-    pwm_init(slice_num, &cfg, true);
-
-    // Run the calibration procedure
-    calibrate_servo();
-}
-
-void calibrate_servo(void)
+static void calibrate_servo(void)
 {
     float prev_value = NOMINAL_MIDDLE_PULSE_WIDTH_MS;
     float next_value;
@@ -178,19 +146,44 @@ void calibrate_servo(void)
     last_known_safe_right = prev_value;
 }
 
+void servo_init(void)
+{
+    log_info("Init servo\n");
+
+    // Initialize limit switch left with interrupt (active low)
+    // First pin is used to enable interrupts for GPIO and to add a default handler for all pins.
+    gpio_set_irq_enabled_with_callback(LIMIT_SWITCH_LEFT, GPIO_IRQ_EDGE_FALL, true, &limit_switch_callback);
+
+    // Initialize limit switch right with interrupt (active low)
+    // Additional pin interrupts are enabled like this.
+    gpio_set_irq_enabled(LIMIT_SWITCH_RIGHT, GPIO_IRQ_EDGE_FALL, true);
+
+    // Clock division calculation for the PWM counter
+    // We want PWM_PERIOD_MS for our period (in ms)
+    float sysclock_frequency_hz = (float)clock_get_hz(clk_sys);
+    float default_timer_period_ms = ((float)COUNT_TOP / sysclock_frequency_hz) * (1000.0f); // multiply by a thousand to get ms
+    float division = (float)PWM_PERIOD_MS / default_timer_period_ms;
+
+    // Initialize servo pin for PWM. Configure PWM to count to count_top in PWM_PERIOD_MS ms.
+    gpio_set_function(SERVO_PWM_PIN, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(SERVO_PWM_PIN);
+    pwm_config cfg = pwm_get_default_config();
+    pwm_config_set_wrap(&cfg, COUNT_TOP);
+    pwm_config_set_clkdiv(&cfg, division);
+
+    // Start the PWM signal
+    pwm_init(slice_num, &cfg, true);
+
+    // Run the calibration procedure
+    calibrate_servo();
+}
+
 void servo_cmd(cmd_t command)
 {
-    // Servo commands are either "calibrate" or "turn".
+    // Servo commands are always "turn"
     // The first two bits are the subsystem mask.
     // The 6 LSbs are mapped into the usable range of degrees for the eyeball enclosure.
-    // Except that 0 is reserved for calibrating the servo.
     uint8_t servo_cmd_param = command & 0x3F;
-
-    if (servo_cmd_param == 0x00)
-    {
-        calibrate_servo();
-        return;
-    }
 
     // Six bits means range [0, 63]
     // 0  => 0 deg      (1.0 ms)
@@ -204,13 +197,13 @@ void servo_cmd(cmd_t command)
     //       This likely takes an egregious amount of time.
     static const float scaling_factor = 1.5384e-05f;                // 1/65,000 ish
     static const float x_offset = -31.0f;                           // Slide the graph to center on halfway between 0 and 63
-    static const float y_offset = NOMINAL_MIDDLE_PULSE_WIDTH_MS;    // Shift up so that the 31 falls on 1.5 ms
+    static const float y_offset = NOMINAL_MIDDLE_PULSE_WIDTH_MS;    // Shift up so that the 31 falls on 1.5 ms (nominally)
     float x = (float)servo_cmd_param;
     float pulse_width_ms = scaling_factor * ((x + x_offset) * (x + x_offset) * (x + x_offset)) + y_offset;
 
     // Make sure to bound the result
-    pulse_width_ms = (pulse_width_ms < NOMINAL_FAR_LEFT)  ? NOMINAL_FAR_LEFT  : pulse_width_ms;
-    pulse_width_ms = (pulse_width_ms > NOMINAL_FAR_RIGHT) ? NOMINAL_FAR_RIGHT : pulse_width_ms;
+    pulse_width_ms = (pulse_width_ms < last_known_safe_left)  ? last_known_safe_left : pulse_width_ms;
+    pulse_width_ms = (pulse_width_ms > last_known_safe_right) ? last_known_safe_right : pulse_width_ms;
 
     // Set duty cycle on PWM line
     set_pulse_width(pulse_width_ms);

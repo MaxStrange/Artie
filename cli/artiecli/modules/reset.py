@@ -1,10 +1,44 @@
+from .. import apiclient
 from .. import common
 import argparse
+import errno
+
+class ResetClient(apiclient.APIClient):
+    def __init__(self, args) -> None:
+        super().__init__(args)
+
+    def _convert_address_to_mcu(self, address: int) -> str:
+        match address:
+            case 0x00:
+                return 'eyebrows'
+            case 0x01:
+                return 'mouth'
+            case 0x02:
+                return 'sensors-head'
+            case 0x03:
+                return 'pump-control'
+            case 0xFF:
+                return 'all'
+            case _:
+                print(f"Invalid argument given for MCU address: {address}")
+                exit(errno.EINVAL)
+
+    def reset_target(self, address: int):
+        mcu = self._convert_address_to_mcu(address)
+        self.post(f"/reset/mcu", params={'artie-id': self.artie_id, 'id': mcu})
+
+def _connect_client(args) -> common._ConnectionWrapper | ResetClient:
+    if common.in_test_mode(args):
+        ip = "localhost"
+        port = 18861
+        connection = common.connect(ip, port, ipv6=args.ipv6)
+    else:
+        connection = ResetClient(args)
+    return connection
+
 
 def _cmd_reset_target_mcu(args):
-    ip = "localhost"
-    port = 18861
-    connection = common.connect(ip, port, ipv6=args.ipv6)
+    connection = _connect_client(args)
     connection.reset_target(args.address)
 
 def _cmd_reset_target_sbc(args):

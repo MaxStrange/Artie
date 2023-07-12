@@ -13,12 +13,14 @@ therefore meant to be run on the Controller Node,
 and it needs to be run inside a container that
 has access to both SWD and I2C on the Controller Node.
 """
-from artie_driver_client import client as adc
+from artie_service_client import client as asc
 from artie_i2c import i2c
 from artie_swd import swd
 from artie_util import artie_logging as alog
 from artie_util import boardconfig_controller as board
 from artie_util import util
+from artie_util import rpycserver
+from typing import List
 import argparse
 import numpy as np
 import os
@@ -38,13 +40,25 @@ CMD_MODULE_ID_LCD = 0x40
 CMD_MODULE_ID_SERVO = 0x80
 
 @rpyc.service
-class DriverServer(rpyc.Service):
+class DriverServer(rpycserver.Service):
     def __init__(self, fw_fpath: str, ipv6=False):
         self._fw_fpath = fw_fpath
         self._ipv6 = ipv6
+        self._left_display_state = None
+        self._right_display_state = None
+        self._left_led_state = None
+        self._right_led_state = None
+        self._left_servo_degrees = 90.0
+        self._right_servo_degrees = 90.0
 
         # Load FW
         self._initialize_mcus()
+
+        # Initialize
+        self.led_heartbeat('left')
+        self.led_heartbeat('right')
+        self.lcd_draw('left', ['M', 'H', 'M'])
+        self.lcd_draw('right', ['M', 'H', 'M'])
 
     @rpyc.exposed
     @alog.function_counter("whoami")
@@ -68,6 +82,10 @@ class DriverServer(rpyc.Service):
         address = self._get_address(side)
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x00
         i2c.write_bytes_to_address(address, led_on_bytes)
+        if side.lower() == 'left':
+            self._left_led_state = 'on'
+        else:
+            self._right_led_state = 'on'
 
     @rpyc.exposed
     @alog.function_counter("led_off")
@@ -83,6 +101,10 @@ class DriverServer(rpyc.Service):
         address = self._get_address(side)
         led_on_bytes = CMD_MODULE_ID_LEDS | 0x01
         i2c.write_bytes_to_address(address, led_on_bytes)
+        if side.lower() == 'left':
+            self._left_led_state = 'off'
+        else:
+            self._right_led_state = 'off'
 
     @rpyc.exposed
     @alog.function_counter("led_heartbeat")
@@ -98,6 +120,28 @@ class DriverServer(rpyc.Service):
         address = self._get_address(side)
         led_heartbeat_bytes = CMD_MODULE_ID_LEDS | 0x02
         i2c.write_bytes_to_address(address, led_heartbeat_bytes)
+        if side.lower() == 'left':
+            self._left_led_state = 'heartbeat'
+        else:
+            self._right_led_state = 'heartbeat'
+
+    @rpyc.exposed
+    @alog.function_counter("led_get")
+    def led_get(self, side: str) -> str:
+        """
+        RPC method to get the state of the given LED.
+        """
+        side = side.lower()
+        if side not in ('left', 'right'):
+            errmsg = f"Invalid eyebrow side: {side}"
+            alog.error(errmsg)
+            raise ValueError(errmsg)
+        elif side == 'left':
+            alog.test(f"Received request for {side} LED -> State: {self._left_led_state}", tests=['eyebrows-driver-unit-tests:led-get'])
+            return self._left_led_state
+        else:
+            alog.test(f"Received request for {side} LED -> State: {self._right_led_state}", tests=['eyebrows-driver-unit-tests:led-get'])
+            return self._right_led_state
 
     @rpyc.exposed
     @alog.function_counter("lcd_test")
@@ -113,6 +157,10 @@ class DriverServer(rpyc.Service):
         address = self._get_address(side)
         lcd_test_bytes = CMD_MODULE_ID_LCD | 0x11
         i2c.write_bytes_to_address(address, lcd_test_bytes)
+        if side.lower() == 'left':
+            self._left_display_state = 'test'
+        else:
+            self._right_display_state = 'test'
 
     @rpyc.exposed
     @alog.function_counter("lcd_off")
@@ -128,17 +176,21 @@ class DriverServer(rpyc.Service):
         address = self._get_address(side)
         lcd_off_bytes = CMD_MODULE_ID_LCD | 0x22
         i2c.write_bytes_to_address(address, lcd_off_bytes)
+        if side.lower() == 'left':
+            self._left_display_state = 'clear'
+        else:
+            self._right_display_state = 'clear'
 
     @rpyc.exposed
     @alog.function_counter("lcd_draw")
-    def lcd_draw(self, side: str, eyebrow_state):
+    def lcd_draw(self, side: str, eyebrow_state: List[str]):
         """
         RPC method to draw a specified eyebrow state to the LCD.
 
         Args
         ----
         - side: One of 'left' or 'right'
-        - eyebrow_state: A list of 'H' or 'L'
+        - eyebrow_state: A list of 'H' or 'L' or 'M'
         """
         alog.test(f"Received request for {side} LCD -> DRAW.", tests=['eyebrows-driver-unit-tests:lcd-draw'])
         address = self._get_address(side)
@@ -169,15 +221,70 @@ class DriverServer(rpyc.Service):
 
         lcd_draw_bytes = CMD_MODULE_ID_LCD | eyebrow_state_bytes
         i2c.write_bytes_to_address(address, lcd_draw_bytes)
+        if side.lower() == 'left':
+            self._left_display_state = eyebrow_state
+        else:
+            self._right_display_state = eyebrow_state
+
+    @rpyc.exposed
+    @alog.function_counter("lcd_get")
+    def lcd_get(self, side: str) -> List[str]|str:
+        """
+        RPC method to get the LCD value that we think
+        we are displaying on the given side. Will return either
+        a list of vertices, 'test', or 'clear'.
+        """
+        side = side.lower()
+        if side not in ('left', 'right'):
+            errmsg = f"Invalid eyebrow side: {side}"
+            alog.error(errmsg)
+            raise ValueError(errmsg)
+        elif side == 'left':
+            state = self._left_display_state
+        else:
+            state = self._right_display_state
+        alog.test(f"Received request for {side} eyebrow LCD -> State: {state}", tests=['eyebrows-driver-unit-tests:lcd-get'])
+        return state
 
     @rpyc.exposed
     @alog.function_counter("firmware_load")
     def firmware_load(self):
         """
-        RPC method to (re)load the FW on both MCUs.
+        RPC method to (re)load the FW on both MCUs. This will also
+        reinitialize the LCDs and LEDs.
         """
         alog.info("Reloading FW...")
         self._initialize_mcus()
+
+        # Initialize
+        self.led_heartbeat('left')
+        self.led_heartbeat('right')
+        self.lcd_draw('left', ['M', 'H', 'M'])
+        self.lcd_draw('right', ['M', 'H', 'M'])
+
+    @rpyc.exposed
+    @alog.function_counter("servo_get")
+    def servo_get(self, side: str) -> float:
+        """
+        RPC method to get the servo's degrees. This could be off
+        due to inaccuracies of the servo, but also due to limiting on the left
+        and right extreme ends as found during servo calibration.
+
+        Returns
+        -------
+        Degrees (float).
+        """
+        side = side.lower()
+        if side not in ('left', 'right'):
+            errmsg = f"Invalid side for servo: {side}"
+            alog.error(errmsg)
+            raise ValueError(errmsg)
+        elif side == 'left':
+            degrees = self._left_servo_degrees
+        else:
+            degrees = self._right_servo_degrees
+        alog.test(f"Received request for {side} servo position -> {degrees:0.2f}", tests=['eyebrows-driver-unit-tests:servo-get'])
+        return degrees
 
     @rpyc.exposed
     @alog.function_counter("servo_go")
@@ -203,6 +310,10 @@ class DriverServer(rpyc.Service):
         go_val_bytes = 0b00111111 if go_val_bytes > 0b00111111 else go_val_bytes
         servo_go_bytes = CMD_MODULE_ID_SERVO | go_val_bytes
         i2c.write_bytes_to_address(address, servo_go_bytes)
+        if side.lower() == 'left':
+            self._left_servo_degrees = servo_degrees
+        else:
+            self._right_servo_degrees = servo_degrees
 
     def _get_address(self, side: str):
         """
@@ -254,7 +365,7 @@ class DriverServer(rpyc.Service):
         # Use SWD to load the two FW files
         swd.load_fw_file(self._fw_fpath, left_iface_fname)
         swd.load_fw_file(self._fw_fpath, right_iface_fname)
-        adc.reset(board.MCU_RESET_ADDR_RL_EYEBROWS, ipv6=self._ipv6)
+        asc.reset(board.MCU_RESET_ADDR_RL_EYEBROWS, ipv6=self._ipv6)
         time.sleep(0.1)  # Give it a moment to come back online
 
         # Sanity check that both MCUs are present on the I2C bus

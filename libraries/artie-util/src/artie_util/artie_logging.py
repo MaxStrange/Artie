@@ -2,6 +2,7 @@
 A wrapper/shim to decouple our choice of logging/telemetry library/SDK
 from the programming interface.
 """
+from . import constants
 from logging import handlers as loghandlers
 from socket import socket
 from typing import Dict
@@ -10,6 +11,7 @@ from opentelemetry.exporter import prometheus
 import opentelemetry.sdk.metrics as otelmetrics
 import opentelemetry.sdk.metrics.view as metview
 import opentelemetry.sdk.resources as otelresource
+import datetime
 import enum
 import functools
 import inspect
@@ -26,7 +28,7 @@ import string
 import traceback
 
 GLOBAL_METER_NAME = "artie.global.meter"
-ARTIE_ID = os.environ.get('ARTIE_ID', 'UNSET')
+ARTIE_ID = os.environ.get(constants.ArtieEnvVariables.ARTIE_ID, 'UNSET')
 SERVICE_NAME = ""  # Set when initialized
 HISTOGRAM_SUFFIX_SECONDS = "duration-seconds"
 
@@ -106,11 +108,11 @@ class ArtieLogSocketHandler(loghandlers.SocketHandler):
         }
         """
         msg_dict = {
-            'level': record.levelname,
-            'message': record.getMessage(),
-            'processName': record.processName,
-            'threadname': record.threadName,
-            'timestamp': record.asctime,
+            'level': record.levelname if hasattr(record, 'levelname') else 'UNKNOWN',
+            'message': record.getMessage() if hasattr(record, 'getMessage') else '',
+            'processName': record.processName if hasattr(record, 'processName') else 'Unknown',
+            'threadname': record.threadName if hasattr(record, 'threadName') else 'Unknown',
+            'timestamp': record.asctime if hasattr(record, 'asctime') else datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'servicename': SERVICE_NAME,
             'artieid': ARTIE_ID,
         }
@@ -146,17 +148,17 @@ def init(service_name, args=None):
         otelresource.SERVICE_NAME: SERVICE_NAME,
         otelresource.SERVICE_NAMESPACE: "artie",
         otelresource.SERVICE_INSTANCE_ID: os.environ.get("HOSTNAME", ''.join(random.choices(string.ascii_letters, k=10))),
-        otelresource.SERVICE_VERSION: os.environ.get('ARTIE_GIT_TAG', 'unversioned'),
+        otelresource.SERVICE_VERSION: os.environ.get(constants.ArtieEnvVariables.ARTIE_GIT_TAG, 'unversioned'),
         otelresource.CONTAINER_NAME: os.environ.get("HOSTNAME", SERVICE_NAME),
-        otelresource.CONTAINER_IMAGE_TAG: os.environ.get('ARTIE_GIT_TAG', 'unversioned'),
+        otelresource.CONTAINER_IMAGE_TAG: os.environ.get(constants.ArtieEnvVariables.ARTIE_GIT_TAG, 'unversioned'),
     })
 
     # Check if we are running in test mode
-    test_mode = os.environ.get('ARTIE_RUN_MODE', 'production') in ('sanity', 'unit')
+    test_mode = os.environ.get(constants.ArtieEnvVariables.ARTIE_RUN_MODE, constants.ArtieRunModes.PRODUCTION) in (constants.ArtieRunModes.SANITY_TESTING, constants.ArtieRunModes.UNIT_TESTING)
 
     # Set up logging
-    fluent_bit_collector_hostname = os.environ.get("LOG_COLLECTOR_HOSTNAME", None)
-    fluent_bit_collector_port = os.environ.get("LOG_COLLECTOR_PORT", None)
+    fluent_bit_collector_hostname = os.environ.get(constants.ArtieEnvVariables.LOG_COLLECTOR_HOSTNAME, None)
+    fluent_bit_collector_port = os.environ.get(constants.ArtieEnvVariables.LOG_COLLECTOR_PORT, None)
     socket_handler = ArtieLogSocketHandler(fluent_bit_collector_hostname, fluent_bit_collector_port)
     stream_handler = logging.StreamHandler()
     handlers = None if test_mode else [socket_handler, stream_handler]
@@ -164,8 +166,8 @@ def init(service_name, args=None):
     logging.basicConfig(format=format, level=getattr(logging, loglevel), force=True, handlers=handlers)
 
     # Set up metrics
-    prometheus_server_port = os.environ.get("METRICS_SERVER_PORT", None)
-    if prometheus_server_port is None:
+    prometheus_server_port = os.environ.get(constants.ArtieEnvVariables.METRICS_SERVER_PORT, None)
+    if not prometheus_server_port:
         global METRICS_CONFIGURED
         logging.error("No 'METRICS_SERVER_PORT' in environment. Cannot send metrics.")
         METRICS_CONFIGURED = False

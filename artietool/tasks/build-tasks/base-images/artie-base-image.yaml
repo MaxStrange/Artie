@@ -21,4 +21,4 @@ steps:
       - "${REPO_ROOT}/libraries/artie-i2c"
       - "${REPO_ROOT}/libraries/artie-gpio"
       - "${REPO_ROOT}/libraries/artie-swd"
-      - "${REPO_ROOT}/libraries/artie-driver-client"
+      - "${REPO_ROOT}/libraries/artie-service-client"

@@ -1,0 +1,12 @@
+name: base
+labels:
+  - container-set
+dependencies:
+artifacts:
+  - name: artie-base
+    type: helm-chart
+type: deploy
+steps:
+  - job: add
+    what: artie-base
+    chart: deploy-files/artie-base

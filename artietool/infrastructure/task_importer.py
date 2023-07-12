@@ -1,8 +1,10 @@
 from . import artifact
 from . import dependency
+from . import deploy_job
 from . import docker_build_job
 from . import docker_compose_test_suite_job
-from . import picofw_build_job
+from . import file_transfer_from_container_job
+from . import hardware_test_job
 from . import single_container_cli_suite_job
 from . import single_container_sanity_suite_job
 from . import test_job
@@ -15,7 +17,6 @@ from enum import unique
 from typing import Dict
 from typing import List
 from typing import Tuple
-import collections
 import glob
 import os
 import yaml
@@ -29,6 +30,7 @@ class TaskTypes(StrEnum):
     TEST = "test"
     FLASH = "flash"
     RELEASE = "release"
+    DEPLOY = "deploy"
 
 @dataclass
 class CLIArg:
@@ -153,6 +155,9 @@ def _import_artifacts_list(config: Dict, fpath: str, header_artifacts: List[arti
 
 def _import_artifacts(config: Dict, fpath: str) -> List[artifact.Artifact]:
     artifact_list = config.get('artifacts', [])
+    if artifact_list is None:
+        artifact_list = []
+
     artifacts = []
     for artdef in artifact_list:
         _validate_dict(artdef, 'name', keyerrmsg=f"No 'name' key found in one of the 'artifacts' definitions in {fpath}")
@@ -166,6 +171,8 @@ def _import_artifacts(config: Dict, fpath: str) -> List[artifact.Artifact]:
                 art = artifact.DockerImageArtifact(artifact_name, producing_task_name)
             case 'fw-files':
                 art = artifact.FilesArtifact(artifact_name, producing_task_name)
+            case 'helm-chart':
+                art = artifact.HelmChartArtifact(artifact_name, producing_task_name)
             case _:
                 raise KeyError(f"Unrecognized Artifact type '{artdef['type']}' in {fpath}")
         artifacts.append(art)
@@ -173,6 +180,9 @@ def _import_artifacts(config: Dict, fpath: str) -> List[artifact.Artifact]:
 
 def _import_dependencies(config: Dict, fpath: str) -> List[dependency.Dependency]:
     dep_list = config.get('dependencies', [])
+    if dep_list is None:
+        dep_list = []
+
     for depdef in dep_list:
         if len(depdef.keys()) != 1 or len(depdef.values()) != 1:
             raise ValueError(f"'dependencies' section is mis-configured in {fpath}. Should be a list of <producing-task-name>: <artifact-name>")
@@ -186,6 +196,9 @@ def _import_dependencies(config: Dict, fpath: str) -> List[dependency.Dependency
 
 def _import_labels(config: Dict, fpath: str) -> List[task.Labels]:
     label_list = config.get('labels', [])
+    if label_list is None:
+        label_list = []
+
     labels = []
     for label in label_list:
         match label:
@@ -207,6 +220,10 @@ def _import_labels(config: Dict, fpath: str) -> List[task.Labels]:
                 labels.append(task.Labels.SANITY)
             case task.Labels.TELEMETRY:
                 labels.append(task.Labels.TELEMETRY)
+            case task.Labels.CONTAINER_SET:
+                labels.append(task.Labels.CONTAINER_SET)
+            case task.Labels.HARDWARE:
+                labels.append(task.Labels.HARDWARE)
             case _:
                 raise ValueError(f"Unrecognized label '{label}' in 'labels' section of {fpath}")
     return labels
@@ -251,10 +268,10 @@ def _import_build_args(job_def: Dict, fpath: str) -> List[docker_build_job.Docke
             args.append(docker_build_job.DockerBuildArg(_replace_variables(key, fpath), _replace_variables(value, fpath)))
     return args
 
-def _import_docker_build_common(job_def: Dict, fpath: str, errmsg_section: str, header: TaskHeader) -> collections.namedtuple:
-    _validate_dict(job_def, 'artifacts', keyerrmsg=f"Could not find 'artifacts' section in '{errmsg_section}' in {fpath}")
-    _validate_dict(job_def, 'img-base-name', keyerrmsg=f"Could not find 'img-base-name' section in '{errmsg_section}' in {fpath}")
-    _validate_dict(job_def, 'dockerfile-dpath', keyerrmsg=f"Could not find 'dockerfile-dpath' section in '{errmsg_section}' in {fpath}")
+def _import_docker_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> docker_build_job.DockerBuildJob:
+    _validate_dict(job_def, 'artifacts', keyerrmsg=f"Could not find 'artifacts' section in docker-build job in {fpath}")
+    _validate_dict(job_def, 'img-base-name', keyerrmsg=f"Could not find 'img-base-name' section in docker-build job in {fpath}")
+    _validate_dict(job_def, 'dockerfile-dpath', keyerrmsg=f"Could not find 'dockerfile-dpath' section in docker-build job in {fpath}")
     artifacts = _import_artifacts_list(job_def, fpath, header.artifacts)
     img_base_name = _replace_variables(job_def['img-base-name'], fpath)
     buildx = job_def.get('buildx', False)
@@ -263,36 +280,28 @@ def _import_docker_build_common(job_def: Dict, fpath: str, errmsg_section: str, 
     build_context = _replace_variables(job_def.get('build-context', '.'), fpath)
     dependency_files = _import_dependency_files(job_def, fpath)
     build_args = _import_build_args(job_def, fpath)
-    Config = collections.namedtuple('Config', ["artifacts", "img_base_name", "buildx", "dockerfile_dpath", "dockerfile", "build_context", "dependency_files", "build_args"])
-    return Config(artifacts, img_base_name, buildx, dockerfile_dpath, dockerfile, build_context, dependency_files, build_args)
-
-def _import_docker_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> docker_build_job.DockerBuildJob:
-    config = _import_docker_build_common(job_def, fpath, "docker-build", header)
     return docker_build_job.DockerBuildJob(
-        artifacts=config.artifacts,
-        img_base_name=config.img_base_name,
-        dockerfile_dpath=config.dockerfile_dpath,
-        buildx=config.buildx,
-        dockerfile=config.dockerfile,
-        build_context=config.build_context,
-        dependency_files=config.dependency_files,
-        build_args=config.build_args
+        artifacts=artifacts,
+        img_base_name=img_base_name,
+        dockerfile_dpath=dockerfile_dpath,
+        buildx=buildx,
+        dockerfile=dockerfile,
+        build_context=build_context,
+        dependency_files=dependency_files,
+        build_args=build_args
     )
 
-def _import_fw_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> picofw_build_job.PicoFWBuildJob:
-    config = _import_docker_build_common(job_def, fpath, "fw-build", header)
-    _validate_dict(job_def, 'fw-files-in-container', keyerrmsg=f"'fw-files-in-container' section missing from 'fw-build' section in {fpath}")
+def _import_file_transfer_from_container_job(job_def: Dict, fpath: str, header: TaskHeader) -> file_transfer_from_container_job.FileTransferFromContainerJob:
+    _validate_dict(job_def, 'artifacts', keyerrmsg=f"Could not find 'artifacts' section in file-transfer-from-container job in {fpath}")
+    _validate_dict(job_def, 'image', keyerrmsg=f"Could not find 'image' section in file-transfer-from-container job in {fpath}")
+    _validate_dict(job_def, 'fw-files-in-container', keyerrmsg=f"'fw-files-in-container' section missing from file-transfer-from-container job in {fpath}")
+    artifacts = _import_artifacts_list(job_def, fpath, header.artifacts)
+    image = _import_single_dependency(job_def['image'], fpath) if type(job_def['image']) == dict else job_def['image']
     fw_files_in_container = [_replace_variables(f, fpath) for f in job_def['fw-files-in-container']]
-    return picofw_build_job.PicoFWBuildJob(
-        artifacts=config.artifacts,
-        img_base_name=config.img_base_name,
-        dockerfile_dpath=config.dockerfile_dpath,
+    return file_transfer_from_container_job.FileTransferFromContainerJob(
+        artifacts=artifacts,
+        image=image,
         fw_files_in_container=fw_files_in_container,
-        buildx=config.buildx,
-        dockerfile=config.dockerfile,
-        build_context=config.build_context,
-        dependency_files=config.dependency_files,
-        build_args=config.build_args
     )
 
 def _import_yocto_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> yocto_build_job.YoctoBuildJob:
@@ -320,8 +329,8 @@ def _import_build_task(header: TaskHeader, steps_configs: List[Dict], fpath: str
                 jobs.append(_import_yocto_build_job(job_def, fpath, header))
             case 'docker-build':
                 jobs.append(_import_docker_build_job(job_def, fpath, header))
-            case 'pico-fw-build':
-                jobs.append(_import_fw_build_job(job_def, fpath, header))
+            case 'file-transfer-from-container':
+                jobs.append(_import_file_transfer_from_container_job(job_def, fpath, header))
             case _:
                 raise ValueError(f"Unrecognized 'job' type: '{job_def['job']}' in {fpath}")
 
@@ -399,6 +408,21 @@ def _import_docker_compose_variables(config: Dict, fpath: str, cli: str) -> List
         variables.append((varname, var))
     return variables
 
+def _import_compose_network_name(compose_fname: str) -> str:
+    """
+    Determine the name of the Docker compose network based on the information in the compose file.
+    """
+    compose_dpath = os.path.join(common.repo_root(), "artietool", "compose-files")
+    compose_fpath = os.path.join(compose_dpath, compose_fname)
+    with open(compose_fpath, 'r') as f:
+        compose_config = yaml.load(f, yaml.FullLoader)
+    _validate_dict(compose_config, 'name', keyerrmsg=f"Missing 'name' in docker compose file {compose_fpath}")
+    _validate_dict(compose_config, 'networks', keyerrmsg=f"Missing 'networks' section in docker compose file {compose_fpath}; need a network to attach to.")
+    if len([k for k in compose_config['networks'].keys()]) != 1:
+        raise KeyError(f"Can't understand the 'networks' section in compose file {compose_fpath}; need exactly one item in the 'networks' section")
+    network_name = [k for k in compose_config['networks'].keys()][0]
+    return f"{network_name}"
+
 def _import_integration_test_job(job_def: Dict, fpath: str) -> docker_compose_test_suite_job.DockerComposeTestSuiteJob:
     _validate_dict(job_def, 'steps', keyerrmsg=f"Missing 'steps' section in 'docker-compose-test-suite' definition in {fpath}")
     _validate_dict(job_def, 'compose-fname', keyerrmsg=f"Missing 'compose-fname' in 'docker-compose-test-suite' definition in {fpath}")
@@ -406,6 +430,7 @@ def _import_integration_test_job(job_def: Dict, fpath: str) -> docker_compose_te
     compose_fname = job_def['compose-fname']
     cli_image = _replace_variables(job_def['cli-image'], fpath) if type(job_def['cli-image']) != dict else _import_single_dependency(job_def['cli-image'], fpath)
     compose_docker_image_variables = _import_docker_compose_variables(job_def, fpath, cli_image)
+    network = _import_compose_network_name(compose_fname)
     cli_test_steps = []
     steps_def = job_def['steps']
     for sdef in steps_def:
@@ -415,8 +440,24 @@ def _import_integration_test_job(job_def: Dict, fpath: str) -> docker_compose_te
         test_name = _replace_variables(sdef['test-name'], fpath, {"CLI": cli_image})
         cli_cmd = _replace_variables(sdef['cmd-to-run-in-cli'], fpath, {"CLI": cli_image})
         expected_outputs = _import_expected_outputs(sdef, fpath, {'CLI': cli_image})
-        cli_test_steps.append(test_job.CLITest(test_name, cli_image, cli_cmd, expected_outputs))
-    return docker_compose_test_suite_job.DockerComposeTestSuiteJob(cli_test_steps, compose_fname, compose_docker_image_variables)
+        cli_test_steps.append(test_job.CLITest(test_name, cli_image, cli_cmd, expected_outputs, network=network))
+    return docker_compose_test_suite_job.DockerComposeTestSuiteJob(cli_test_steps, compose_fname, compose_docker_image_variables, network)
+
+def _import_hardware_test_job(job_def: Dict, fpath: str) -> hardware_test_job.HardwareTestJob:
+    _validate_dict(job_def, 'steps', keyerrmsg=f"Missing 'steps' section in 'hardware-test-suite' definition in {fpath}")
+    _validate_dict(job_def, 'cli-image', keyerrmsg=f"Missing 'cli-image' definition in 'hardware-test-suite' definition in {fpath}")
+    cli_image = _replace_variables(job_def['cli-image'], fpath) if type(job_def['cli-image']) != dict else _import_single_dependency(job_def['cli-image'], fpath)
+    cli_test_steps = []
+    steps_def = job_def['steps']
+    for sdef in steps_def:
+        _validate_dict(sdef, 'test-name', keyerrmsg=f"Missing 'test-name' from 'steps' section in {fpath}")
+        _validate_dict(sdef, 'cmd-to-run-in-cli', keyerrmsg=f"Missing 'cmd-to-run-in-cli' from 'steps' section in {fpath}")
+        _validate_dict(sdef, 'expected-outputs', keyerrmsg=f"Missing 'expected-outputs' section from 'steps' section in {fpath}")
+        test_name = _replace_variables(sdef['test-name'], fpath, {"CLI": cli_image})
+        cli_cmd = _replace_variables(sdef['cmd-to-run-in-cli'], fpath, {"CLI": cli_image}) + " --kube-config /mnt/kube_config"
+        expected_outputs = _import_expected_outputs(sdef, fpath, {'CLI': cli_image})
+        cli_test_steps.append(test_job.CLITest(test_name, cli_image, cli_cmd, expected_outputs, need_to_access_cluster=True))
+    return hardware_test_job.HardwareTestJob(cli_test_steps)
 
 def _import_test_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.TestTask:
     jobs = []
@@ -429,10 +470,54 @@ def _import_test_task(header: TaskHeader, steps_configs: List[Dict], fpath: str)
                 jobs.append(_import_unit_test_job(job_def, fpath))
             case 'docker-compose-test-suite':
                 jobs.append(_import_integration_test_job(job_def, fpath))
+            case 'hardware-test-suite':
+                jobs.append(_import_hardware_test_job(job_def, fpath))
             case _:
                 raise ValueError(f"Unrecognized 'job' type: '{job_def['job']}' in {fpath}")
 
     return task.TestTask(
+        name=header.task_name,
+        labels=header.labels,
+        dependencies=header.dependencies,
+        artifacts=header.artifacts,
+        jobs=jobs,
+        cli_args=header.cli_args
+    )
+
+def _convert_deploy_what(what_val: str) -> deploy_job.DeploymentConfigurations:
+    """
+    Raises an exception if the given `what_val` is invalid for a deployment job,
+    otherwise returns the converted value.
+    """
+    match what_val:
+        case deploy_job.DeploymentConfigurations.BASE:
+            return deploy_job.DeploymentConfigurations.BASE
+        case deploy_job.DeploymentConfigurations.ARTIE_REFERENCE_STACK:
+            return deploy_job.DeploymentConfigurations.ARTIE_REFERENCE_STACK
+        case deploy_job.DeploymentConfigurations.TELEOP:
+            return deploy_job.DeploymentConfigurations.TELEOP
+        case deploy_job.DeploymentConfigurations.DEMO_STACK:
+            return deploy_job.DeploymentConfigurations.DEMO_STACK
+        case _:
+            raise ValueError(f"Invalid value for 'what' in deployment job: {what_val}")
+
+def _import_add_deploy_job(job_def: Dict, fpath: str, header: TaskHeader) -> deploy_job.AddDeployJob:
+    _validate_dict(job_def, 'what', keyerrmsg=f"Missing 'what' definition in 'job' definition in {fpath}")
+    what = _convert_deploy_what(job_def['what'])
+    chart = os.path.join(common.repo_root(), "artietool", job_def['chart'])
+    return deploy_job.AddDeployJob(header.artifacts, what, chart)
+
+def _import_deploy_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.DeployTask:
+    jobs = []
+    for job_def in steps_configs:
+        _validate_dict(job_def, 'job', keyerrmsg=f"No 'job' key found in job description in 'steps' section of {fpath}")
+        match job_def['job']:
+            case 'add':
+                jobs.append(_import_add_deploy_job(job_def, fpath, header))
+            case _:
+                raise ValueError(f"Unrecognized 'job' type: '{job_def['job']}' in {fpath}")
+
+    return task.DeployTask(
         name=header.task_name,
         labels=header.labels,
         dependencies=header.dependencies,
@@ -462,6 +547,8 @@ def _import_task(fpath: str) -> task.Task:
                 raise NotImplementedError("Have not implemented flash tasks yet")
             case TaskTypes.RELEASE:
                 raise NotImplementedError("Have not implemented release tasks yet")
+            case TaskTypes.DEPLOY:
+                return _import_deploy_task(task_header, task_config['steps'], fpath)
             case _:
                 raise ValueError(f"Unrecognized 'type' value in {fpath}: {task_type}")
     except Exception as e:

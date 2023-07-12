@@ -3,7 +3,7 @@ labels:
   - docker-image
   - sanity
 dependencies:
-  - container-mouth: docker-image
+  - driver-mouth: docker-image
 type: test
 steps:
   - job: single-container-sanity-suite
@@ -12,5 +12,5 @@ steps:
         docker-image-under-test:
           dependency:
             name: docker-image
-            producing-task: container-mouth
+            producing-task: driver-mouth
         cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --loglevel info --help"

@@ -1,4 +1,4 @@
-name: container-reset
+name: driver-reset
 labels:
   - docker-image
 dependencies:

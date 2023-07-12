@@ -24,13 +24,6 @@ void servo_init(void);
  */
 void servo_cmd(cmd_t command);
 
-/**
- * @brief Run the servo all the way to the limit switch on the left, taking
- *        note of farthest we can go.
- *        Then do the same thing on the right.
- */
-void calibrate_servo(void);
-
 #ifdef __cplusplus
 }
 #endif

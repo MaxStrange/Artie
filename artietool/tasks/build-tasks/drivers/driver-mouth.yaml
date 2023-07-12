@@ -1,4 +1,4 @@
-name: container-mouth
+name: driver-mouth
 labels:
   - docker-image
 dependencies:

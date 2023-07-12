@@ -53,8 +53,8 @@ they exist) are not necessarily disabled "in production".
 This is where we take our stand, so to speak. Specifically:
 
 * We do not trust the Wifi network we are on.
-* We *do* trust all pods in the Kubernetes cluster (using a Network Policy).
-    * As such, inter-pod communication is allowed by means of a whitelist.
+* We *do* trust all pods in the Kubernetes cluster.
+    * As such, all inter-pod communication inside the cluster is allowed.
       Only very specific pods are allowed to accept connections from outside
       the Kubernetes cluster, and to do so, we require some form of authentication.
     * All traffic *inside* the Kubernetes cluster is encrypted, to prevent
@@ -64,6 +64,6 @@ This is where we take our stand, so to speak. Specifically:
     * The Kubernetes control plane is secured using best practices.
     * All traffic in/out of the cluster must also be encrypted.
 * We use best practices (in release mode) for Docker environments and K3S deployment.
-* We do not allow SSH (in release mode) into any of the Yocto images.
+* We do not allow SSH (in release mode) into any of the Yocto images by default (after setup).
   In fact, the only ports that are open in the Yocto images are the ones required
   by Kubernetes Services that need to communicate off-board.

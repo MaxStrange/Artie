@@ -6,7 +6,6 @@ from . import result
 from . import task
 from .. import common
 from typing import List
-import logging
 import multiprocessing
 import traceback
 
@@ -24,13 +23,13 @@ class TaskWrapper:
             name = multiprocessing.current_process().name
             res = result.ErrorTaskResult(name=name, error=e)
             if args.enable_error_tracing:
-                logging.error(f"Error running task {name}: {''.join(traceback.format_exception(e))}")
-        logging.info("Putting result onto queue")
+                common.error(f"Error running task {name}: {''.join(traceback.format_exception(e))}")
+        common.info("Putting result onto queue")
         try:
             # If we freeze here, it is likely because the result object can't be pickled
             self._q.put((self._worker_index, res))
         except AttributeError as e:
-            logging.error(f"Cannot pickle the result object: {e}")
+            common.error(f"Cannot pickle the result object: {e}")
             while True:
                 pass
 
@@ -49,7 +48,7 @@ def _check_if_task_is_ready(args, t: task.Task, tasks_we_have_run_so_far):
     """
     # If this task has no dependencies, it is ready to go
     if not t.dependencies:
-        logging.info(f"Found a ready task: {t.name}")
+        common.info(f"Found a ready task: {t.name}")
         return True
 
     # Otherwise, we have to check each of this task's dependencies
@@ -71,7 +70,7 @@ def _check_if_task_is_ready(args, t: task.Task, tasks_we_have_run_so_far):
 
         # We couldn't find `artifact_name` in the built artifacts, but `depname` has already run.
         # This is probably an error state, but to prevent hanging, let's ignore this and warn the user.
-        logging.warning(f"Task {t.name} depends on {depname}'s {artifact_name} artifact, but even though {depname} has run, {artifact_name} is not marked as built.")
+        common.warning(f"Task {t.name} depends on {depname}'s {artifact_name} artifact, but even though {depname} has run, {artifact_name} is not marked as built.")
     return True
 
 def _check_tasks_against_dependencies(args, tasks, tasks_we_have_run_so_far):
@@ -124,18 +123,18 @@ def _run_all_multiprocess(args, tasks):
             workers[worker_index] = None
             # Append artifacts to args so that dependent tasks can access them
             artifact.add_artifacts_from_result(args, result)
-            logging.info(f"Task {result.name} finished.")
+            common.info(f"Task {result.name} finished.")
     return results, tasks_we_ran
 
 def _recurse_dependencies(args, t: task.Task, remaining_tasks: List[task.Task], updated_tasks: List[task.Task], all_tasks: List[task.Task]):
     if t.dependencies is not None:
         to_remove = []
-        for dep in t.dependencies:
+        for dep_index, dep in enumerate(t.dependencies):
             name = dep.producing_task_name
             dep_task = common.find_task_from_name(name, all_tasks)
             if dep_task is None:
-                logging.error(f"Attempted to find a task: {name}, but task not found in all_tasks. We'll remove this dependency and try to run the task, but it will likely fail. All tasks: {[tsk.name for tsk in all_tasks]}")
-                to_remove.append(name)
+                common.error(f"Attempted to find a task: {name}, but task not found in all_tasks. We'll remove this dependency and try to run the task, but it will likely fail. All tasks: {[tsk.name for tsk in all_tasks]}")
+                to_remove.append(dep_index)
             elif dep_task in remaining_tasks or dep_task in updated_tasks:
                 # Duplicate
                 continue
@@ -157,7 +156,7 @@ def _update_tasks_based_on_dependencies(args, tasks: List[task.Task], all_tasks:
     Update the list of tasks and return it, based on required tasks for fulfilling
     needed dependencies.
     """
-    logging.info("Scanning dependencies...")
+    common.info("Scanning dependencies...")
     updated_task_list = _recurse_dependencies(args, tasks[0], tasks[1:] if len(tasks) > 1 else [], [], all_tasks)
     return updated_task_list
 
@@ -179,16 +178,15 @@ def _remove_tasks_based_on_cache(args, tasks: List[task.Task], all_tasks: List[t
     have also been built, unless --force-build is in `args`.
     """
     if args.force_build:
-        logging.info("--force-build detected. Skipping cache checks.")
+        common.info("--force-build detected. Skipping cache checks.")
         return tasks
     else:
-        logging.info("Removing tasks based on cache...")
+        common.info("Removing tasks based on cache...")
 
     ret = []
     for t in tasks:
         if _recurse_check_if_cached(args, t, all_tasks):
-            logging.info(f"Task {t.name} cached. No need to re-run. Use --force-build to override.")
-            t.fill_args_with_artifacts(args)  # Make sure to add its artifacts to the args list for other tasks to consume
+            common.info(f"Task {t.name} cached. No need to re-run. Use --force-build to override.")
         else:
             ret.append(t)
     return ret
@@ -198,7 +196,7 @@ def _fill_artifacts(args, tasks: List[task.Task]):
     Ask each task to fill each of its artifacts' values, though
     their build flags will still be False.
     """
-    logging.info("Filling in artifact values based on CLI args...")
+    common.info("Filling in artifact values based on CLI args...")
     for t in tasks:
         t.fill_artifacts_at_runtime(args)
     return tasks
@@ -211,7 +209,7 @@ def _mark_tasks_as_cached(args, tasks: List[task.Task]) -> List[task.Task]:
     if args.force_build:
         return tasks
 
-    logging.info("Checking which tasks are cached...")
+    common.info("Checking which tasks are cached...")
     for t in tasks:
         t.mark_if_cached(args)
     return tasks
@@ -240,14 +238,14 @@ def run_tasks(args, tasks: List[task.Task], all_tasks: List[task.Task]):
     tasks = _remove_tasks_based_on_cache(args, tasks, all_tasks)
 
     if not tasks:
-        logging.info("Nothing to do.")
+        common.info("Nothing to do.")
     else:
-        logging.info(f"Updated task list: {tasks}")
+        common.info(f"Updated task list: {tasks}")
 
     results, tasks_we_ran = _run_all_multiprocess(args, tasks)
 
     if None in results:
-        logging.error("At least one task returned None instead of a Result object. This is a programmer error.")
+        common.error("At least one task returned None instead of a Result object. This is a programmer error.")
         results = [r for r in results if r is not None]
 
     return results, tasks_we_ran

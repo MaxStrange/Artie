@@ -4,10 +4,9 @@ labels:
   - integration
 dependencies:
   - mouth-driver-sanity-tests: ""
-  - container-mouth: docker-image
-  - container-reset: docker-image
-  - log-collector: docker-image
-  - metrics-collector: docker-image
+  - driver-mouth: docker-image
+  - driver-reset: docker-image
+  - artie-api-server: docker-image
   - artie-cli: docker-image
 type: test
 steps:
@@ -17,19 +16,15 @@ steps:
       - RESET_TEST_IMAGE:
           dependency:
             name: docker-image
-            producing-task: container-reset
+            producing-task: driver-reset
       - MOUTH_TEST_IMAGE:
           dependency:
             name: docker-image
-            producing-task: container-mouth
-      - LOG_COLLECTOR_TEST_IMAGE:
+            producing-task: driver-mouth
+      - ARTIE_API_SERVER_TEST_IMAGE:
           dependency:
             name: docker-image
-            producing-task: log-collector
-      - METRICS_COLLECTOR_TEST_IMAGE:
-          dependency:
-            name: docker-image
-            producing-task: metrics-collector
+            producing-task: artie-api-server
     cli-image:
       dependency:
         name: docker-image
@@ -43,9 +38,79 @@ steps:
           - what: "Mocking MCU FW load."
             where: mouth-itest-mouth-driver
       - test-name: fw-load
-        cmd-to-run-in-cli: "artie-cli mouth fw load"
+        cmd-to-run-in-cli: "artie-cli mouth fw load --integration-test"
         expected-outputs:
           - what: "Writing 0x1 to "
             where: mouth-itest-reset-driver
           - what: "Mocking MCU FW load."
+            where: mouth-itest-mouth-driver
+      - test-name: led-get
+        cmd-to-run-in-cli: "artie-cli mouth led get --integration-test"
+        expected-outputs:
+          - what: "LED -> State: heartbeat"
+            where: mouth-itest-mouth-driver
+      - test-name: led-on
+        cmd-to-run-in-cli: "artie-cli mouth led on --integration-test"
+        expected-outputs:
+          - what: "LED -> ON"
+            where: mouth-itest-mouth-driver
+      - test-name: led-off
+        cmd-to-run-in-cli: "artie-cli mouth led off --integration-test"
+        expected-outputs:
+          - what: "LED -> OFF"
+            where: mouth-itest-mouth-driver
+      - test-name: led-heartbeat
+        cmd-to-run-in-cli: "artie-cli mouth led heartbeat --integration-test"
+        expected-outputs:
+          - what: "LED -> HEARTBEAT"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-test
+        cmd-to-run-in-cli: "artie-cli mouth lcd test --integration-test"
+        expected-outputs:
+          - what: "LCD -> TEST"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-off
+        cmd-to-run-in-cli: "artie-cli mouth lcd off --integration-test"
+        expected-outputs:
+          - what: "LCD -> OFF"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-draw-talk
+        cmd-to-run-in-cli: "artie-cli mouth lcd talk --integration-test"
+        expected-outputs:
+          - what: "LCD -> Talking mode"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-draw-frown
+        cmd-to-run-in-cli: "artie-cli mouth lcd draw frown --integration-test"
+        expected-outputs:
+          - what: "LCD -> Draw frown"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-draw-line
+        cmd-to-run-in-cli: "artie-cli mouth lcd draw line --integration-test"
+        expected-outputs:
+          - what: "LCD -> Draw line"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-draw-smirk
+        cmd-to-run-in-cli: "artie-cli mouth lcd draw smirk --integration-test"
+        expected-outputs:
+          - what: "LCD -> Draw smirk"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-draw-open-smile
+        cmd-to-run-in-cli: "artie-cli mouth lcd draw open-smile --integration-test"
+        expected-outputs:
+          - what: "LCD -> Draw open-smile"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-draw-zig-zag
+        cmd-to-run-in-cli: "artie-cli mouth lcd draw zig-zag --integration-test"
+        expected-outputs:
+          - what: "LCD -> Draw zig-zag"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-draw-smile
+        cmd-to-run-in-cli: "artie-cli mouth lcd draw smile --integration-test"
+        expected-outputs:
+          - what: "LCD -> Draw smile"
+            where: mouth-itest-mouth-driver
+      - test-name: lcd-get
+        cmd-to-run-in-cli: "artie-cli mouth lcd get --integration-test"
+        expected-outputs:
+          - what: "LCD -> smile"
             where: mouth-itest-mouth-driver

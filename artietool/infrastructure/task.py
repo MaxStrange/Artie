@@ -1,4 +1,5 @@
 from . import artifact
+from .. import common
 from . import dependency
 from . import job
 from . import result
@@ -22,6 +23,9 @@ class Labels(StrEnum):
     UNIT = 'unit'                   # A unit test
     INTEGRATION = 'integration'     # An integration test
     SANITY = 'sanity'               # A sanity check
+    HARDWARE = 'hardware'           # A test to be run on hardware
+
+    CONTAINER_SET = 'container-set' # A Helm deployment or similar
 
 
 class Task:
@@ -54,7 +58,11 @@ class Task:
         return self.name
 
     def __call__(self, args) -> result.TaskResult:
-        results = [j(args) for j in self.jobs]
+        results = []
+        for j in self.jobs:
+            r = j(args)
+            artifact.add_artifacts_from_result(args, r)
+            results.append(r)
         return result.TaskResult(self.name, results)
 
     def cached(self, args) -> bool:
@@ -89,14 +97,16 @@ class Task:
         Fill the artifacts' values, now that we have all the information we need (task configuration and command line args).
         """
         for j in self.jobs:
+            common.info(f"Filling in {j}'s artifacts from task {self}...")
             j.fill_artifacts_at_runtime(args)
 
     def mark_if_cached(self, args):
         """
         Mark each artifact as built if it can be found on disk.
         """
-        for art in self.artifacts:
-            art.mark_if_cached(args)
+        for j in self.jobs:
+            common.info(f"Checking if {self}'s {j} is cached...")
+            j.mark_if_cached(args)
 
     def _link_jobs(self):
         """
@@ -116,5 +126,11 @@ class BuildTask(Task):
 class TestTask(Task):
     """
     A TestTask is a Task that runs one or more tests and is invoked by the CLI's 'test' module.
+    """
+    pass
+
+class DeployTask(Task):
+    """
+    A DeployTask is a Task that removes or adds a set of items such as containers to the workload.
     """
     pass

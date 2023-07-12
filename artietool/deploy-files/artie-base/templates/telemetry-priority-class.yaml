@@ -1,0 +1,12 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  namespace: {{ .Values.namespace }}
+  name: {{ .Values.telemetryPriorityClass }}
+  labels:
+    app.kubernetes.io/component: telemetry-priority-class
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+value: 900
+description: "This priority class is meant for Artie's telemetry objects. Most Artie priority classes should be lower than this."
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority

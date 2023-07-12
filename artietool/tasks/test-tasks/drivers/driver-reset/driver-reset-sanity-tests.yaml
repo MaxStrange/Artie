@@ -3,7 +3,7 @@ labels:
   - docker-image
   - sanity
 dependencies:
-  - container-reset: docker-image
+  - driver-reset: docker-image
 type: test
 steps:
   - job: single-container-sanity-suite
@@ -12,5 +12,5 @@ steps:
         docker-image-under-test:
           dependency:
             name: docker-image
-            producing-task: container-reset
+            producing-task: driver-reset
         cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --loglevel info --help"

@@ -2,9 +2,10 @@ from . import artifact
 from . import dependency
 from . import job
 from . import result
+from .. import common
 from .. import docker
 from typing import List
-import logging
+import glob
 import os
 
 class DockerBuildArg:
@@ -28,16 +29,22 @@ class DockerBuildJob(job.Job):
         self.build_args = build_args if build_args else []
 
     def __call__(self, args) -> result.JobResult:
-        logging.info(f"Building {self.img_base_name}...")
+        common.info(f"Building {self.img_base_name}...")
 
         # Grab all the dependency file locations
         fpaths = []
         for dep in self.dependency_fpaths:
             if issubclass(type(dep), dependency.Dependency):
-                fpaths.extend(dep.evaluate(args))
+                items = dep.evaluate(args)
             else:
-                fpaths.append(dep)
-        logging.info(f"Found {fpaths} to copy into Docker context")
+                items = dep
+
+            if issubclass(type(items), list):
+                for item in items:
+                    fpaths.extend(glob.glob(item))
+            else:
+                fpaths.extend(glob.glob(items))
+        common.info(f"Found {fpaths} to copy into Docker context")
 
         # Grab all the Docker build args and format into a string for Docker
         buildargs = ""
@@ -55,7 +62,7 @@ class DockerBuildJob(job.Job):
                     buildargs += f" --build-arg {arg.key}={item}"
                 elif len(value) != 1:
                     msg = f"Can't understand the dependency {arg.value}. It should give either an Artifact or a list of length 1 of file paths. But got: {value} after evaluating."
-                    logging.error(msg)
+                    common.error(msg)
                     raise Exception(msg)
                 else:
                     fpath = value[0]
