@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y \
     openssl \
     python3 \
     python3-pip \
-    wget
+    wget \
+    dos2unix
 
 # Pip
 RUN pip3 install requests
@@ -32,7 +33,7 @@ COPY ./test-configs/* /etc/prometheus/
 
 # Copy in the launch script
 COPY ./run.sh /run.sh
-RUN chmod +x /run.sh
+RUN chmod +x /run.sh && dos2unix /run.sh
 
 # Copy the test script as well
 COPY ./test.py /app/test.py

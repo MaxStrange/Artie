@@ -156,7 +156,7 @@ def git_tag() -> str:
     """
     Return the git tag of the Artie repo.
     """
-    p = subprocess.run("git log --format='%h' -n 1", capture_output=True)
+    p = subprocess.run("git log --format='%h' -n 1".split(' '), capture_output=True)
     p.check_returncode()
     return p.stdout.decode('utf-8').strip().strip("'")
 

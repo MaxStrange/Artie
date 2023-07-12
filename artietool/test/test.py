@@ -122,17 +122,24 @@ def test(args):
     logging.shutdown()
 
     # Print the results for human consumption
+    retcode = 0
     if isinstance(results, Iterable):
         results = sorted(results, key=lambda r: r.name)
         for result in results:
             print(result)
             _write_results_to_output_folder(args, result, subfolder_dpath)
+            if not result.success:
+                retcode = 1
     else:
         _write_results_to_output_folder(args, result, subfolder_dpath)
         print(results)
+        if not results.success:
+            retcode = 1
 
     # Clean the tmp folder and whatever else (not build artifacts though)
     common.clean_build_stuff()
+
+    return retcode
 
 def fill_subparser(parser_test: argparse.ArgumentParser, parent: argparse.ArgumentParser):
     subparsers = parser_test.add_subparsers(title="test-module", description="Choose which module to run tests on")

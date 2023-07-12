@@ -15,7 +15,7 @@ class SanityTest:
         if issubclass(type(self.docker_image_under_test), dependency.Dependency):
             docker_image_name = self.docker_image_under_test.evaluate(args).item
         else:
-            docker_image_name = docker.construct_docker_image_name(args, self.docker_image_under_test)
+            docker_image_name = str(docker.construct_docker_image_name(args, self.docker_image_under_test))
 
         kwargs = {'environment': {'ARTIE_RUN_MODE': 'sanity'}}
         docker.run_docker_container(docker_image_name, self.cmd_to_run_in_dut, timeout_s=args.test_timeout_s, log_to_stdout=args.docker_logs, **kwargs)

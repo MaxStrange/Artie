@@ -61,8 +61,9 @@ class DockerBuildJob(job.Job):
                     fpath = value[0]
                     buildargs += f" --build-arg {arg.key}={os.path.basename(fpath)}"
 
-
-        docker.build_docker_image(args, self.dockerfile_dpath, self.img_base_name, self.buildx, fpaths, self.build_context, buildargs, self.dockerfile_fname)
+        # Cretae the name object from the Docker repo, name, and tag
+        docker_image_name = docker.construct_docker_image_name(args, self.img_base_name)
+        docker.build_docker_image(args, self.dockerfile_dpath, docker_image_name, self.buildx, fpaths, self.build_context, buildargs, self.dockerfile_fname)
 
         self.mark_all_artifacts_as_built()
 

@@ -59,7 +59,7 @@ def _check_if_task_is_ready(args, t: task.Task, tasks_we_have_run_so_far):
         artifact_name = dep.artifact_name
 
         # If we are depending on an artifact, check if it is built
-        if artifact_name is not None and artifact.is_built(args, depname, artifact_name):
+        if artifact_name and artifact.is_built(args, depname, artifact_name):
             # If it is, move onto the next dependency
             continue
 

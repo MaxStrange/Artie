@@ -1,5 +1,6 @@
 name: artie-tests
 on:
+  push:
   pull_request:
     types:
       - opened
@@ -7,7 +8,7 @@ on:
     branches:
       - 'main'
 env:
-  DOCKER_REPO: maxfieldstrange/artie
+  DOCKER_REPO: maxfieldstrange
 permissions: read-all
 jobs:
   export-variables:
@@ -26,11 +27,27 @@ jobs:
     env:
       DOCKER_TAG: ${{needs.export-variables.outputs.docker-tag}}
     steps:
+      - id: checkout
+        name: Checkout
+        uses: actions/checkout@v3
       - id: setup
         uses: ./.github/actions/artie-setup-base
+      - id: docker-login
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{secrets.DOCKERHUB_USERNAME}}
+          password: ${{secrets.DOCKERHUB_PAT}}
       - id: build
         name: Build Docker Images
         run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG
+        shell: bash
+      - id: upartifacts
+        name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: build-artifacts/
 
   test:
     name: test
@@ -41,8 +58,27 @@ jobs:
     env:
       DOCKER_TAG: ${{needs.export-variables.outputs.docker-tag}}
     steps:
+      - id: checkout
+        name: Checkout
+        uses: actions/checkout@v3
       - id: setup
         uses: ./.github/actions/artie-setup-base
+      - id: downartifacts
+        name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+      - id: lsall
+        name: Display structure of downloaded files
+        run: ls -R
+        shell: bash
+      - id: docker-login
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{secrets.DOCKERHUB_USERNAME}}
+          password: ${{secrets.DOCKERHUB_PAT}}
       - id: test
         name: Run Tests
         run: python3 artie-tool.py test all --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1
+        shell: bash

@@ -21,6 +21,18 @@ except ModuleNotFoundError:
     logging.error("'docker' not installed. Make sure to install dependencies with 'pip install -r requirements.txt'")
     exit(1)
 
+class DockerImageName:
+    def __init__(self, repo: str, name: str, tag: str) -> None:
+        self.repo = repo
+        self.name = name
+        self.tag = tag
+
+    def __str__(self) -> str:
+        return f"{self.repo}{self.name}:{self.tag}"
+
+    def __repr__(self) -> str:
+        return str(self)
+
 def _get_cidfile_path():
     """
     Return a location to put a Docker invocation's cidfile.
@@ -44,14 +56,14 @@ def clean_build_location(args, builddpath: str):
     if os.path.exists(tmpdpath):
         shutil.rmtree(tmpdpath, ignore_errors=True)
 
-def build_docker_image(args, builddpath: str, simplified_img_name: str, buildx=True, fpaths=None, context='.', extra_build_args="", dockerfile_name="Dockerfile"):
+def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName, buildx=True, fpaths=None, context='.', extra_build_args="", dockerfile_name="Dockerfile"):
     """
     Common stuff that a whole bunch of BuildTasks do when building a Docker image.
 
     Args
     ----
     - builddpath: The directory in which to find the Dockerfile
-    - simplified_img_name: The simplified image name of the Docker image to produce
+    - docker_image_name: The repo, name, and tag of the Docker image to build and potentially push.
     - buildx: If given, we use buildx to build for ARM64. Otherwise, we build using standard Docker build.
     - fpaths: If given, should be a list of file paths to items that we will copy into a builddpath/tmp folder for copying into the img.
     - context: The build context. Defaults to the path where the Dockerfile is found, but it is also
@@ -61,13 +73,7 @@ def build_docker_image(args, builddpath: str, simplified_img_name: str, buildx=T
     """
     tmpdpath = os.path.join(builddpath, "tmp")
     os.makedirs(tmpdpath, exist_ok=True)
-
-    # Docker image name
-    if is_simplified_name(simplified_img_name):
-        docker_image_name = construct_docker_image_name(args, simplified_img_name)
-    else:
-        docker_image_name = simplified_img_name
-    logging.info(f"Building Docker image and tagging it as {docker_image_name}")
+    logging.info(f"Building Docker image and tagging it as {str(docker_image_name)}")
 
     # Retrieve dependencies
     if fpaths:
@@ -83,27 +89,38 @@ def build_docker_image(args, builddpath: str, simplified_img_name: str, buildx=T
     extraargs = get_extra_docker_build_args(args)
     dockerargs = f"{extraargs} {extra_build_args}"
     if buildx:
-        dockercmd = f"docker buildx build --load --platform linux/arm64 -f {dockerfile_name} {dockerargs} -t {docker_image_name} {context}"
+        dockercmd = f"docker buildx build --load --platform linux/arm64 -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
     else:
-        dockercmd = f"docker build -f {dockerfile_name} {dockerargs} -t {docker_image_name} {context}"
+        dockercmd = f"docker build -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
     logging.info(f"Running: {dockercmd}")
-    subprocess.run(dockercmd, cwd=builddpath).check_returncode()
+    subprocess.run(dockercmd.split(), cwd=builddpath).check_returncode()
 
     # Push the Docker image to the chosen repo (if given)
     if args.docker_repo is not None:
-        push_docker_image(docker_image_name)
+        push_docker_image(args, docker_image_name)
 
     return docker_image_name
 
-def check_if_docker_image_exists(imgname: str) -> bool:
+def check_if_docker_image_exists(args, imgname: DockerImageName) -> bool:
     """
-    Returns whether the given Docker image (full name) exists in this system.
+    Returns whether the given Docker image exists and pulls it if it exists remotely and can be pulled.
     """
-    docker_image_ids = subprocess.run(f"docker images {imgname} --quiet", capture_output=True).stdout.decode('utf-8').split()
+    logging.info(f"Checking if {imgname} exists locally...")
+    docker_image_ids = subprocess.run(f"docker images {imgname} --quiet".split(), capture_output=True).stdout.decode('utf-8').split()
     for img_id in docker_image_ids:
         if img_id != '':
+            logging.info(f"Found {imgname} locally")
             return True
-    return False
+
+    # Can't find it locally. Check if we can pull it.
+    logging.info(f"Can't find {imgname} locally. Trying to pull it.")
+    try:
+        pull_docker_image(args, imgname)
+        logging.info(f"Pulled {imgname}")
+        return True
+    except Exception as e:
+        logging.info(f"Cannot find {imgname} locally or remotely, or was unable to pull it from remote: {e}")
+        return False
 
 def clean_docker_containers():
     """
@@ -130,9 +147,9 @@ def clean_docker_containers():
         logging.info(f"Sending stop signal to container {short_id}...")
         stop_docker_container(docker_id)
 
-def construct_docker_image_name(args, name, repo_prefix=None, tag=None) -> str:
+def construct_docker_image_name(args, name, repo_prefix=None, tag=None) -> DockerImageName:
     """
-    Returns a string of the form "{repo_prefix}{name}:{tag}".
+    Returns a DockerImageName object.
 
     `repo_prefix` defaults to "".
     `tag` defaults to git tag.
@@ -141,9 +158,10 @@ def construct_docker_image_name(args, name, repo_prefix=None, tag=None) -> str:
         tag = common.git_tag() if not hasattr(args, 'docker_tag') or args.docker_tag is None else args.docker_tag
 
     if repo_prefix is None:
-        repo_prefix = "" if not hasattr(args, 'docker_repo') or args.docker_repo is None else args.docker_repo + "/"
+        repo_prefix = "" if not hasattr(args, 'docker_repo') or args.docker_repo is None else args.docker_repo
+        repo_prefix = repo_prefix + "/" if repo_prefix and not repo_prefix.endswith('/') else repo_prefix
 
-    return f"{repo_prefix}{name}:{tag}"
+    return DockerImageName(repo_prefix, name, tag)
 
 def get_extra_docker_build_args(args):
     """
@@ -239,10 +257,10 @@ def docker_copy(image: str, paths_in_container: list, path_on_host: str):
         elif os.path.isdir(targetpath):
             shutil.rmtree(targetpath)
         try:
-            subprocess.run(f"docker cp {docker_id}:{path} {path_on_host}", stdout=subprocess.DEVNULL).check_returncode()
+            subprocess.run(f"docker cp {docker_id}:{path} {path_on_host}".split(), stdout=subprocess.DEVNULL).check_returncode()
         except subprocess.CalledProcessError as e:
             try:
-                items = subprocess.run(f"docker exec {docker_id} ls {os.path.dirname(path)}", capture_output=True, encoding='utf-8').stdout
+                items = subprocess.run(f"docker exec {docker_id} ls {os.path.dirname(path)}".split(), capture_output=True, encoding='utf-8').stdout
             except Exception:
                 items = "Could not run the debugging command to find any items in the container."
             logging.error(f"Could not run the docker cp command. Items found in container: {items}; error: {e}")
@@ -288,10 +306,85 @@ def is_simplified_name(name: str) -> bool:
     pattern = re.compile(".+/.+:.+")
     return not pattern.match(name)
 
-def push_docker_image(docker_image_name, nretries=2):
+def docker_login(args):
+    """
+    Log in to the Docker API.
+    """
+    logging.info(f"Attempting to log into Docker registry: {args.docker_repo} with username {args.docker_username}")
+    pswd = args.docker_password if args.docker_password is not None else os.environ.get("ARTIE_TOOL_DOCKER_PASSWORD", None)
+    if pswd is None:
+        raise ValueError(f"Given a docker username ({args.docker_username}) for registry {args.docker_repo}, but no password was found in --docker-password or ARTIE_TOOL_DOCKER_PASSWORD")
+
+    # If this is for Dockerhub, don't use the registry
+    client = docker.from_env()
+    if re.compile(".+://.+").match(args.docker_repo):
+        client.login(username=args.docker_username, password=pswd, registry=args.docker_repo)
+    else:
+        client.login(username=args.docker_username, password=pswd)
+
+def _try_pull_once(docker_image_name: DockerImageName):
+    client = docker.from_env()
+    try:
+        ret = client.api.pull(f"{docker_image_name.repo}{docker_image_name.name}", docker_image_name.tag, stream=True, decode=True)
+        for line in ret:
+            if 'error' in line:
+                logging.warning(line)
+                return Exception(f"{line['error']}")
+            else:
+                logging.info(line['status'] if 'status' in line else line)
+    except docker_errors.APIError as e:
+        return e
+
+def pull_docker_image(args, imgname: DockerImageName, nretries=3):
+    """
+    Tries to pull the given image, raising an exception if it can't.
+    """
+    if args.docker_username is not None:
+        docker_login(args)
+
+    # Check if the docker image exists remotely before attempting to pull it a bunch
+    p = subprocess.run(f"docker manifest inspect {imgname}".split(), capture_output=True, encoding='utf-8')
+    if p.returncode != 0:
+        raise Exception(f"Cannot find {imgname} remotely, so cannot pull it: {p.stderr}\n{p.stdout}".strip())
+
+    err = None
+    for i in range(nretries):
+        if i == 0:
+            logging.info(f"Pulling Docker image {imgname}...")
+        else:
+            logging.warning(f"Pulling failed. Retrying {imgname}...")
+            time.sleep(1)
+
+        err = _try_pull_once(imgname)
+        if err:
+            continue
+
+    if err:
+        raise Exception(f"Could not pull {imgname}: {err}")
+
+def _try_push_once(docker_image_name: DockerImageName):
+    client = docker.from_env()
+    try:
+        ret = client.api.push(f"{docker_image_name.repo}{docker_image_name.name}", docker_image_name.tag, stream=True, decode=True)
+        for line in ret:
+            if 'error' in line:
+                logging.warning(line)
+                return Exception(f"{line['error']}")
+            else:
+                logging.info(line['status'] if 'status' in line else line)
+    except docker_errors.APIError as e:
+        return e
+
+def push_docker_image(args, docker_image_name: DockerImageName, nretries=3):
     """
     Attempts to push the given docker image up to n times.
+
+    If args contains a username, we also login first.
     """
+    if args.docker_username is not None:
+        docker_login(args)
+
+    err = None
     for i in range(nretries):
         if i == 0:
             logging.info(f"Pushing Docker image {docker_image_name}...")
@@ -299,9 +392,12 @@ def push_docker_image(docker_image_name, nretries=2):
             logging.warning(f"Pushing failed. Retrying {docker_image_name}...")
             time.sleep(1)
 
-        p = subprocess.run(f"docker push {docker_image_name}")
-        if p.returncode == 0:
-            return
+        err = _try_push_once(docker_image_name)
+        if err:
+            continue
+
+    if err:
+        raise Exception(f"Could not push {docker_image_name}: {err}")
 
 def run_docker_container(image_name, cmd, timeout_s=30, log_to_stdout=False, **kwargs):
     """
@@ -329,9 +425,9 @@ def stop_docker_container(image_id):
     """
     Stops the given Docker container if it is running. Does nothing if it isn't.
     """
-    subprocess.run(f"docker stop {image_id}", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(f"docker stop {image_id}".split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-def start_docker_container(image_name, cmd, **kwargs):
+def start_docker_container(image_name: str|DockerImageName, cmd, **kwargs):
     """
     Starts a Docker container with the given command executed inside the container
     and returns a `Container` object from the `docker` package after detaching from it.
@@ -345,5 +441,5 @@ def start_docker_container(image_name, cmd, **kwargs):
     """
     client = docker.from_env()
     logging.info(f"Running command: {cmd}")
-    container = client.containers.run(image_name, cmd, remove=True, detach=True, **kwargs)
+    container = client.containers.run(str(image_name), cmd, remove=True, detach=True, **kwargs)
     return container

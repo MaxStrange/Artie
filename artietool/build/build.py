@@ -69,12 +69,19 @@ def build(args):
     logging.shutdown()
 
     # Print the results for human consumption
+    retcode = 0
     if isinstance(results, Iterable):
         results = sorted(results, key=lambda r: r.name)
         for result in results:
             print(result)
+            if not result.success:
+                retcode = 1
     else:
         print(results)
+        if not results.success:
+            retcode = 1
+
+    return retcode
 
 def fill_subparser(parser_build: argparse.ArgumentParser, parent: argparse.ArgumentParser):
     subparsers = parser_build.add_subparsers(title="build-module", description="Choose which module to build")

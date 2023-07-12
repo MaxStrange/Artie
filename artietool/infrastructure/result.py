@@ -99,7 +99,7 @@ class JobResult:
         return s
 
 class TaskResult:
-    def __init__(self, name: str, job_results: List[JobResult]):
+    def __init__(self, name: str, job_results: List[JobResult|TestResult]):
         """
         The result of a task.
 
@@ -109,6 +109,12 @@ class TaskResult:
         """
         self.name = name
         self.job_results = job_results
+        self.success = True
+        for r in self.job_results:
+            if hasattr(r, 'success') and not r.success:
+                self.success = False
+            elif hasattr(r, 'status') and r.status == TestStatuses.FAIL:
+                self.success = False
 
     def __str__(self) -> str:
         s = ""
@@ -137,6 +143,7 @@ class ErrorTaskResult:
         """
         self.name = name
         self.error = error
+        self.success = False
         self.job_results = []
 
     def __str__(self):

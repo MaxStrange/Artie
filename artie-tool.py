@@ -66,6 +66,8 @@ if __name__ == "__main__":
     group.add_argument("--docker-no-cache", action='store_true', help="If given, we pass --no-cache to Docker builds.")
     group.add_argument("--docker-repo", default=None, type=str, help="Docker repository for pushing/pulling.")
     group.add_argument("--docker-tag", default=common.git_tag(), type=str, help="The tag (not name) of the Docker images we build (if any). If not given, we use the git hash.")
+    group.add_argument("--docker-password", default=None, type=str, help="The password to use for docker login. For CI, please use the environment variable ARTIE_TOOL_DOCKER_PASSWORD. If both are given, we use this arg instead of the env variable.")
+    group.add_argument("--docker-username", default=None, type=str, help="The username for docker login. If not given, we do not attempt to login before pushing images.")
     group.add_argument("--nprocs", default=multiprocessing.cpu_count(), type=int, help="If given, we will use at most this many processes to parallelize the command.")
 
     # Parser for build command
@@ -106,4 +108,6 @@ if __name__ == "__main__":
     if not hasattr(args, "cmd"):
         parser.print_usage()
     else:
-        args.cmd(args)
+        retcode = args.cmd(args)
+        if retcode is not None:
+            exit(retcode)

@@ -22,7 +22,7 @@ class SingleContainerCLISuiteJob(test_job.TestJob):
         if issubclass(type(self.dut), dependency.Dependency):
             docker_image_name = self.dut.evaluate(args).item
         else:
-            docker_image_name = docker.construct_docker_image_name(args, self.dut)
+            docker_image_name = str(docker.construct_docker_image_name(args, self.dut))
 
         kwargs = {'environment': {'ARTIE_RUN_MODE': 'unit'}, 'ports': self.dut_port_mappings}
         self._dut_container = docker.start_docker_container(docker_image_name, self.cmd_to_run_in_dut, **kwargs)
