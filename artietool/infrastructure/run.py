@@ -68,9 +68,10 @@ def _check_if_task_is_ready(args, t: task.Task, tasks_we_have_run_so_far):
             # If the dependency has not run, we are waiting for it to run. We can't run this task yet.
             return False
 
-        # We couldn't find `artifact_name` in the built artifacts, but `depname` has already run.
-        # This is probably an error state, but to prevent hanging, let's ignore this and warn the user.
-        common.warning(f"Task {t.name} depends on {depname}'s {artifact_name} artifact, but even though {depname} has run, {artifact_name} is not marked as built.")
+        if artifact_name:
+            # We couldn't find `artifact_name` in the built artifacts, but `depname` has already run.
+            # This is probably an error state, but to prevent hanging, let's ignore this and warn the user.
+            common.warning(f"Task {t.name} depends on {depname}'s {artifact_name} artifact, but even though {depname} has run, {artifact_name} is not marked as built.")
     return True
 
 def _check_tasks_against_dependencies(args, tasks, tasks_we_have_run_so_far):

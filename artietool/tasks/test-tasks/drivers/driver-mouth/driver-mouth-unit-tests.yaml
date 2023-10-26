@@ -3,7 +3,6 @@ labels:
   - docker-image
   - unit
 dependencies:
-  - mouth-driver-sanity-tests: ""
   - driver-mouth: docker-image
   - artie-cli: docker-image
 type: test

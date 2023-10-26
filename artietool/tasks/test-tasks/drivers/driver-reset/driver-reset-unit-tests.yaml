@@ -3,7 +3,6 @@ labels:
   - docker-image
   - unit
 dependencies:
-  - reset-driver-sanity-tests: ""
   - driver-reset: docker-image
   - artie-cli: docker-image
 type: test

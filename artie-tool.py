@@ -130,5 +130,15 @@ if __name__ == "__main__":
         parser.print_usage()
     else:
         retcode = args.cmd(args)
+
+        if not retcode:
+            # Note! CI depends on this log string to determine if all tests passed.
+            common.info("All tasks succeeded")
+        else:
+            common.error("At least one task did not succeed")
+
+        # No more logging after this: flush the logger
+        common.shutdown_logging()
+
         if retcode is not None:
             exit(retcode)

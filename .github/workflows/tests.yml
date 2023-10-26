@@ -78,7 +78,22 @@ jobs:
         with:
           username: ${{secrets.DOCKERHUB_USERNAME}}
           password: ${{secrets.DOCKERHUB_PAT}}
-      - id: test
-        name: Run Tests
-        run: python3 artie-tool.py test all --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1
+      - id: test-sanity
+        name: Run Sanity Tests
+        run: python3 artie-tool.py test all-sanity --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-sanity.txt
+        shell: bash
+        continue-on-error: true
+      - id: test-unit
+        name: Run Unit Tests
+        run: python3 artie-tool.py test all-unit --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-unit.txt
+        shell: bash
+        continue-on-error: true
+      - id: test-integration
+        name: Run Integration Tests
+        run: python3 artie-tool.py test all-integration --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-integration.txt
+        shell: bash
+        continue-on-error: true
+      - id: collect-test-results
+        name: Collect Test Results
+        run: grep "All tasks succeeded" testlog-sanity.txt && grep "All tasks succeeded" testlog-unit.txt && grep "All tasks succeeded" testlog-integration.txt
         shell: bash

@@ -24,9 +24,6 @@ def deploy(args):
     for t in deploy_tasks:
         t.clean(args)
 
-    # No more logging after this: flush the logger
-    common.shutdown_logging()
-
     # Print the results for human consumption
     retcode = 0
     if isinstance(results, Iterable):
