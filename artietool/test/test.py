@@ -120,9 +120,6 @@ def test(args):
     else:
         os.makedirs(subfolder_dpath)
 
-    # No more logging after this: flush the logger
-    common.shutdown_logging()
-
     # Print the results for human consumption
     retcode = 0
     if isinstance(results, Iterable):

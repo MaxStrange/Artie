@@ -3,7 +3,6 @@ labels:
   - docker-image
   - integration
 dependencies:
-  - eyebrows-driver-sanity-tests: ""
   - driver-eyebrows: docker-image
   - driver-reset: docker-image
   - log-collector: docker-image

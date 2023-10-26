@@ -3,7 +3,6 @@ labels:
   - docker-image
   - integration
 dependencies:
-  - mouth-driver-sanity-tests: ""
   - driver-mouth: docker-image
   - driver-reset: docker-image
   - artie-api-server: docker-image

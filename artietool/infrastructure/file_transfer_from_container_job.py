@@ -70,7 +70,11 @@ class FileTransferFromContainerJob(job.Job):
 
         # If we couldn't find the files on disk, we need to see if the files
         # are produced by a container that can be found.
-        docker_image_name = self._evaluate_docker_image(args)
+        try:
+            docker_image_name = self._evaluate_docker_image(args)
+        except KeyError:
+            # The docker image name couldn't be determined. Default to not cached.
+            return
         if not docker.check_and_pull_if_docker_image_exists(args, docker_image_name):
             # The image does not exist/is not cached. We can't get the files out without building an image.
             # So we aren't cached and the artifacts have marked themselves.

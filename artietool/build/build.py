@@ -64,9 +64,6 @@ def build(args):
     docker.clean_docker_containers()
     docker.clean_build_location(args, common.repo_root())
 
-    # No more logging after this: flush the logger
-    common.shutdown_logging()
-
     # Print the results for human consumption
     retcode = 0
     if isinstance(results, Iterable):

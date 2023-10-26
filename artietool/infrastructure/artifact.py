@@ -153,7 +153,13 @@ class FilesArtifact(Artifact):
 
         # At this point, we should be able to figure out the tag, so we can figure out the names of the files
         if hasattr(self, '_docker_image_dependency'):
-            docker_image_name = self._docker_image_dependency.evaluate(args).item
+            try:
+                docker_image_name = self._docker_image_dependency.evaluate(args).item
+            except KeyError as e:
+                # The Docker image we want to copy from isn't cached. We can't determine if we are cached or not.
+                common.info(f"Cannot determine if {self.item} is cached - the Docker container that we would copy this file from is not present. Defaulting to not cached.")
+                self.built = False
+                return
             tag = docker.get_tag_from_name(docker_image_name)
             updated_items = [target.replace('*', tag) for target in self.item]
             self.item = updated_items
