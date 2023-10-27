@@ -1,8 +1,14 @@
 """
 Common code for all the modules.
 """
-import rpyc
-from rpyc.utils import factory
+try:
+    import rpyc
+    from rpyc.utils import factory
+    LOCAL_ONLY = False
+except ImportError:
+    # Local-only version of CLI is used.
+    LOCAL_ONLY = True
+    pass
 
 
 class _ConnectionWrapper:
@@ -51,6 +57,9 @@ def connect(host, port=None, ipv6=False):
 
     Returns an object that can be considered a proxy of the remote service.
     """
+    if LOCAL_ONLY:
+        raise OSError(f"Running a local version of CLI. Cannot access any RPyC services. Install with [remote] dependencies if possible.")
+
     # TODO: Deal with authentication when trying to access K3S service
     # TODO: Deal with ports and hosts when on K3S
     connection = factory.ssl_connect(host, port, ipv6=ipv6)

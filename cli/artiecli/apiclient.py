@@ -2,8 +2,9 @@
 Base class for the various API clients.
 """
 import kubernetes as k8s
-import requests
 import time
+import requests
+
 
 class APIClient:
     def __init__(self, args) -> None:
