@@ -191,6 +191,22 @@ def get_extra_docker_build_args(args):
         ret += " --no-cache"
     return ret
 
+def _parse_json_workaround(json_output: str):
+    # On some platforms, we have to do the JSON decoding via this workaround
+    ids = {}
+    for line in json_output.splitlines():
+        try:
+            decoded_output = json.loads(line)
+            ids[decoded_output['Name']]: decoded_output['ID']
+        except Exception as e1:
+            common.error(f"Cannot understand JSON output. Got an exception while trying to decode the raw output and an exception when trying a workaround: {e1}. Raw output looks like this: {json_output}")
+            raise e1
+    if not ids:
+        errmsg = f"Cannot decode JSON output. Raw output: {json_output}"
+        raise OSError(errmsg)
+
+    return ids
+
 def compose(project_name: str, cwd: str, fname: str, startup_timeout_s: int, envs=None) -> Dict[str, str]:
     """
     Runs Docker compose on the given compose file from cwd.
@@ -225,16 +241,8 @@ def compose(project_name: str, cwd: str, fname: str, startup_timeout_s: int, env
     try:
         decoded_output = json.loads(json_output)
         ids = {jsonobject['Name']: jsonobject['ID'] for jsonobject in decoded_output}
-    except json.JSONDecodeError as e0:
-        # On some platforms, we seem to have to split this array by lines, then decode each line as an object.
-        ids = {}
-        for line in json_output.splitlines():
-            try:
-                decoded_output = json.loads(line)
-                ids[decoded_output['Name']]: decoded_output['ID']
-            except Exception as e1:
-                common.error(f"Cannot understand JSON output. Got an exception while trying to decode the raw output: {e0} ; and an exception when trying a workaround: {e1}. Raw output looks like this: {json_output}")
-                raise e1
+    except json.JSONDecodeError:
+        ids = _parse_json_workaround(json_output)
     return ids
 
 def compose_down(project_name: str, cwd: str, fname: str, envs=None):
