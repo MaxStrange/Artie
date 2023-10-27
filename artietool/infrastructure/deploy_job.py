@@ -25,6 +25,7 @@ class AddDeployJob(job.Job):
         self.what = what
         self.chart_name = what
         self.chart_version = None  # Comes from args, otherwise we use whatever is in the Chart.yaml
+        self.artie_name = None  # Comes from args, otherwise we determine from the cluster
         self.chart_reference = chart_reference
 
     def __call__(self, args) -> result.JobResult:
@@ -53,11 +54,26 @@ class AddDeployJob(job.Job):
             kube.delete_helm_release(args, self.chart_name)
 
         common.info(f"Deploying chart...")
-        sets = {'appVersion': self.chart_version} if self.chart_version else None
+        sets = {}
+        if self.chart_version:
+            sets['appVersion'] = self.chart_version
+
+        if self.artie_name:
+            sets['artieId'] = self.artie_name
+        else:
+            names_of_arties_on_cluster = kube.get_artie_names(args)
+            if len(names_of_arties_on_cluster) == 1:
+                self.artie_name = names_of_arties_on_cluster[0]
+                sets['artieId'] = self.artie_name
+            elif len(names_of_arties_on_cluster) > 1:
+                raise ValueError(f"More than one Artie detected on cluster: {names_of_arties_on_cluster} ; Please pass --artie-name flag to select one.")
+            elif len(names_of_arties_on_cluster) == 0:
+                raise ValueError(f"Could not detect any Arties on the cluster. Cannot proceed with deployment.")
+
         kube.install_helm_chart(args, self.chart_name, self.chart_reference, sets)
 
         timeout_s = 60 * 5
-        common.info(f"Verifying deployment of {self.what}. This will timeout after {timeout_s/60} minutes if we don't succeed by then...")
+        common.info(f"Verifying deployment of {self.what}. This will timeout after {timeout_s/60:.2f} minutes if we don't succeed by then...")
         start = datetime.datetime.now().timestamp()
         success = False
         while datetime.datetime.now().timestamp() - start <= timeout_s and not success:
@@ -72,6 +88,8 @@ class AddDeployJob(job.Job):
     def fill_artifacts_at_runtime(self, args):
         if 'chart-version' in args:
             self.chart_version = args.chart_version
+        if 'artie-name' in args:
+            self.artie_name = args.artie_name
         super().fill_artifacts_at_runtime(args)
 
     def clean(self, args):

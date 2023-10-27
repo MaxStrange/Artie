@@ -180,6 +180,17 @@ def delete_node(args, node_name: str, ignore_errors=False):
         if not ignore_errors:
             raise e
 
+def get_artie_names(args) -> List[str]:
+    """
+    Returns a list of names of Arties found on the cluster.
+    """
+    ret = []
+    node_names = get_node_names(args)
+    for node_name in node_names:
+        if node_name.startswith("controller-node-"):
+            ret.append(node_name.removeprefix("controller-node-"))
+    return ret
+
 def get_node_names(args) -> List[str]:
     """
     Returns a list of node names - one for each one found in the cluster.
