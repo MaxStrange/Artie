@@ -8,7 +8,6 @@ try:
 except ImportError:
     # Local-only version of CLI is used.
     LOCAL_ONLY = True
-    pass
 
 
 class _ConnectionWrapper:
