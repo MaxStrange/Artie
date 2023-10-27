@@ -2,8 +2,8 @@
 Base class for the various API clients.
 """
 import kubernetes as k8s
-import time
 import requests
+import time
 
 
 class APIClient:
