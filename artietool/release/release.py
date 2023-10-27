@@ -6,6 +6,33 @@ from ..build import build
 import argparse
 import subprocess
 
+def _fetch(args) -> int:
+    if args.remote and not args.skip_checkout:
+        p = subprocess.run(["git", "fetch"], capture_output=True)
+        retcode = p.returncode
+        if retcode:
+            common.error(f"Error running git fetch: {p.stdout} ; {p.stderr}")
+            return retcode
+    return 0
+
+def _checkout(args) -> int:
+    if not args.skip_checkout:
+        p = subprocess.run(["git", "checkout", args.branch], capture_output=True)
+        retcode = p.returncode
+        if retcode:
+            common.error(f"Error running git checkout: {p.stdout} ; {p.stderr}")
+            return retcode
+    return 0
+
+def _pull(args) -> int:
+    if args.remote and not args.skip_checkout:
+        p = subprocess.run(["git", "pull"], capture_output=True)
+        retcode = p.returncode
+        if retcode:
+            common.error(f"Error running git pull: {p.stdout} ; {p.stderr}")
+            return retcode
+    return 0
+
 def release(args):
     """
     Top-level release function.
@@ -13,27 +40,16 @@ def release(args):
     retcode = 0
 
     # Possibly fetch remote
-    if args.remote:
-        p = subprocess.run(["git", "fetch"], capture_output=True)
-        retcode = p.returncode
-        if retcode:
-            common.error(f"Error running git fetch: {p.stdout} ; {p.stderr}")
-            return retcode
+    if retcode := _fetch(args):
+        return retcode
 
     # Checkout the appropriate branch
-    p = subprocess.run(["git", "checkout", args.branch], capture_output=True)
-    retcode = p.returncode
-    if retcode:
-        common.error(f"Error running git checkout: {p.stdout} ; {p.stderr}")
+    if retcode := _checkout(args):
         return retcode
 
     # Possibly pull
-    if args.remote:
-        p = subprocess.run(["git", "pull"], capture_output=True)
-        retcode = p.returncode
-        if retcode:
-            common.error(f"Error running git pull: {p.stdout} ; {p.stderr}")
-            return retcode
+    if retcode := _pull(args):
+        return retcode
 
     # Get the git tag
     tag = args.docker_tag
@@ -54,11 +70,7 @@ def release(args):
     return retcode
 
 def fill_subparser(parser_release: argparse.ArgumentParser, parent: argparse.ArgumentParser):
+    parser_release.add_argument("--skip-checkout", action='store_true', help="If given, we skip checking out a branch.")
     parser_release.add_argument("-b", "--branch", default="main", type=str, help="The branch of the repository to release. We will attempt to checkout to this branch.")
     parser_release.add_argument("--remote", action='store_true', help="If given, we attempt to first pull the branch from origin.")
     parser_release.set_defaults(cmd=release, module="release-artie")
-
-
-# TODO: We should use this to package up latest main and push to the Dockerhub.
-# TODO: Later, we should utilize this to push tags to GitHub as well - actually, this should probably be handled by a GitHub Action.
-# TODO: To start with, this is a very manual process, but later we should hook it up to GitHub Actions as a release pipeline.

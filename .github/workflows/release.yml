@@ -1,0 +1,56 @@
+name: artie-release
+on:
+  pull_request_target:
+    types:
+      - closed
+    branches:
+      - 'main'
+env:
+  DOCKER_REPO: maxfieldstrange
+permissions: read-all
+jobs:
+  export-variables:
+    if: github.event.pull_request.merged == true
+    name: export-variables
+    runs-on: ubuntu-22.04
+    outputs:
+      docker-tag: ${{ steps.step1.outputs.tag }}
+    steps:
+      - id: step1
+        run: echo "tag=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+
+  build:
+    if: github.event.pull_request.merged == true
+    name: build-and-push
+    runs-on: ubuntu-22.04
+    needs: export-variables
+    env:
+      DOCKER_TAG: ${{needs.export-variables.outputs.docker-tag}}
+    steps:
+      - id: checkout
+        name: Checkout
+        uses: actions/checkout@v3
+      - id: setup
+        uses: ./.github/actions/artie-setup-base
+      - id: docker-login
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{secrets.DOCKERHUB_USERNAME}}
+          password: ${{secrets.DOCKERHUB_PAT}}
+      - id: build
+        name: Build Docker Images
+        run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG
+        shell: bash
+      - id: upartifacts
+        name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: build-artifacts/
+      - id: print
+        name: Print Results
+        run: echo "Released images to $DOCKER_REPO/*/$DOCKER_TAG"
+        shell: bash
+
+    # TODO: Additional steps for tagging and releasing
