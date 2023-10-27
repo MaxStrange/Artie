@@ -222,8 +222,19 @@ def compose(project_name: str, cwd: str, fname: str, startup_timeout_s: int, env
         common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
         p.check_returncode()
     json_output = p.stdout.decode('utf-8')
-    decoded_output = json.loads(json_output)
-    ids = {jsonobject['Name']: jsonobject['ID'] for jsonobject in decoded_output}
+    try:
+        decoded_output = json.loads(json_output)
+        ids = {jsonobject['Name']: jsonobject['ID'] for jsonobject in decoded_output}
+    except json.JSONDecodeError as e0:
+        # On some platforms, we seem to have to split this array by lines, then decode each line as an object.
+        ids = {}
+        for line in json_output.splitlines():
+            try:
+                decoded_output = json.loads(line)
+                ids[decoded_output['Name']: decoded_output['ID']]
+            except json.JSONDecodeError as e1:
+                common.error(f"Cannot understand JSON output. Got an exception while trying to decode the raw output: {e0} ; and an exception when trying a workaround: {e1}. Raw output looks like this: {json_output}")
+                raise e1
     return ids
 
 def compose_down(project_name: str, cwd: str, fname: str, envs=None):
