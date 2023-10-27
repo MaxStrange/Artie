@@ -8,7 +8,7 @@ WORKDIR /cli
 COPY . ./
 
 # Build and install CLI
-RUN pip install .
+RUN pip install .[remote]
 
 # Default command is to run help and exit
 CMD [ "/bin/bash", "-c", "artie-cli help" ]
