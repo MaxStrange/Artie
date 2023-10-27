@@ -3,6 +3,8 @@
 The Artie API Server is the single point of ingress into the Artie cluster. Current clients
 planned to make use of this server are the Artie CLI and the Artie workbench.
 
+For anything running *inside* the cluster, Artie Service Client should be used directly instead.
+
 ## Contents
 
 - [Eyebrows](./docs/api-eyebrows.md) - also includes the servos for the eyes
