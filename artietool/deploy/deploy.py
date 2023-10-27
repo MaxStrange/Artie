@@ -46,6 +46,7 @@ def fill_subparser(parser_deploy: argparse.ArgumentParser, parent: argparse.Argu
     option_parser = argparse.ArgumentParser(parents=[parent], add_help=False)
     group = option_parser.add_argument_group("Deploy", "Deploy Options")
     group.add_argument("--chart-version", default=None, type=str, help="If given, we override the default version of the deployment with this value.")
+    group.add_argument("--artie-name", default=None, type=str, help="If not given, we automatically detect an Artie on the cluster. If you have more than one Artie, you should give the name of the Artie you want to deploy to.")
     group.add_argument("--delete", action='store_true', help="If given, we delete the deployment instead of creating it.")
 
     # Add all the deploy tasks
