@@ -191,19 +191,39 @@ def get_extra_docker_build_args(args):
         ret += " --no-cache"
     return ret
 
+def _parse_json_for_names_manually(json_output: str) -> Dict[str, str]:
+    # Example: "Name":"eyebrows-itest-api-server"
+    pattern_name = re.compile("\"Name\":\"(?P<name>)\"")
+    # Example: "ID":"791e54dd426b"
+    pattern_id = re.compile("\"ID\":\"(?P<id>)\"")
+    ids = {}
+    for line in json_output.splitlines():
+        if 'Name' and 'ID' in line:
+            match_name = pattern_name.match(line)
+            match_id = pattern_id.match(line)
+            if match_name and match_id:
+                name = match_name.groupdict().get('name', '')
+                idval = match_id.groupdict().get('id', '')
+                if name and idval:
+                    ids[name] = idval
+    if not ids:
+        errmsg = f"Cannot decode JSON output. Raw output: {json_output}"
+        raise OSError(errmsg)
+    return ids
+
 def _parse_json_workaround(json_output: str):
     # On some platforms, we have to do the JSON decoding via this workaround
     ids = {}
     for line in json_output.splitlines():
         try:
             decoded_output = json.loads(line)
-            ids[decoded_output['Name']]: decoded_output['ID']
-        except Exception as e1:
+            ids[decoded_output['Name']] = decoded_output['ID']
+        except json.JSONDecodeError as e1:
             common.error(f"Cannot understand JSON output. Got an exception while trying to decode the raw output and an exception when trying a workaround: {e1}. Raw output looks like this: {json_output}")
             raise e1
     if not ids:
-        errmsg = f"Cannot decode JSON output. Raw output: {json_output}"
-        raise OSError(errmsg)
+        # Aaaand another work around
+        ids = _parse_json_for_names_manually(json_output)
 
     return ids
 
