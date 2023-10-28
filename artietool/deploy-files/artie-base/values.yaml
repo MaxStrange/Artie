@@ -70,9 +70,6 @@ controllerNodeName: "controller-node"
 # logCollectorHostName: The hostname of the log collector service.
 logCollectorHostName: "log-collector"
 
-# artieApiServerHostName: The hostname of the Artie API server service.
-artieApiServerHostName: "artie-api-server"
-
 # ports: The various ports we need
 ports:
   resetDriver: 18861
@@ -94,7 +91,7 @@ images:
 # --------------- Stuff the user is expected to override --------------------
 
 # imageTag: The tag we use for all the images in this deployment. Images are only guaranteed to work with other images of the same tag, so we do not provide a means by which to mix tags.
-imageTag: 02c4e35a
+imageTag: dd5e5c80
 
 # artieId: The ID of the Artie we are deploying to.
 artieId: artie-001

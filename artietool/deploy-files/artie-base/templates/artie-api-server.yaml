@@ -37,7 +37,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: "{{ .Values.artieApiServerHostname }}-{{ .Values.artieId }}"
+  name: artie-api-server-{{ .Values.artieId }}
   namespace: {{ .Values.namespace }}
   labels:
     app.kubernetes.io/component: artie-api-server
