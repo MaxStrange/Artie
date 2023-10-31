@@ -11,7 +11,10 @@ steps:
     artifacts:
       - docker-image
     img-base-name: artie-cli
-    buildx: false
+    buildx: true
+    platforms:
+      - linux/arm64
+      - linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/cli/test"
     dockerfile: Dockerfile
     build-context: ".."

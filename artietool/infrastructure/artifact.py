@@ -86,7 +86,10 @@ class DockerImageArtifact(Artifact):
         if not hasattr(producing_job, 'img_base_name'):
             raise ValueError(f"DockerImageArtifact is trying to configure itself, but its producing job does not have a 'img_base_name' attribute, so we don't know what the Docker image's name is. Artifact: {self}; Producing Job: {producing_job}")
 
-        self._docker_image = docker.construct_docker_image_name(args, producing_job.img_base_name)
+        if not hasattr(producing_job, 'platform'):
+            raise ValueError(f"DockerImageArtifact is trying to configure itself, but its producing job does not have a 'platform' attribute, so we don't know what the Docker image's name is. Artifact: {self}; Producing Job: {producing_job}")
+
+        self._docker_image = docker.construct_docker_image_name(args, producing_job.img_base_name, producing_job.platform)
         self.item = str(self._docker_image)
 
     def mark_if_cached(self, args):

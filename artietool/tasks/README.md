@@ -63,6 +63,8 @@ steps:
     ## The base (simplified) name of the produced docker image
     img-base-name: artie-eyebrow-driver
     buildx: true
+    platforms:
+      - linux/arm64
     dockerfile-dpath: "${REPO_ROOT}/drivers/mouth-and-eyebrows"
     dockerfile: Dockerfile
     build-context: "."
@@ -102,8 +104,11 @@ steps:
 
 - *artifacts*: The names of the artifacts that we are producing with this job, which must include at least one docker-image type.
 - *img-base-name*: The name of the image to be produced, without the repo or tag.
-- *buildx*: (Optional, default false) Boolean. If true, we will use Docker buildx to produce the image for ARM64. Otherwise it is built
-            using the host machine.
+- *buildx*: (Optional, default false) Boolean. If true, we will use Docker buildx to produce the image. Otherwise it is built
+            using the host machine's default driver.
+- *platforms*: (Optional, default []) List. If `buildx` is true, you should specify this value as a list of platforms to build for.
+            Should be a list of strings of the form 'linux/arm64' or 'linux/amd64'.
+            Note that this will implicitly create a Docker Build job for each platform.
 - *dockerfile-dpath*: The directory where we will find the Dockerfile.
 - *dockerfile*: (Optional, default 'Dockerfile') The name of the Dockerfile, which should be found at `dockerfile-dpath`.
 - *build-context*: (Optional, default '.') The build context to use when building, which should be *relative* to the `dockerfile-dpath`.

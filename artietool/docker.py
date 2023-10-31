@@ -21,6 +21,8 @@ except ModuleNotFoundError:
     logging.error("'docker' not installed. Make sure to install dependencies with 'pip install -r requirements.txt'")
     exit(1)
 
+API_CALL_TIMEOUT_S = 30
+
 class DockerImageName:
     def __init__(self, repo: str, name: str, tag: str) -> None:
         self.repo = repo
@@ -56,7 +58,7 @@ def clean_build_location(args, builddpath: str):
     if os.path.exists(tmpdpath):
         shutil.rmtree(tmpdpath, ignore_errors=True)
 
-def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName, buildx=True, fpaths=None, context='.', extra_build_args="", dockerfile_name="Dockerfile"):
+def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName, buildx=True, fpaths=None, context='.', extra_build_args="", dockerfile_name="Dockerfile", platform=None):
     """
     Common stuff that a whole bunch of BuildTasks do when building a Docker image.
 
@@ -70,16 +72,27 @@ def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName
                common to use one folder up from that, in which case, use '..'
     - extra_build_args: If given, we insert into the docker build string.
     - dockerfile_name: The name of the Dockerfile, typically it is just 'Dockerfile', but could be something else.
+    - platform: Must be a supported Docker build platform. If using buildx, this defaults to linux/arm64 and if not, linux/amd64.
     """
     tmpdpath = os.path.join(builddpath, "tmp")
     os.makedirs(tmpdpath, exist_ok=True)
     common.info(f"Building Docker image and tagging it as {str(docker_image_name)}")
+
+    # Determine platform
+    if buildx and not platform:
+        platform = "linux/arm64"
+    elif not buildx and not platform:
+        platform = "linux/amd64"
 
     # Retrieve dependencies
     if fpaths:
         for fpath in fpaths:
             tmp_fpath = os.path.join(tmpdpath, os.path.basename(fpath))
             common.info(f"Copying {fpath} to {tmp_fpath}")
+            if os.path.exists(tmp_fpath):
+                # Already present from a previous job. Overwrite.
+                shutil.rmtree(tmp_fpath)
+
             if os.path.isfile(fpath):
                 shutil.copyfile(fpath, tmp_fpath)
             else:
@@ -89,7 +102,7 @@ def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName
     extraargs = get_extra_docker_build_args(args)
     dockerargs = f"{extraargs} {extra_build_args}"
     if buildx:
-        dockercmd = f"docker buildx build --load --platform linux/arm64 -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
+        dockercmd = f"docker buildx build --load --platform {platform} -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
     else:
         dockercmd = f"docker build -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
     common.info(f"Running: {dockercmd}")
@@ -147,7 +160,7 @@ def clean_docker_containers():
         common.info(f"Sending stop signal to container {short_id}...")
         stop_docker_container(docker_id)
 
-def construct_docker_image_name(args, name, repo_prefix=None, tag=None) -> DockerImageName:
+def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag=None) -> DockerImageName:
     """
     Returns a DockerImageName object.
 
@@ -161,7 +174,14 @@ def construct_docker_image_name(args, name, repo_prefix=None, tag=None) -> Docke
         repo_prefix = "" if not hasattr(args, 'docker_repo') or args.docker_repo is None else args.docker_repo
         repo_prefix = repo_prefix + "/" if repo_prefix and not repo_prefix.endswith('/') else repo_prefix
 
-    return DockerImageName(repo_prefix, name, tag)
+    if platform and "/" in platform:
+        platform = platform.split('/')[1]
+
+    if platform is not None and platform not in ("amd64", "arm64"):
+        raise ValueError(f"Platform should be one of 'amd64', 'arm64', or of the form '*/amd64' or '*/arm64', but is {platform}")
+
+    tag_and_platform = f"{tag}-{platform}" if platform else f"{tag}"
+    return DockerImageName(repo_prefix, name, tag_and_platform)
 
 def get_tag_from_name(docker_image_name: str|DockerImageName) -> str:
     """
@@ -352,7 +372,7 @@ def get_container(name_or_pid: str) -> Container:
     Returns a Container object from the given `name_or_pid` string.
     Returns None if we can't find the container.
     """
-    client = docker.from_env()
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     try:
         ret = client.containers.get(name_or_pid)
     except docker_errors.NotFound:
@@ -369,7 +389,7 @@ def docker_login(args):
         raise ValueError(f"Given a docker username ({args.docker_username}) for registry {args.docker_repo}, but no password was found in --docker-password or ARTIE_TOOL_DOCKER_PASSWORD")
 
     # If this is for Dockerhub, don't use the registry
-    client = docker.from_env()
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     if re.compile(".+://.+").match(args.docker_repo):
         client.login(username=args.docker_username, password=pswd, registry=args.docker_repo)
     else:
@@ -379,7 +399,7 @@ def check_for_network(network_name: str) -> bool:
     """
     Returns `True` if we can find a Docker network with the given name. `False` otherwise.
     """
-    client = docker.from_env()
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     networks = client.networks.list(network_name)
     return len(networks) > 0
 
@@ -391,7 +411,7 @@ def remove_network(network_name: str):
     if not check_for_network(network_name):
         return
 
-    client = docker.from_env()
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     networks = client.networks.list(network_name)
     if len(networks) > 1:
         raise ValueError(f"Cannot delete network with name {network_name}. Found multiple matching networks somehow: {[n.name for n in networks]}")
@@ -422,11 +442,10 @@ def add_network(network_name: str, exists_okay=False):
     if not exists_okay and check_for_network(network_name):
         raise ValueError(f"Cannot create Docker network {network_name} as it already exists.")
 
-    client = docker.from_env()
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     client.networks.create(network_name)
 
-def _try_pull_once(docker_image_name: DockerImageName):
-    client = docker.from_env()
+def _try_pull_once(docker_image_name: DockerImageName, client):
     try:
         ret = client.api.pull(f"{docker_image_name.repo}{docker_image_name.name}", docker_image_name.tag, stream=True, decode=True)
         for line in ret:
@@ -450,6 +469,7 @@ def pull_docker_image(args, imgname: DockerImageName, nretries=3):
     if p.returncode != 0:
         raise Exception(f"Cannot find {imgname} remotely, so cannot pull it: {p.stderr}\n{p.stdout}".strip())
 
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     err = None
     for i in range(nretries):
         if i == 0:
@@ -458,15 +478,14 @@ def pull_docker_image(args, imgname: DockerImageName, nretries=3):
             common.warning(f"Pulling failed. Retrying {imgname}...")
             time.sleep(1)
 
-        err = _try_pull_once(imgname)
+        err = _try_pull_once(imgname, client)
         if err:
             continue
 
     if err:
         raise Exception(f"Could not pull {imgname}: {err}")
 
-def _try_push_once(docker_image_name: DockerImageName):
-    client = docker.from_env()
+def _try_push_once(docker_image_name: DockerImageName, client):
     try:
         ret = client.api.push(f"{docker_image_name.repo}{docker_image_name.name}", docker_image_name.tag, stream=True, decode=True)
         for line in ret:
@@ -487,6 +506,7 @@ def push_docker_image(args, docker_image_name: DockerImageName, nretries=3):
     if args.docker_username is not None:
         docker_login(args)
 
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     err = None
     for i in range(nretries):
         if i == 0:
@@ -495,7 +515,7 @@ def push_docker_image(args, docker_image_name: DockerImageName, nretries=3):
             common.warning(f"Pushing failed: {err}: Retrying {docker_image_name}...")
             time.sleep(1)
 
-        err = _try_push_once(docker_image_name)
+        err = _try_push_once(docker_image_name, client)
         if err is None:
             break
 
@@ -517,7 +537,7 @@ def run_docker_container(image_name, cmd, timeout_s=30, log_to_stdout=False, **k
     - log_to_stdout: If given, we log the Docker logs to the console.
     - kwargs: Additional kwargs to pass onto the Docker SDK.
     """
-    client = docker.from_env()
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     common.info(f"Running command: {cmd} ; using kwargs: {kwargs}")
     stdout = common.manage_timeout(client.containers.run, timeout_s, image_name, cmd, remove=True, stdout=True, stderr=True, **kwargs)
 
@@ -547,7 +567,7 @@ def start_docker_container(image_name: str|DockerImageName, cmd, **kwargs):
     - log_to_stdout: If given, we log the Docker logs to the console.
     - kwargs: Keyword arguments for docker.run() command. See https://docker-py.readthedocs.io/en/stable/containers.html#docker.models.containers.ContainerCollection.run
     """
-    client = docker.from_env()
+    client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
     common.info(f"Running command: {cmd}")
     container = client.containers.run(str(image_name), cmd, remove=True, detach=True, **kwargs)
     return container

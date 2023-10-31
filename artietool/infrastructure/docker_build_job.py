@@ -18,7 +18,7 @@ class DockerBuildJob(job.Job):
     A DockerBuildJob builds a single Docker image using
     the parameters given.
     """
-    def __init__(self, artifacts: List[artifact.Artifact], img_base_name: str, dockerfile_dpath: str, buildx=False, dockerfile="Dockerfile", build_context=".", dependency_files:List[dependency.Dependency | str]=None, build_args:List[DockerBuildArg]=None) -> None:
+    def __init__(self, artifacts: List[artifact.Artifact], img_base_name: str, dockerfile_dpath: str, buildx=False, dockerfile="Dockerfile", build_context=".", dependency_files:List[dependency.Dependency | str]=None, build_args:List[DockerBuildArg]=None, platform=None) -> None:
         super().__init__(artifacts)
         self.img_base_name = img_base_name
         self.dockerfile_dpath = dockerfile_dpath
@@ -27,6 +27,7 @@ class DockerBuildJob(job.Job):
         self.build_context = build_context
         self.dependency_fpaths = dependency_files if dependency_files else []
         self.build_args = build_args if build_args else []
+        self.platform = platform
 
     def __call__(self, args) -> result.JobResult:
         common.info(f"Building {self.img_base_name}...")
@@ -68,9 +69,9 @@ class DockerBuildJob(job.Job):
                     fpath = value[0]
                     buildargs += f" --build-arg {arg.key}={os.path.basename(fpath)}"
 
-        # Cretae the name object from the Docker repo, name, and tag
-        docker_image_name = docker.construct_docker_image_name(args, self.img_base_name)
-        docker.build_docker_image(args, self.dockerfile_dpath, docker_image_name, self.buildx, fpaths, self.build_context, buildargs, self.dockerfile_fname)
+        # Create the name object from the Docker repo, name, and tag
+        docker_image_name = docker.construct_docker_image_name(args, self.img_base_name, self.platform)
+        docker.build_docker_image(args, self.dockerfile_dpath, docker_image_name, self.buildx, fpaths, self.build_context, buildargs, self.dockerfile_fname, platform=self.platform)
 
         self.mark_all_artifacts_as_built()
 
