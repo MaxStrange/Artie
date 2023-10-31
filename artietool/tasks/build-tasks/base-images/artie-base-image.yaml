@@ -4,18 +4,20 @@ labels:
   - base-image
 dependencies: ""
 artifacts:
-  - name: docker-image
+  - name: docker-image-amd64
     type: docker-image
+  - name: docker-image-arm64
+    type: docker-image
+  - name: docker-image
+    type: docker-manifest
 type: build
 steps:
   - job: docker-build
     artifacts:
-      - docker-image
+      - docker-image-amd64
     img-base-name: artie-base
     buildx: true
-    platforms:
-      - linux/amd64
-      - linux/arm64
+    platform: linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/libraries/base-image"
     dockerfile: Dockerfile
     build-context: "."
@@ -25,3 +27,29 @@ steps:
       - "${REPO_ROOT}/libraries/artie-gpio"
       - "${REPO_ROOT}/libraries/artie-swd"
       - "${REPO_ROOT}/libraries/artie-service-client"
+  - job: docker-build
+    artifacts:
+      - docker-image-arm64
+    img-base-name: artie-base
+    buildx: true
+    platform: linux/arm64
+    dockerfile-dpath: "${REPO_ROOT}/libraries/base-image"
+    dockerfile: Dockerfile
+    build-context: "."
+    dependency-files:
+      - "${REPO_ROOT}/libraries/artie-util"
+      - "${REPO_ROOT}/libraries/artie-i2c"
+      - "${REPO_ROOT}/libraries/artie-gpio"
+      - "${REPO_ROOT}/libraries/artie-swd"
+      - "${REPO_ROOT}/libraries/artie-service-client"
+  - job: docker-manifest
+    artifacts:
+      - docker-image
+    img-base-name: artie-base
+    images:
+      - dependency:
+          name: docker-image-amd64
+          producing-task: artie-base-image
+      - dependency:
+          name: docker-image-arm64
+          producing-task: artie-base-image

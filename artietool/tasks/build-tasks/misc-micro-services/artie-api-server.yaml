@@ -2,20 +2,23 @@ name: artie-api-server
 labels:
   - docker-image
 dependencies:
-  - artie-base-image: docker-image
+  - artie-base-image: docker-image-arm64
+  - artie-base-image: docker-image-amd64
 artifacts:
-  - name: docker-image
+  - name: docker-image-amd64
     type: docker-image
+  - name: docker-image-arm64
+    type: docker-image
+  - name: docker-image
+    type: docker-manifest
 type: build
 steps:
   - job: docker-build
     artifacts:
-      - docker-image
+      - docker-image-amd64
     img-base-name: artie-api-server
     buildx: true
-    platforms:
-      - linux/arm64
-      - linux/amd64
+    platform: linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/misc-micro-services/artie-api-server"
     dockerfile: Dockerfile
     build-context: "."
@@ -23,6 +26,33 @@ steps:
       - GIT_TAG: ${GIT_TAG}
       - ARTIE_BASE_IMG:
           dependency:
-            name: docker-image
+            name: docker-image-amd64
             producing-task: artie-base-image
       - SERVE_ON_PORT: 8782
+  - job: docker-build
+    artifacts:
+      - docker-image-arm64
+    img-base-name: artie-api-server
+    buildx: true
+    platform: linux/arm64
+    dockerfile-dpath: "${REPO_ROOT}/misc-micro-services/artie-api-server"
+    dockerfile: Dockerfile
+    build-context: "."
+    build-args:
+      - GIT_TAG: ${GIT_TAG}
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image-arm64
+            producing-task: artie-base-image
+      - SERVE_ON_PORT: 8782
+  - job: docker-manifest
+    artifacts:
+      - docker-image
+    img-base-name: artie-api-server
+    images:
+      - dependency:
+          name: docker-image-amd64
+          producing-task: artie-api-server
+      - dependency:
+          name: docker-image-arm64
+          producing-task: artie-api-server

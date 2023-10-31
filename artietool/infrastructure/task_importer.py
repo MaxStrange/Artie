@@ -3,6 +3,7 @@ from . import dependency
 from . import deploy_job
 from . import docker_build_job
 from . import docker_compose_test_suite_job
+from . import docker_manifest_job
 from . import file_transfer_from_container_job
 from . import hardware_test_job
 from . import single_container_cli_suite_job
@@ -169,6 +170,8 @@ def _import_artifacts(config: Dict, fpath: str) -> List[artifact.Artifact]:
                 art = artifact.YoctoImageArtifact(artifact_name, producing_task_name)
             case 'docker-image':
                 art = artifact.DockerImageArtifact(artifact_name, producing_task_name)
+            case 'docker-manifest':
+                art = artifact.DockerManifestArtifact(artifact_name, producing_task_name)
             case 'fw-files':
                 art = artifact.FilesArtifact(artifact_name, producing_task_name)
             case 'helm-chart':
@@ -268,47 +271,36 @@ def _import_build_args(job_def: Dict, fpath: str) -> List[docker_build_job.Docke
             args.append(docker_build_job.DockerBuildArg(_replace_variables(key, fpath), _replace_variables(value, fpath)))
     return args
 
-def _import_buildx_and_platforms(job_def: Dict, fpath) -> Tuple[str, str]:
+def _import_buildx_and_platform(job_def: Dict, fpath) -> Tuple[str, str]:
     buildx = job_def.get('buildx', False)
     if buildx:
-        _validate_dict(job_def, 'platforms', keyerrmsg=f"Could not find 'platforms' even though 'buildx' was set to true. Please specify the list of platforms to build for if using buildx. Docker-build job found in {fpath}")
-    platforms = job_def.get('platforms', [])
-    return buildx, platforms
+        _validate_dict(job_def, 'platform', keyerrmsg=f"Could not find 'platform' even though 'buildx' was set to true. Please specify the platform to build for if using buildx. Docker-build job found in {fpath}")
+    platform = job_def.get('platform', None)
+    return buildx, platform
 
-def _import_docker_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> List[docker_build_job.DockerBuildJob]:
-    """
-    Note that due to the user potentially wanting to build for multiple platforms, this
-    returns a *List* of DockerBuildJobs.
-    """
+def _import_docker_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> docker_build_job.DockerBuildJob:
     _validate_dict(job_def, 'artifacts', keyerrmsg=f"Could not find 'artifacts' section in docker-build job in {fpath}")
     _validate_dict(job_def, 'img-base-name', keyerrmsg=f"Could not find 'img-base-name' section in docker-build job in {fpath}")
     _validate_dict(job_def, 'dockerfile-dpath', keyerrmsg=f"Could not find 'dockerfile-dpath' section in docker-build job in {fpath}")
     artifacts = _import_artifacts_list(job_def, fpath, header.artifacts)
     img_base_name = _replace_variables(job_def['img-base-name'], fpath)
-    buildx, platforms = _import_buildx_and_platforms(job_def, fpath)
+    buildx, platform = _import_buildx_and_platform(job_def, fpath)
     dockerfile_dpath = _replace_variables(job_def['dockerfile-dpath'], fpath)
     dockerfile = _replace_variables(job_def.get('dockerfile', "Dockerfile"), fpath)
     build_context = _replace_variables(job_def.get('build-context', '.'), fpath)
     dependency_files = _import_dependency_files(job_def, fpath)
     build_args = _import_build_args(job_def, fpath)
-    kwargs = {
-        "artifacts": artifacts,
-        "img_base_name": img_base_name,
-        "dockerfile_dpath": dockerfile_dpath,
-        "buildx": buildx,
-        "dockerfile": dockerfile,
-        "build_context": build_context,
-        "dependency_files": dependency_files,
-        "build_args": build_args,
-        "platform": None,
-    }
-    ret = []
-    if platforms:
-        for platform in platforms:
-            kwargs['platform'] = platform
-            ret.append(docker_build_job.DockerBuildJob(**kwargs))
-    else:
-        ret = [docker_build_job.DockerBuildJob(**kwargs)]
+    ret = docker_build_job.DockerBuildJob(
+        artifacts=artifacts,
+        img_base_name=img_base_name,
+        dockerfile_dpath=dockerfile_dpath,
+        buildx=buildx,
+        dockerfile=dockerfile,
+        build_context=build_context,
+        dependency_files=dependency_files,
+        build_args=build_args,
+        platform=platform,
+    )
     return ret
 
 def _import_file_transfer_from_container_job(job_def: Dict, fpath: str, header: TaskHeader) -> file_transfer_from_container_job.FileTransferFromContainerJob:
@@ -340,6 +332,24 @@ def _import_yocto_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> yo
         binary_fname=binary_fname
     )
 
+def _import_manifest_images(images: List[Dict|str], fpath: str) -> List[dependency.Dependency | str]:
+    ret = []
+    for img in images:
+        if type(img) == dict:
+            ret.append(_import_single_dependency(img, fpath))
+        else:
+            ret.append(_replace_variables(img, fpath))
+    return ret
+
+def _import_docker_manifest_job(job_def: Dict, fpath: str, header: TaskHeader) -> docker_manifest_job.DockerManifestJob:
+    _validate_dict(job_def, 'artifacts', keyerrmsg=f"Could not find 'artifacts' section in 'docker-manifest' job in {fpath}")
+    _validate_dict(job_def, 'images', keyerrmsg=f"Could not find 'images' section in 'docker-manifest' job in {fpath}")
+    _validate_dict(job_def, 'img-base-name', keyerrmsg=f"Could not find 'img-base-name' section in 'docker-manifest' job in {fpath}")
+    artifacts = _import_artifacts_list(job_def, fpath, header.artifacts)
+    images = _import_manifest_images(job_def['images'], fpath)
+    img_base_name = _replace_variables(job_def['img-base-name'], fpath)
+    return docker_manifest_job.DockerManifestJob(artifacts, images, img_base_name)
+
 def _import_build_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.BuildTask:
     jobs = []
     for job_def in steps_configs:
@@ -348,9 +358,11 @@ def _import_build_task(header: TaskHeader, steps_configs: List[Dict], fpath: str
             case 'yocto-build':
                 jobs.append(_import_yocto_build_job(job_def, fpath, header))
             case 'docker-build':
-                jobs.extend(_import_docker_build_job(job_def, fpath, header))
+                jobs.append(_import_docker_build_job(job_def, fpath, header))
             case 'file-transfer-from-container':
                 jobs.append(_import_file_transfer_from_container_job(job_def, fpath, header))
+            case 'docker-manifest':
+                jobs.append(_import_docker_manifest_job(job_def, fpath, header))
             case _:
                 raise ValueError(f"Unrecognized 'job' type: '{job_def['job']}' in {fpath}")
 

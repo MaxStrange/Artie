@@ -4,18 +4,40 @@ labels:
   - telemetry
 dependencies: ""
 artifacts:
-  - name: docker-image
+  - name: docker-image-amd64
     type: docker-image
+  - name: docker-image-arm64
+    type: docker-image
+  - name: docker-image
+    type: docker-manifest
 type: build
 steps:
   - job: docker-build
     artifacts:
-      - docker-image
+      - docker-image-arm64
     img-base-name: artie-metrics-collector
     buildx: true
-    platforms:
-      - linux/arm64
-      - linux/amd64
+    platform: linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/prometheus"
     dockerfile: Dockerfile
     build-context: "."
+  - job: docker-build
+    artifacts:
+      - docker-image-amd64
+    img-base-name: artie-metrics-collector
+    buildx: true
+    platform: linux/arm64
+    dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/prometheus"
+    dockerfile: Dockerfile
+    build-context: "."
+  - job: docker-manifest
+    artifacts:
+      - docker-image
+    img-base-name: artie-metrics-collector
+    images:
+      - dependency:
+          name: docker-image-amd64
+          producing-task: metrics-collector
+      - dependency:
+          name: docker-image-arm64
+          producing-task: metrics-collector

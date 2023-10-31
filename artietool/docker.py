@@ -2,7 +2,7 @@
 Machinery for handling Docker containers.
 """
 from . import common
-from typing import Any, Dict
+from typing import Any, Dict, List
 import json
 import logging
 import os
@@ -31,6 +31,18 @@ class DockerImageName:
 
     def __str__(self) -> str:
         return f"{self.repo}{self.name}:{self.tag}"
+
+    def __repr__(self) -> str:
+        return str(self)
+
+class DockerManifest:
+    def __init__(self, name: str, image_names: List[str], insecure: bool) -> None:
+        self.name = name
+        self.image_names = image_names
+        self.insecure = insecure
+
+    def __str__(self) -> str:
+        return f"Docker Manifest List {self.name}"
 
     def __repr__(self) -> str:
         return str(self)
@@ -160,6 +172,28 @@ def clean_docker_containers():
         common.info(f"Sending stop signal to container {short_id}...")
         stop_docker_container(docker_id)
 
+def parse_docker_image_name(fully_qualified_name: str):
+    """
+    Returns a DockerImageName object from a fully-qualified str version of a Docker image.
+
+    This differs from `construct_docker_image_name` in that it takes a string of the form
+
+    'artiehub:5000/artie-api-server:f933906-amd64' or similar and returns a DockerImageName object
+    with the constituent pieces parsed out.
+
+    construct_docker_image_name on the other hand, takes the constituent pieces already parsed,
+    infers ones that aren't given, and returns the DockerImageName object from these pieces.
+    """
+    # Thank you, Stack Overflow: https://stackoverflow.com/questions/74990220/how-to-use-docker-image-tag-parsing-regex-in-javascript
+    # With a minor modification
+    r = re.compile("^(?P<repository>[\w.\-_]+(?::\d+|)|)(?:/|)(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+|))(:(?P<tag>[\w.\-_]{1,127})|)$")
+    o = r.match(fully_qualified_name)
+    if not o:
+        errmsg = f"Could not understand the given string as a Docker image ID: {fully_qualified_name}"
+        common.error(errmsg)
+        raise ValueError(errmsg)
+    return DockerImageName(o.groupdict().get('repository', ""), o.groupdict().get('image', ""), o.groupdict().get('tag', ""))
+
 def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag=None) -> DockerImageName:
     """
     Returns a DockerImageName object.
@@ -183,6 +217,67 @@ def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag
     tag_and_platform = f"{tag}-{platform}" if platform else f"{tag}"
     return DockerImageName(repo_prefix, name, tag_and_platform)
 
+def create_manifest(manifest_name: str, docker_image_names: List[str|DockerImageName], insecure=False) -> DockerManifest:
+    """
+    Create a Docker Manifest on the host file system and return an object representing it.
+    """
+    images = [str(name) for name in docker_image_names]
+    manifest = DockerManifest(manifest_name, images, insecure)
+
+    # Create the manifest on the host system. This is currently experimental, so we just use a subprocess.
+    cmd = ["docker", "manifest", "create"]
+
+    if manifest.insecure:
+        cmd.append("--insecure")
+
+    cmd.append(manifest.name)
+
+    for image in manifest.image_names:
+        cmd.append(image)
+
+    p = subprocess.run(cmd, capture_output=True)
+    if p.returncode != 0:
+        common.error(f"Failed to run cmd: {cmd}")
+        common.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
+        common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
+        p.check_returncode()
+
+    return manifest
+
+def push_manifest(manifest: DockerManifest):
+    """
+    Push the given manifest.
+    """
+    cmd = ["docker", "manifest", "push"]
+
+    if manifest.insecure:
+        cmd.append("--insecure")
+
+    cmd.append(manifest.name)
+
+    p = subprocess.run(cmd, capture_output=True)
+    if p.returncode != 0:
+        common.error(f"Failed to run cmd: {cmd}")
+        common.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
+        common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
+        p.check_returncode()
+
+def check_if_manifest_already_exists(manifest_name) -> bool:
+    """
+    Returns True if a manifest with the given name already exists on the host system.
+    """
+    try:
+        subprocess.run(["docker", "manifest", "inspect", manifest_name]).check_returncode()
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def remove_manifest(manifest_name) -> None:
+    """
+    Remove the manifest with the given name. Raises a CalledProcessError if the manifest cannot be found.
+    """
+    subprocess.run(["docker", "manifest", "rm", manifest_name]).check_returncode()
+
 def get_tag_from_name(docker_image_name: str|DockerImageName) -> str:
     """
     Returns the tag name of the docker image.
@@ -190,16 +285,7 @@ def get_tag_from_name(docker_image_name: str|DockerImageName) -> str:
     if issubclass(type(docker_image_name), DockerImageName):
         return docker_image_name.tag
     else:
-        # Thank you, Stack Overflow: https://stackoverflow.com/questions/74990220/how-to-use-docker-image-tag-parsing-regex-in-javascript
-        # With a minor modification
-        r = re.compile("^(?P<repository>[\w.\-_]+(?::\d+|)|)(?:/|)(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+|))(:(?P<tag>[\w.\-_]{1,127})|)$")
-        o = r.match(docker_image_name)
-        if not o:
-            errmsg = f"Could not understand the given string as a Docker image ID: {docker_image_name}"
-            common.error(errmsg)
-            raise ValueError(errmsg)
-        # for the future, in case you are wondering, groupdict will also get: 'repository' and 'image'
-        return o.groupdict().get('tag', "")
+        return parse_docker_image_name(docker_image_name).tag
 
 def get_extra_docker_build_args(args):
     """
