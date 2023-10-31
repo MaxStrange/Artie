@@ -42,7 +42,8 @@ class DockerManifestJob(job.Job):
             docker.remove_manifest(manifest_name)
 
         common.info(f"Creating manifest named {manifest_name}...")
-        manifest = docker.create_manifest(manifest_name, evaluated_images, insecure=args.insecure_docker_repo)
+        insecure = args.insecure_docker_repo
+        manifest = docker.create_manifest(manifest_name, evaluated_images, insecure=insecure)
 
         common.info(f"Pushing manifest {manifest_name}...")
         docker.push_manifest(manifest)

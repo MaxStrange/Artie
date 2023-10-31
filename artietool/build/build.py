@@ -87,7 +87,6 @@ def fill_subparser(parser_build: argparse.ArgumentParser, parent: argparse.Argum
     group = option_parser.add_argument_group("Build", "Build Options")
     group.add_argument("--clean", action='store_true', help="If given, we will run a 'clean' action first, then build.")
     group.add_argument("--include-yocto", action='store_true', help="When building with 'all', we typically exclude Yocto images. Use this flag if you want to include them in 'all'.")
-    group.add_argument("--insecure-docker-repo", action='store_true', help="(Experimental) If you are pushing a multiarch image to an insecure repo, you will need this flag.")
 
     # Add the all* classes of tasks
     for name in BUILD_CLASSES:
