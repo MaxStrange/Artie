@@ -1,6 +1,7 @@
 from . import dependency
 from . import result
 from . import test_job
+from .. import common
 from .. import docker
 from typing import List
 
@@ -9,13 +10,14 @@ class SanityTest:
         self.test_name = test_name
         self.docker_image_under_test = docker_image_under_test
         self.cmd_to_run_in_dut = cmd_to_run_in_dut
+        self.platform = common.host_platform()
         self.producing_task_name = None  # Filled in by Job
 
     def __call__(self, args) -> result.TestResult:
         if issubclass(type(self.docker_image_under_test), dependency.Dependency):
             docker_image_name = self.docker_image_under_test.evaluate(args).item
         else:
-            docker_image_name = str(docker.construct_docker_image_name(args, self.docker_image_under_test))
+            docker_image_name = str(docker.construct_docker_image_name(args, self.docker_image_under_test, self.platform))
 
         kwargs = {'environment': {'ARTIE_RUN_MODE': 'sanity'}}
         docker.run_docker_container(docker_image_name, self.cmd_to_run_in_dut, timeout_s=args.test_timeout_s, log_to_stdout=args.docker_logs, **kwargs)

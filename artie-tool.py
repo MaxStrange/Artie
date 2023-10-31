@@ -41,7 +41,6 @@ def _clean(args):
     all_tasks.extend(build.BUILD_TASKS)
     all_tasks.extend(test.TEST_TASKS)
     all_tasks.extend(flash.FLASH_TASKS)
-    all_tasks.extend(release.RELEASE_TASKS)
     for t in all_tasks:
         t.clean(args)
 

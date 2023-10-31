@@ -12,7 +12,10 @@ steps:
     artifacts:
       - docker-image
     img-base-name: artie-metrics-collector
-    buildx: false
+    buildx: true
+    platforms:
+      - linux/arm64
+      - linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/prometheus"
     dockerfile: Dockerfile
     build-context: "."

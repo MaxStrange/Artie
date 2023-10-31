@@ -8,6 +8,7 @@ import invoke
 import ipaddress
 import logging
 import os
+import platform
 import random
 import shutil
 import socket
@@ -199,6 +200,20 @@ def git_tag() -> str:
     p = subprocess.run("git log --format='%h' -n 1".split(' '), capture_output=True)
     p.check_returncode()
     return p.stdout.decode('utf-8').strip().strip("'")
+
+def host_platform() -> str:
+    """
+    Return the platform we are on. Should be of the form 'amd64' or 'arm64'.
+    """
+    p = platform.machine().lower()
+    lookup = {
+        "x86_64": "amd64",
+        "aarch64": "arm64",
+        "amd64": "amd64",
+    }
+
+    # Return amd64 or arm64 if possible, otherwise just pass the raw.lower() value through
+    return lookup.get(p, p)
 
 def manage_timeout(func, timeout_s: int, *args, **kwargs):
     """

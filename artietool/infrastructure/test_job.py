@@ -131,7 +131,8 @@ class CLITest:
         if issubclass(type(self.cli_image), dependency.Dependency):
             cli_img = self.cli_image.evaluate(args).item
         else:
-            cli_img = str(docker.construct_docker_image_name(args, self.cli_image))
+            platform = common.host_platform()
+            cli_img = str(docker.construct_docker_image_name(args, self.cli_image, platform))
         return cli_img
 
     def _find_expected_cli_out(self, args) -> ExpectedOutput|None:

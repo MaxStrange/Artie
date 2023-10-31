@@ -12,7 +12,10 @@ steps:
     artifacts:
       - docker-image
     img-base-name: artie-log-collector
-    buildx: false
+    buildx: true
+    platforms:
+      - linux/arm64
+      - linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/fluent-bit-log-collector"
     dockerfile: Dockerfile
     build-context: "."

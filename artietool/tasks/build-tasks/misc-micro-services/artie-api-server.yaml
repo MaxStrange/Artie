@@ -12,7 +12,10 @@ steps:
     artifacts:
       - docker-image
     img-base-name: artie-api-server
-    buildx: false
+    buildx: true
+    platforms:
+      - linux/arm64
+      - linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/misc-micro-services/artie-api-server"
     dockerfile: Dockerfile
     build-context: "."
