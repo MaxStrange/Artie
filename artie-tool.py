@@ -72,6 +72,7 @@ if __name__ == "__main__":
     group.add_argument("--docker-tag", default=common.git_tag(), type=str, help="The tag (not name) of the Docker images we build (if any). If not given, we use the git hash.")
     group.add_argument("--docker-password", default=None, type=str, help="The password to use for docker login. For CI, please use the environment variable ARTIE_TOOL_DOCKER_PASSWORD. If both are given, we use this arg instead of the env variable.")
     group.add_argument("--docker-username", default=None, type=str, help="The username for docker login. If not given, we do not attempt to login before pushing images.")
+    group.add_argument("--insecure-docker-repo", action='store_true', help="(Experimental) If you are pushing a multiarch image to an insecure repo, you will need this flag.")
     group.add_argument("--kube-config", default=None, type=common.argparse_file_path_type, help="Path to a Kube Config file if you do not store yours in the default location. If you do not know what this is, you can safely ignore it.")
     group.add_argument("--kube-timeout-s", default=180, type=int, help="Timeout (s) for commands that deal with the K8S cluster.")
     group.add_argument("--nprocs", default=multiprocessing.cpu_count(), type=int, help="If given, we will use at most this many processes to parallelize the command.")
