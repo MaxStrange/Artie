@@ -81,9 +81,9 @@ ports:
 
 # images: The various images.
 images:
-  resetDriver: "maxfieldstrange/artie-reset-driver:{{ .Values.imageTag }}"
-  mouthDriver: "maxfieldstrange/artie-mouth-driver:{{ .Values.imageTag }}"
-  eyebrowsDriver: "maxfieldstrange/artie-eyebrow-driver:{{ .Values.imageTag }}"
+  resetDriver: "maxfieldstrange/artie-reset-driver:{{ .Values.imageTag }}-arm64"
+  mouthDriver: "maxfieldstrange/artie-mouth-driver:{{ .Values.imageTag }}-arm64"
+  eyebrowsDriver: "maxfieldstrange/artie-eyebrow-driver:{{ .Values.imageTag }}-arm64"
   logCollector: "maxfieldstrange/artie-log-collector:{{ .Values.imageTag }}"
   metricsCollector: "maxfieldstrange/artie-metrics-collector:{{ .Values.imageTag }}"
   artieApiServer: "maxfieldstrange/artie-api-server:{{ .Values.imageTag }}"
