@@ -32,7 +32,6 @@ type: build
     * [build](#build)
     * [test](#test)
     * [flash](#flash)
-    * [release](#release)
     * [deploy](#deploy)
 
 ## Artifact
@@ -43,6 +42,9 @@ An *artifact* is composed of the following items:
           Conventionally, this is the same as the type, but can be different, especially
           if a task produces more than one of the same type of artifact.
 - *type*: The type of artifact produced. The type can be one of:
+    * *docker-manifest*: A Docker manifest list. This should be able to be interpreted by anything and everything in a transparent way
+                         by treating it as a Docker image - it is just secretly more than one image and the appropriate image is chosen
+                         based on the machine architecture.
     * *docker-image*: A Docker image name (including tag and repo); the name of the image produced is specified in the `steps` (see below).
     * *files*: A collection of one or more files.
     * *yocto-image*: A Yocto image binary.
@@ -63,8 +65,7 @@ steps:
     ## The base (simplified) name of the produced docker image
     img-base-name: artie-eyebrow-driver
     buildx: true
-    platforms:
-      - linux/arm64
+    platform: linux/arm64
     dockerfile-dpath: "${REPO_ROOT}/drivers/mouth-and-eyebrows"
     dockerfile: Dockerfile
     build-context: "."
@@ -99,6 +100,7 @@ steps:
     * [docker-build](#docker-build-job)
     * [file-transfer-from-container](#file-transfer-from-container)
     * [yocto-build](#yocto-image-job)
+    * [docker-manifest](#docker-manifest)
 
 ### Docker Build Job
 
@@ -106,9 +108,8 @@ steps:
 - *img-base-name*: The name of the image to be produced, without the repo or tag.
 - *buildx*: (Optional, default false) Boolean. If true, we will use Docker buildx to produce the image. Otherwise it is built
             using the host machine's default driver.
-- *platforms*: (Optional, default []) List. If `buildx` is true, you should specify this value as a list of platforms to build for.
-            Should be a list of strings of the form 'linux/arm64' or 'linux/amd64'.
-            Note that this will implicitly create a Docker Build job for each platform.
+- *platform*: (Optional, default linux/arm64) String. If `buildx` is true, you should specify this value as the platform to build for.
+            Should be a string of the form 'linux/arm64' or 'linux/amd64'.
 - *dockerfile-dpath*: The directory where we will find the Dockerfile.
 - *dockerfile*: (Optional, default 'Dockerfile') The name of the Dockerfile, which should be found at `dockerfile-dpath`.
 - *build-context*: (Optional, default '.') The build context to use when building, which should be *relative* to the `dockerfile-dpath`.
@@ -125,7 +126,7 @@ steps:
 We build our firmware files by first building a Docker image,
 then starting that image as a container, which should build the firmware files.
 
-- *artifacts*: Same as [docker-build](#docker-build-job)
+- *artifacts*: The names of the artifacts which are created by this job, at least one of which must be of the type `fw-files`.
 - *image*: Composed of a `dependency` item or a string name of the Docker image to pull (if a public image).
 - *fw-files-in-container*: The list of file paths to copy out of the container. These will be the fw-files artifact that this job produces.
 
@@ -135,10 +136,25 @@ Yocto images are built by first downloading a remote repository that contains th
 then running whatever shell scripts. The result should be
 a single *.img file suitable for flashing onto an SD card.
 
-- *artifacts*: Same as [docker-build](#docker-build-job).
+*NOTE*: I've never actually tried running this - as the Yocto build is set up on a separate machine. It *might* work, but I
+wouldn't hold my breath.
+
+- *artifacts*: The names of the artifacts which are created by this job, at least one of which must be of the type `yocto-image`.
 - *repo*: The Git repository to clone.
 - *script*: The shell script to run in order to build the *.img file. Note that there is no YAML-level variable expansion for this value.
 - *binary-fname*: The name of the *.img file, which must be present at the root of the cloned repository after building.
+
+### Docker Manifest
+
+A Docker manifest is a list of multiple images, each of which might be run on a different architecture.
+See the [official documentation](https://docs.docker.com/engine/reference/commandline/manifest/).
+The created manifest list's name will be based on `img-base-name` in a way analogous to how it is done in Docker build jobs -
+i.e., the repo and tag will be passed in or inferred at runtime and appended to the manifest's name.
+
+- *artifacts*: The names of the artifacts which are created by this job, at least one of which must be of the type `docker-manifest`.
+- *img-base-name*: The base name of the manifest without the repo or tag.
+- *images*: The list of images that this manifest list is composed of. Should be a list of images, each of which can be
+            either a hard-coded string name of the Docker image or a `dependency`.
 
 ## Test
 
@@ -256,10 +272,6 @@ file as `external`. See the example Compose files.
   as specified in the Helm chart.
 
 ## Flash
-
-This specification is not yet implemented.
-
-## Release
 
 This specification is not yet implemented.
 

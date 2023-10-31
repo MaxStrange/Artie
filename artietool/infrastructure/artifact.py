@@ -87,15 +87,25 @@ class DockerImageArtifact(Artifact):
             raise ValueError(f"DockerImageArtifact is trying to configure itself, but its producing job does not have a 'img_base_name' attribute, so we don't know what the Docker image's name is. Artifact: {self}; Producing Job: {producing_job}")
 
         if not hasattr(producing_job, 'platform'):
-            raise ValueError(f"DockerImageArtifact is trying to configure itself, but its producing job does not have a 'platform' attribute, so we don't know what the Docker image's name is. Artifact: {self}; Producing Job: {producing_job}")
+            platform = None
+        else:
+            platform = producing_job.platform
 
-        self._docker_image = docker.construct_docker_image_name(args, producing_job.img_base_name, producing_job.platform)
+        self._docker_image = docker.construct_docker_image_name(args, producing_job.img_base_name, platform)
         self.item = str(self._docker_image)
 
     def mark_if_cached(self, args):
         self.built = self.item is not None and docker.check_and_pull_if_docker_image_exists(args, self._docker_image)
         if self.built:
             add_artifact(args, self)
+
+class DockerManifestArtifact(DockerImageArtifact):
+    """
+    A Docker manifest list. Can mostly be treated the same as a Docker Image Artifact.
+    """
+    def fill_manifest_item(self, args, name):
+        self._docker_image = docker.parse_docker_image_name(args, name)
+        self.item = str(self._docker_image)
 
 class HelmChartArtifact(Artifact):
     """

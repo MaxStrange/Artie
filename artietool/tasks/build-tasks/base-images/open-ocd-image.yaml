@@ -13,8 +13,7 @@ steps:
       - docker-image
     img-base-name: openocd-base
     buildx: true
-    platforms:
-      - linux/arm64
+    platform: linux/arm64
     dockerfile-dpath: "${REPO_ROOT}/libraries/base-image"
     dockerfile: Dockerfile.openocd
     build-context: "."

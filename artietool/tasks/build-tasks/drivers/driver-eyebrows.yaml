@@ -3,7 +3,7 @@ labels:
   - docker-image
 dependencies:
   - fw-eyebrows: fw-files
-  - artie-base-image: docker-image
+  - artie-base-image: docker-image-arm64
   - open-ocd-image: docker-image
 artifacts:
   - name: docker-image
@@ -15,8 +15,7 @@ steps:
       - docker-image
     img-base-name: artie-eyebrow-driver
     buildx: true
-    platforms:
-      - linux/arm64
+    platform: linux/arm64
     dockerfile-dpath: "${REPO_ROOT}/drivers/mouth-and-eyebrows"
     dockerfile: Dockerfile
     dependency-files:
@@ -36,7 +35,7 @@ steps:
       - GIT_TAG: ${GIT_TAG}
       - ARTIE_BASE_IMG:
           dependency:
-            name: docker-image
+            name: docker-image-arm64
             producing-task: artie-base-image
       - OPENOCD_IMG:
           dependency:
