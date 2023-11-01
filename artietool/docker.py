@@ -60,6 +60,8 @@ def _get_docker_id_from_cidfile(fpath):
     Return the Docker ID from the given CIDfile.
     """
     docker_id = open(fpath).read().strip()
+    if not docker_id:
+        raise OSError(f"Docker ID not found in CID file {fpath}")
     return docker_id
 
 def clean_build_location(args, builddpath: str):
@@ -262,21 +264,15 @@ def push_manifest(manifest: DockerManifest):
         common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
         p.check_returncode()
 
-def check_if_manifest_already_exists(manifest_name) -> bool:
-    """
-    Returns True if a manifest with the given name already exists on the host system.
-    """
-    try:
-        subprocess.run(["docker", "manifest", "inspect", manifest_name]).check_returncode()
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-def remove_manifest(manifest_name) -> None:
+def remove_manifest(manifest_name: str, fail_ok=False) -> None:
     """
     Remove the manifest with the given name. Raises a CalledProcessError if the manifest cannot be found.
     """
-    subprocess.run(["docker", "manifest", "rm", manifest_name]).check_returncode()
+    p = subprocess.run(["docker", "manifest", "rm", manifest_name], capture_output=True, encoding='utf-8')
+    if fail_ok and p.returncode != 0:
+        common.info(f"Could not remove manifest {manifest_name}. This may be normal.")
+    elif not fail_ok:
+        p.check_returncode()
 
 def get_tag_from_name(docker_image_name: str|DockerImageName) -> str:
     """

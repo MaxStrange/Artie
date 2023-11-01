@@ -35,11 +35,8 @@ class DockerManifestJob(job.Job):
 
         manifest_name = str(docker.construct_docker_image_name(args, self.img_base_name))
 
-        common.info(f"Checking if manifest named {manifest_name} already exists...")
-        already_exists = docker.check_if_manifest_already_exists(manifest_name)
-        if already_exists:
-            common.info(f"Removing already existing manifest named {manifest_name}")
-            docker.remove_manifest(manifest_name)
+        common.info(f"Removing manifest named {manifest_name} if it exists locally...")
+        docker.remove_manifest(manifest_name, fail_ok=True)
 
         common.info(f"Creating manifest named {manifest_name}...")
         insecure = args.insecure_docker_repo
