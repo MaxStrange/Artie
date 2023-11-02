@@ -18,7 +18,7 @@ class ArtieK8sKeys(enum.StrEnum):
     ARTIE_ID = "artie/artie-id"
     NODE_ROLE = "artie/node-role"
     PHYSICAL_BOT_NODE_TAINT = "artie/physical-bot-node"
-    CONTROLLER_NODE_TAINT = "artie/conroller-node"
+    CONTROLLER_NODE_TAINT = "artie/controller-node"
 
 class ArtieK8sValues(enum.StrEnum):
     """

@@ -97,18 +97,22 @@ class I2CBus:
         # Get the bus instance that has the desired address
         instance = self.address_to_instance_map.get(hex_addr, None)
         if instance is None:
-            alog.warning(f"Cannot find address 0x{hex_addr} on i2c bus. Trying to write anyway.")
+            alog.warning(f"Cannot find address 0x{hex_addr} on i2c bus. Trying to write anyway on default I2C bus.")
+            instance = 1
 
         # Write to the given address on the i2c instance
         # If data is more than one byte, we need to use the first byte as the register
         # Otherwise, use the single byte write function
         alog.update_counter(nbytes, "i2c-byte-counter", unit=alog.Units.BYTES, description="Number of bytes written to i2c bus", attributes={"i2c.address": hex(address)})
-        if nbytes > 1:
-            data_bytes = [int(b) for b in data.to_bytes(nbytes, 'big')]
-            self._instance_to_bus_map[instance].write_i2c_block_data(address, data_bytes[0], data_bytes[1:])
-        else:
-            assert nbytes == 1
-            self._instance_to_bus_map[instance].write_byte(address, data)
+        try:
+            if nbytes > 1:
+                data_bytes = [int(b) for b in data.to_bytes(nbytes, 'big')]
+                self._instance_to_bus_map[instance].write_i2c_block_data(address, data_bytes[0], data_bytes[1:])
+            else:
+                assert nbytes == 1
+                self._instance_to_bus_map[instance].write_byte(address, data[0])
+        except OSError as e:
+            alog.error(f"Error writing {data} to {address} on I2C bus {instance}: {e}")
 
 
 def _detect_all_i2c_instances():

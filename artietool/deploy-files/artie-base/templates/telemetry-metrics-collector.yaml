@@ -28,7 +28,8 @@ spec:
       restartPolicy: {{ .Values.telemetryRestartPolicy }}
       containers:
         - name: metrics-collector
-          image: {{ tpl .Values.images.metricsCollector . }}
+          image: "{{ .Values.repository }}/artie-metrics-collector:{{ .Values.imageTag }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
 

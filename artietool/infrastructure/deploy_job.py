@@ -26,6 +26,7 @@ class AddDeployJob(job.Job):
         self.chart_name = what
         self.chart_version = None  # Comes from args, otherwise we use whatever is in the Chart.yaml
         self.artie_name = None  # Comes from args, otherwise we determine from the cluster
+        self.deployment_repo = None  # Comes from args, otherwise we use whatever is in the Values.yaml
         self.chart_reference = chart_reference
 
     def __call__(self, args) -> result.JobResult:
@@ -57,6 +58,10 @@ class AddDeployJob(job.Job):
         sets = {}
         if self.chart_version:
             sets['appVersion'] = self.chart_version
+            sets['imageTag'] = self.chart_version
+
+        if self.deployment_repo:
+            sets['repository'] = self.deployment_repo
 
         if self.artie_name:
             sets['artieId'] = self.artie_name
@@ -86,10 +91,12 @@ class AddDeployJob(job.Job):
         return result.JobResult(self.name, success=True, artifacts=self.artifacts)
 
     def fill_artifacts_at_runtime(self, args):
-        if 'chart-version' in args:
+        if 'chart_version' in args:
             self.chart_version = args.chart_version
-        if 'artie-name' in args:
+        if 'artie_name' in args:
             self.artie_name = args.artie_name
+        if 'deployment_repo' in args:
+            self.deployment_repo = args.deployment_repo
         super().fill_artifacts_at_runtime(args)
 
     def clean(self, args):

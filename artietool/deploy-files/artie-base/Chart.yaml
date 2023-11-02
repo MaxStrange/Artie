@@ -12,6 +12,6 @@ version: 0.1.0
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "dd5e5c80"
+appVersion: "3d23200b"
 
 icon: https://github.com/MaxStrange/artie-controller-node/blob/dev/assets/splash.png

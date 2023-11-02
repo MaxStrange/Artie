@@ -10,6 +10,9 @@ labels:
   app.kubernetes.io/part-of: artie
   artie/artie-id: "{{ .Values.artieId }}"
 
+# imagePullPolicy: The default imagePullPolicy. TODO: Replace this with IfNotPresent for release.
+imagePullPolicy: Always
+
 # namespace: The namespace that we deploy to
 namespace: artie
 
@@ -79,19 +82,13 @@ ports:
   metricsCollector: 8090
   artieApiServer: 8782
 
-# images: The various images.
-images:
-  resetDriver: "maxfieldstrange/artie-reset-driver:{{ .Values.imageTag }}-arm64"
-  mouthDriver: "maxfieldstrange/artie-mouth-driver:{{ .Values.imageTag }}-arm64"
-  eyebrowsDriver: "maxfieldstrange/artie-eyebrow-driver:{{ .Values.imageTag }}-arm64"
-  logCollector: "maxfieldstrange/artie-log-collector:{{ .Values.imageTag }}"
-  metricsCollector: "maxfieldstrange/artie-metrics-collector:{{ .Values.imageTag }}"
-  artieApiServer: "maxfieldstrange/artie-api-server:{{ .Values.imageTag }}"
+# repository: The repository we use for the images.
+repository: maxfieldstrange
 
 # --------------- Stuff the user is expected to override --------------------
 
 # imageTag: The tag we use for all the images in this deployment. Images are only guaranteed to work with other images of the same tag, so we do not provide a means by which to mix tags.
-imageTag: dd5e5c80
+imageTag: 3d23200b
 
 # artieId: The ID of the Artie we are deploying to.
 artieId: artie-001
