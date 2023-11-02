@@ -477,18 +477,16 @@ def _import_integration_test_job(job_def: Dict, fpath: str) -> docker_compose_te
 
 def _import_hardware_test_job(job_def: Dict, fpath: str) -> hardware_test_job.HardwareTestJob:
     _validate_dict(job_def, 'steps', keyerrmsg=f"Missing 'steps' section in 'hardware-test-suite' definition in {fpath}")
-    _validate_dict(job_def, 'cli-image', keyerrmsg=f"Missing 'cli-image' definition in 'hardware-test-suite' definition in {fpath}")
-    cli_image = _replace_variables(job_def['cli-image'], fpath) if type(job_def['cli-image']) != dict else _import_single_dependency(job_def['cli-image'], fpath)
     cli_test_steps = []
     steps_def = job_def['steps']
     for sdef in steps_def:
         _validate_dict(sdef, 'test-name', keyerrmsg=f"Missing 'test-name' from 'steps' section in {fpath}")
         _validate_dict(sdef, 'cmd-to-run-in-cli', keyerrmsg=f"Missing 'cmd-to-run-in-cli' from 'steps' section in {fpath}")
-        _validate_dict(sdef, 'expected-outputs', keyerrmsg=f"Missing 'expected-outputs' section from 'steps' section in {fpath}")
-        test_name = _replace_variables(sdef['test-name'], fpath, {"CLI": cli_image})
-        cli_cmd = _replace_variables(sdef['cmd-to-run-in-cli'], fpath, {"CLI": cli_image}) + " --kube-config /mnt/kube_config"
-        expected_outputs = _import_expected_outputs(sdef, fpath, {'CLI': cli_image})
-        cli_test_steps.append(test_job.CLITest(test_name, cli_image, cli_cmd, expected_outputs, need_to_access_cluster=True))
+        _validate_dict(sdef, 'expected-results', keyerrmsg=f"Missing 'expected-outputs' section from 'steps' section in {fpath}")
+        test_name = _replace_variables(sdef['test-name'], fpath)
+        cli_cmd = _replace_variables(sdef['cmd-to-run-in-cli'], fpath)
+        expected_results = []  # TODO
+        cli_test_steps.append(test_job.HWTest(test_name, cli_cmd, expected_results))
     return hardware_test_job.HardwareTestJob(cli_test_steps)
 
 def _import_test_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.TestTask:

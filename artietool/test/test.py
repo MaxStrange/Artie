@@ -150,7 +150,7 @@ def fill_subparser(parser_test: argparse.ArgumentParser, parent: argparse.Argume
     group.add_argument("-f", "--force-completion", action='store_true', help="Force all tests in a single task to run, even if one of them fails.")
     group.add_argument("--include-yocto", action='store_true', help="When testing with 'all', we typically exclude Yocto images. Use this flag if you want to include them in 'all'.")
     group.add_argument("--results-folder", default=common.default_test_results_location())
-    group.add_argument("--test-timeout-s", default=30, type=int, help="Default timeout for all tests.")
+    group.add_argument("--test-timeout-s", default=120, type=int, help="Default timeout for all tests.")
     group.add_argument("--skip-teardown", action='store_true', help="If given, we do not tear down the Docker compose project(s) in the case of a failure - useful for debugging.")
 
     # Add the all* classes of tasks

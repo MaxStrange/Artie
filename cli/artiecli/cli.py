@@ -43,7 +43,7 @@ def main():
     group.add_argument("--unit-test", action='store_true', help="If given, we do not access the Artie cluster. Used in unit tests.")
     group.add_argument("--integration-test", action='store_true', help="If given, we do not access the Artie cluster. Used in integration tests.")
     group.add_argument("--artie-id", type=str, default=None, help="If given, we use this for the Artie we wish to communicate with. If not given and we aren't in test mode, we assume there is only one Artie. If there are multiple Arties in the cluster we error out.")
-    # TODO: Handle authentication to the K3S cluster
+    # TODO: Handle authentication to the K3S cluster (Maybe we should just authenticate only when .kubeconfig is present, and just make use of the .kubeconfig for auth and not worry about it?)
 
     # Add all the module subparsers
     for module, name in zip(MODULES, MODULE_NAMES):

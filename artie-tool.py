@@ -64,6 +64,7 @@ if __name__ == "__main__":
     group.add_argument("-l", "--loglevel", type=str, default="info", choices=["debug", "info", "warning", "error"], help="The log level.")
     group.add_argument("-e", "--enable-error-tracing", action='store_true', help="If given, error messages will include stack traces when possible.")
     group.add_argument("-o", "--output", type=str, default=None, help="If given, should be a path to a file we will create and log to.")
+    group.add_argument("--artie-name", default=None, type=str, help="[Deployment and HW testing] If not given, we automatically detect an Artie on the cluster. If you have more than one Artie, you should give the name of the Artie you want to deploy to.")
     group.add_argument("--artifact-folder", default=common.default_build_location())
     group.add_argument("--force-build", action='store_true', help="If given, build tasks will run even if they already have their artifacts built.")
     group.add_argument("--docker-logs", action='store_true', help="If given, we print Docker logs as we receive them (normally they are hidden).")
