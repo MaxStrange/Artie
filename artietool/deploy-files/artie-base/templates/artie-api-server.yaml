@@ -28,7 +28,8 @@ spec:
       restartPolicy: {{ .Values.telemetryRestartPolicy }}
       containers:
         - name: artie-api-server
-          image: {{ tpl .Values.images.artieApiServer . }}
+          image: "{{ .Values.repository }}/artie-api-server:{{ .Values.imageTag }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
 

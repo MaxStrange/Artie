@@ -30,12 +30,15 @@ spec:
       tolerations:
         - key: {{ .Values.constantKeys.physicalBotNodeTaint }}
           operator: Exists
+          effect: NoSchedule
         - key: {{ .Values.constantKeys.controllerNodeTaint }}
           operator: Exists
+          effect: NoSchedule
       restartPolicy: {{ .Values.driverRestartPolicy }}
       containers:
         - name: eyebrows-driver
-          image: {{ tpl .Values.images.eyebrowsDriver . }}
+          image: "{{ .Values.repository }}/artie-eyebrow-driver:{{ .Values.imageTag }}-arm64"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           command: ["python", "main.py", "/conf/mcu-fw.elf", "--port", "{{ .Values.ports.eyebrowsDriver }}", "--loglevel", "info"]
           env:
             {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}

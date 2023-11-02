@@ -77,13 +77,13 @@ if [[ -z "$URL" ]]; then
 fi
 
 # Install docker
-if [[ "$NO_DOCKER" == 1 ]]; then
+if [[ "$NO_DOCKER" != 1 ]]; then
    curl -fsSL https://get.docker.com -o get-docker.sh
    sudo sh get-docker.sh
 fi
 
 # Install K3S
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.26.6+k3s1" K3S_URL=$URL K3S_TOKEN=$TOKEN INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.26.6+k3s1" K3S_URL=$URL K3S_TOKEN=$TOKEN INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -s - --docker
 sudo ufw allow 6443/tcp
 
 # Update K3S to require Artie Computed
