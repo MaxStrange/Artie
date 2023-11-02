@@ -260,16 +260,13 @@ file as `external`. See the example Compose files.
 
 ### Hardware Test Job
 
-- *job*: hardware-test-suite; this depends on a particular helm deployment, then deploys a CLI Docker image which authenticates against
-         the cluster that contains the Artie under test. For each test, this CLI Docker image is run with a particular command,
-         and the output is checked.
-- *cli-image*: As [above](#unit-test-job).
+All hardware tests are collected and run in a single Kubernetes job on the Artie cluster.
+
+- *job*: hardware-test-suite
 - *steps*:
   - *test-name*: The name of the individual test.
-  - *cmd-to-run-in-cli*: The command to run in the CLI continer.
-  - *expected-outputs*: As [above](#unit-test-job), but `where` cannot be `${DUT}`, but may be of the form `daemonsets/<name of daemonset>`
-  or `deployments/<name of deployment>`
-  as specified in the Helm chart.
+  - *cmd-to-run-in-cli*: The command to run in the CLI continer. This will typically be of the form 'artie-cli <module> status'
+  - *expected-restults*: How to interpret the output from the CLI command. TODO
 
 ## Flash
 

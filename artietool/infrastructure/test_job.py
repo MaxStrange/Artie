@@ -81,6 +81,18 @@ class ExpectedOutput:
         else:
             return result.TestResult(test_name, task_name, result.TestStatuses.FAIL)
 
+class HWTest:
+    """
+    A HWTest is a single CLI command to run inside the one Kubernetes hw test job and the output we expect.
+
+    Unlike other tests, this does not run as a sub-job. Instead, a single HWTestSuiteJob is created from
+    the information in each of these instances.
+    """
+    def __init__(self, test_name: str, cmd_to_run_in_cli: str, expected_results: List[str]) -> None:
+        self.test_name = test_name
+        self.cmd_to_run_in_cli = cmd_to_run_in_cli
+        self.expected_results = expected_results
+
 class CLITest:
     def __init__(self, test_name: str, cli_image: str, cmd_to_run_in_cli: str, expected_outputs: List[ExpectedOutput], need_to_access_cluster=False, network=None) -> None:
         self.test_name = test_name
