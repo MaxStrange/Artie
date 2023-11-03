@@ -15,7 +15,9 @@ def display(display_value: List[str], which: str, artie_id: str) -> Tuple[int|No
     """
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
-        connection.lcd_draw(which, display_value)
+        worked = connection.lcd_draw(which, display_value)
+        if not worked:
+            return 500, f"Error trying to display something on {which} eyebrows LCD: LCD not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to draw on {which} eyebrow LCD: {e}"
     except Exception as e:
@@ -29,8 +31,13 @@ def get_display(which: str, artie_id: str) -> Tuple[None|int, List[str]|str]:
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
         val = connection.lcd_get(which)
-        val = [v for v in val]
-        return None, val
+        if issubclass(val, str) and val in ("clear", "test"):
+            return None, val
+        elif issubclass(val, str) and val == "error":
+            return 500, f"Error trying to get the {which} LCD screen value: LCD not working."
+        else:
+            val = [v for v in val]
+            return None, val
     except TimeoutError as e:
         return 504, f"Timed out trying to get the {which} eyebrow LCD display: {e}"
     except Exception as e:
@@ -42,7 +49,9 @@ def test(which: str, artie_id: str) -> Tuple[int|None, str|None]:
     """
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
-        connection.lcd_test(which)
+        worked = connection.lcd_test(which)
+        if not worked:
+            return 500, f"Error trying to test {which} eyebrows LCD: LCD not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to test the {which} eyebrow LCD display: {e}"
     except Exception as e:
@@ -55,7 +64,9 @@ def clear(which: str, artie_id: str) -> Tuple[int|None, str|None]:
     """
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
-        connection.lcd_off(which)
+        worked = connection.lcd_off(which)
+        if not worked:
+            return 500, f"Error trying to clear {which} eyebrows LCD: LCD not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to clear the {which} eyebrow LCD display: {e}"
     except Exception as e:
@@ -68,16 +79,19 @@ def led(which: str, state: LEDStates, artie_id: str) -> Tuple[int|None, str|None
     (errorcode|None, errmsg|None)
     """
     try:
+        worked = True
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
         match state:
             case LEDStates.ON:
-                connection.led_on(which)
+                worked = connection.led_on(which)
             case LEDStates.OFF:
-                connection.led_off(which)
+                worked = connection.led_off(which)
             case LEDStates.HEARTBEAT:
-                connection.led_heartbeat(which)
+                worked = connection.led_heartbeat(which)
             case _:
                 return 400, f"Invalid led state: {state}"
+        if not worked:
+            return 500, f"Error trying to set {which} eyebrows LED: LED not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to set the {which} eyebrow LED: {e}"
     except Exception as e:
@@ -104,7 +118,9 @@ def reload_firmware(artie_id: str) -> Tuple[int|None, str|None]:
     """
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
-        connection.firmware_load()
+        worked = connection.firmware_load()
+        if not worked:
+            return 500, f"Error trying to reload FW."
     except TimeoutError as e:
         return 504, f"Timed out trying to reload the eyebrow FW: {e}"
     except Exception as e:
@@ -118,7 +134,9 @@ def set_servo(which: str, degrees: float, artie_id: str) -> Tuple[int|None, str|
     """
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
-        connection.servo_go(which, degrees)
+        worked = connection.servo_go(which, degrees)
+        if not worked:
+            return 500, f"Error trying to set {which} servo: Servo not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to set the {which} eyebrow servo to {degrees} degrees: {e}"
     except Exception as e:
@@ -133,7 +151,10 @@ def get_servo(which: str, artie_id: str) -> Tuple[int|None, str|float]:
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
         val = float(connection.servo_get(which))
-        return None, val
+        if val < 0.0:
+            return 500, f"Error trying to get {which} servo value."
+        else:
+            return None, val
     except TimeoutError as e:
         return 504, f"Timed out trying to get the {which} eyebrow servo position: {e}"
     except Exception as e:

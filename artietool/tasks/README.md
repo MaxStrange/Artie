@@ -265,7 +265,7 @@ All hardware tests are collected and run in a single Kubernetes job on the Artie
 - *job*: hardware-test-suite
 - *steps*:
   - *test-name*: The name of the individual test.
-  - *cmd-to-run-in-cli*: The command to run in the CLI continer. This will typically be of the form 'artie-cli <module> status'
+  - *cmds-to-run-in-cli*: The commands to run in the CLI continer. This is a list of strings, each of which will typically be of the form 'artie-cli <module> status'
   - *expected-restults*: How to interpret the output from the CLI command. TODO
 
 ## Flash

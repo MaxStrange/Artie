@@ -35,7 +35,7 @@ Change the eyebrow display to show the given state.
         {
             "artie-id": "The Artie ID.",
             "eyebrow-side": "left or right",
-            "vertices": ["H/M/L", "H/M/L", "H/M/L"] OR "test" OR "clear"
+            "vertices": ["H/M/L", "H/M/L", "H/M/L"] OR "test" OR "clear" or "error"
         }
         ```
 
@@ -116,6 +116,37 @@ which will typically be the value that it was last set to (or its starting value
 Reload both eyebrow MCU firmwares (you cannot target them individually).
 
 * *POST*: `/eyebrows/fw`
+    * *Parameters*:
+        * `artie-id`: The Artie ID.
+    * *Payload*: None
+
+## Get Status
+
+Get the eyebrows' submodules' statuses.
+
+* *GET*: `/eyebrows/status`
+    * *Parameters*:
+        * `artie-id`: The Artie ID.
+* *Response 200*:
+    * *Payload (JSON)*:
+        ```json
+        {
+            "artie-id": "The Artie ID.",
+            "FW": "<Status>",
+            "LED-LEFT": "<Status>",
+            "LED-RIGHT": "<Status>",
+            "LCD-LEFT": "<Status>",
+            "LCD-RIGHT": "<Status>",
+            "LEFT-SERVO": "<Status>",
+            "RIGHT-SERVO": "<Status>"
+        }
+        ```
+
+## Self Test
+
+Initiate a self-test.
+
+* *POST*: `/eyebrows/self-test`
     * *Parameters*:
         * `artie-id`: The Artie ID.
     * *Payload*: None
