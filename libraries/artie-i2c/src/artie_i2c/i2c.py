@@ -75,9 +75,13 @@ class I2CBus:
         except FileNotFoundError:
             self._instance_to_bus_map = {instance: MockBus(instance) for instance in self.i2c_instances}
 
-    def write(self, address: int, data: list):
+    def write(self, address: int, data: list) -> bool:
         """
         Write the data to the address.
+
+        Returns False if we experienced an error writing the bytes.
+        True if we wrote the bytes.
+        Raises a ValueError in the case of values that don't make sense.
         """
         nbytes = len(data)
         if nbytes == 0:
@@ -113,6 +117,8 @@ class I2CBus:
                 self._instance_to_bus_map[instance].write_byte(address, data[0])
         except OSError as e:
             alog.error(f"Error writing {data} to {address} on I2C bus {instance}: {e}")
+            return False
+        return True
 
 
 def _detect_all_i2c_instances():

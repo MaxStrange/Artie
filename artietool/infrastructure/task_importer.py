@@ -481,10 +481,10 @@ def _import_hardware_test_job(job_def: Dict, fpath: str) -> hardware_test_job.Ha
     steps_def = job_def['steps']
     for sdef in steps_def:
         _validate_dict(sdef, 'test-name', keyerrmsg=f"Missing 'test-name' from 'steps' section in {fpath}")
-        _validate_dict(sdef, 'cmd-to-run-in-cli', keyerrmsg=f"Missing 'cmd-to-run-in-cli' from 'steps' section in {fpath}")
+        _validate_dict(sdef, 'cmds-to-run-in-cli', keyerrmsg=f"Missing 'cmds-to-run-in-cli' from 'steps' section in {fpath}")
         _validate_dict(sdef, 'expected-results', keyerrmsg=f"Missing 'expected-outputs' section from 'steps' section in {fpath}")
         test_name = _replace_variables(sdef['test-name'], fpath)
-        cli_cmd = _replace_variables(sdef['cmd-to-run-in-cli'], fpath)
+        cli_cmd = [_replace_variables(cmd, fpath) for cmd in sdef['cmds-to-run-in-cli']]
         expected_results = []  # TODO
         cli_test_steps.append(test_job.HWTest(test_name, cli_cmd, expected_results))
     return hardware_test_job.HardwareTestJob(cli_test_steps)

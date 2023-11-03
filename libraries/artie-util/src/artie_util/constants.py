@@ -20,3 +20,12 @@ class ArtieRunModes(enum.StrEnum):
     SANITY_TESTING = "sanity"
     UNIT_TESTING = "unit"
     INTEGRATION_TESTING = "integration"
+
+class SubmoduleStatuses(enum.StrEnum):
+    """
+    The different values that a submodule status check can take on.
+    """
+    WORKING = "working"
+    DEGRADED = "degraded"
+    NOT_WORKING = "not working"
+    UNKNOWN = "unknown"

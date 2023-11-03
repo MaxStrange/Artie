@@ -30,6 +30,12 @@ SBC (single board computer) IDs:
 * `all-head`: *all* the SBCs in the head.
 * `controller`: The controller SBC node.
 
+### Statuses
+
+These are possible values for the submodule status reports:
+
+TODO
+
 ### Common Responses
 
 * *Response 200* or *Response 201*: The request has been successfully delivered to the appropriate cluster resource

@@ -8,6 +8,8 @@ steps:
   - job: hardware-test-suite
     steps:
       - test-name: hw-eyebrows
-        cmd-to-run-in-cli: "artie-cli eyebrows status"
+        cmds-to-run-in-cli:
+          - "artie-cli eyebrows self-test"
+          - "artie-cli eyebrows status"
         expected-results:
           - "TODO"
