@@ -82,19 +82,15 @@ class FirmwareSubmodule:
             alog.test("Mocking MCU FW load.", tests=['eyebrows-driver-unit-tests:init-mcu'])
 
         # Use SWD to load the two FW files
-        try:
-            swd.load_fw_file(self._fw_fpath, left_iface_fname)
-        except FileNotFoundError as e:
-            alog.error(f"Error when trying to load FW into left eyebrow MCU. It is likely that MCU is inoperable: {e}")
+        if not swd.load_fw_file(self._fw_fpath, left_iface_fname):
+            alog.error(f"Error when trying to load FW into left eyebrow MCU. It is likely that MCU is inoperable.")
             worked = False
-        try:
-            swd.load_fw_file(self._fw_fpath, right_iface_fname)
-        except FileNotFoundError as e:
-            alog.error(f"Error when trying to load FW into right eyebrow MCU. It is likely that MCU is inoperable: {e}")
+        if not swd.load_fw_file(self._fw_fpath, right_iface_fname):
+            alog.error(f"Error when trying to load FW into right eyebrow MCU. It is likely that MCU is inoperable.")
             worked = False
 
         # Reset the eyebrows
-        asc.reset(board.MCU_RESET_ADDR_RL_EYEBROWS, ipv6=self._ipv6)
+        worked &= asc.reset(board.MCU_RESET_ADDR_RL_EYEBROWS, ipv6=self._ipv6)
         time.sleep(0.1)  # Give it a moment to come back online
 
         # Sanity check that both MCUs are present on the I2C bus

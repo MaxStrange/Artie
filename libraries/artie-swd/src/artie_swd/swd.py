@@ -7,7 +7,7 @@ import datetime
 import os
 import subprocess
 
-def load_fw_file(fw_fpath: str, iface_fname: str):
+def load_fw_file(fw_fpath: str, iface_fname: str) -> bool:
     """
     Attempt to load the FW file.
 
@@ -15,12 +15,18 @@ def load_fw_file(fw_fpath: str, iface_fname: str):
     ----
     - fw_fpath: File path of the .elf file to load.
     - iface_fname: File name of the swd.cfg found in OpenOCD's interface/ directory.
+
+    Returns
+    ----
+    Returns True if we think we succeeded. Returns False if we know we didn't.
     """
     if not os.path.isfile(fw_fpath):
-        raise FileNotFoundError(f"File {fw_fpath} does not exist.")
+        alog.error(f"File {fw_fpath} does not exist.")
+        return False
 
     if not os.path.isfile(f"/usr/local/share/openocd/scripts/interface/{iface_fname}"):
-        raise FileNotFoundError(f"File /usr/local/share/openocd/scripts/interface/{iface_fname} does not exist.")
+        alog.error(f"File /usr/local/share/openocd/scripts/interface/{iface_fname} does not exist.")
+        return False
 
     openocd_cmds = f'program {fw_fpath} verify reset exit'
     alog.info(f"Attempting to load {fw_fpath} into MCU...")
@@ -42,6 +48,8 @@ def load_fw_file(fw_fpath: str, iface_fname: str):
         alog.error(f"STDERR: {result.stderr}")
         alog.update_histogram(duration_s, f"swd-load-{alog.HISTOGRAM_SUFFIX_SECONDS}", unit=alog.Units.SECONDS, description="Histogram of SWD load durations.", attributes={"swd.error": True})
         alog.update_counter(1, "swd-errors", unit=alog.Units.TIMES, description="Number of times SWD fails.")
+        return False
     else:
         alog.test("Loaded FW successfully.", tests=['*-hardware-tests:init-mcu'])
         alog.update_histogram(duration_s, f"swd-load-{alog.HISTOGRAM_SUFFIX_SECONDS}", unit=alog.Units.SECONDS, description="Histogram of SWD load durations.", attributes={"swd.error": False})
+        return True
