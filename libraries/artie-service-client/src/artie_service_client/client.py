@@ -142,7 +142,7 @@ def reset(addr: int, ipv6=False, n_retries=3, timeout_s=None, artie_id=None) -> 
 
     if util.in_test_mode() and util.mode() != constants.ArtieRunModes.INTEGRATION_TESTING:
         alog.info("Mocking a DNS lookup and RPC call for reset.")
-        return
+        return True
 
     connection = ServiceConnection(Service.RESET_SERVICE, n_retries=n_retries, timeout_s=timeout_s, artie_id=artie_id, ipv6=ipv6)
-    connection.reset_target(addr)
+    return connection.reset_target(addr)

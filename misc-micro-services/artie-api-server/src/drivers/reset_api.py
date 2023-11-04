@@ -39,19 +39,20 @@ def reset_mcu():
         }
         return errbody, 400
 
+    worked = True
     match r.args['id']:
         case reset.MCU_IDS.ALL:
-            reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
+            worked = reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
         case reset.MCU_IDS.ALL_HEAD:
-            reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
+            worked = reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
         case reset.MCU_IDS.EYEBROWS:
-            reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
+            worked = reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
         case reset.MCU_IDS.MOUTH:
-            reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
+            worked = reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
         case reset.MCU_IDS.SENSORS_HEAD:
-            reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
+            worked = reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
         case reset.MCU_IDS.PUMP_CONTROL:
-            reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
+            worked = reset.reset_mcu(r.args['id'], artie_id=r.args['artie-id'])
         case _:
             errbody = {
                 "artie-id": r.args['artie-id'],
@@ -59,6 +60,14 @@ def reset_mcu():
                 "error": "Invalid MCU ID."
             }
             return errbody, 400
+
+    if not worked:
+        errbody = {
+            "artie-id": r.args['artie-id'],
+            "id": r.args['id'],
+            "error": "At least one MCU could not be reset."
+        }
+        return errbody, 500
 
     return {
         "artie-id": r.args['artie-id'],

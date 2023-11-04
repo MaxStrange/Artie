@@ -83,3 +83,33 @@ Reload MCU firmware.
     * *Parameters*:
         * `artie-id`: The Artie ID.
     * *Payload*: None
+
+## Get Status
+
+Get the mouth submodules' statuses.
+
+* *GET*: `/mouth/status`
+    * *Parameters*:
+        * `artie-id`: The Artie ID.
+* *Response 200*:
+    * *Payload (JSON)*:
+        ```json
+        {
+            "artie-id": "The Artie ID.",
+            "FW": "<Status>",
+            "LED": "<Status>",
+            "LCD": "<Status>"
+        }
+        ```
+    where `<Status>` is one of the available
+    status values as [found in the top-level API README](../README.md#statuses)
+
+
+## Self Test
+
+Initiate a self-test.
+
+* *POST*: `/mouth/self-test`
+    * *Parameters*:
+        * `artie-id`: The Artie ID.
+    * *Payload*: None

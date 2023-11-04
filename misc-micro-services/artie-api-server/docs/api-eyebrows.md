@@ -141,6 +141,9 @@ Get the eyebrows' submodules' statuses.
             "RIGHT-SERVO": "<Status>"
         }
         ```
+    where `<Status>` is one of the available
+    status values as [found in the top-level API README](../README.md#statuses)
+
 
 ## Self Test
 

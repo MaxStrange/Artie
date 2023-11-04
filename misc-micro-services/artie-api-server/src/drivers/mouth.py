@@ -25,9 +25,11 @@ def display(display_value: MouthValues, artie_id: str) -> Tuple[int|None, str|No
     try:
         connection = asc.ServiceConnection(asc.Service.MOUTH_SERVICE, artie_id=artie_id)
         if display_value == MouthValues.TALKING:
-            connection.lcd_talk()
+            worked = connection.lcd_talk()
         else:
-            connection.lcd_draw(display_value)
+            worked = connection.lcd_draw(display_value)
+        if not worked:
+            return 500, f"Error trying to display something on the LCD. The LCD is not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to draw on mouth LCD: {e}"
     except Exception as e:
@@ -53,7 +55,9 @@ def test(artie_id: str) -> Tuple[int|None, str|None]:
     """
     try:
         connection = asc.ServiceConnection(asc.Service.MOUTH_SERVICE, artie_id=artie_id)
-        connection.lcd_test()
+        worked = connection.lcd_test()
+        if not worked:
+            return 500, f"Error trying to test the mouth LCD display. The display is not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to test the mouth LCD display: {e}"
     except Exception as e:
@@ -66,7 +70,9 @@ def clear(artie_id: str) -> Tuple[int|None, str|None]:
     """
     try:
         connection = asc.ServiceConnection(asc.Service.MOUTH_SERVICE, artie_id=artie_id)
-        connection.lcd_off()
+        worked = connection.lcd_off()
+        if not worked:
+            return 500, f"Error trying to clear the mouth LCD display. The display is not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to clear the mouth LCD display: {e}"
     except Exception as e:
@@ -79,16 +85,19 @@ def led(state: LEDStates, artie_id: str) -> Tuple[int|None, str|None]:
     (errorcode|None, errmsg|None)
     """
     try:
+        worked = True
         connection = asc.ServiceConnection(asc.Service.MOUTH_SERVICE, artie_id=artie_id)
         match state:
             case LEDStates.ON:
-                connection.led_on()
+                worked = connection.led_on()
             case LEDStates.OFF:
-                connection.led_off()
+                worked = connection.led_off()
             case LEDStates.HEARTBEAT:
-                connection.led_heartbeat()
+                worked = connection.led_heartbeat()
             case _:
                 return 400, f"Invalid led state: {state}"
+        if not worked:
+            return 500, f"Error trying to set the mouth LED. The LED is not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to set the mouth LED: {e}"
     except Exception as e:
@@ -115,7 +124,9 @@ def reload_firmware(artie_id: str) -> Tuple[int|None, str|None]:
     """
     try:
         connection = asc.ServiceConnection(asc.Service.MOUTH_SERVICE, artie_id=artie_id)
-        connection.firmware_load()
+        worked = connection.firmware_load()
+        if not worked:
+            return 500, f"Error trying to reload the mouth FW. The FW subsystem is not working."
     except TimeoutError as e:
         return 504, f"Timed out trying to reload the mouth FW: {e}"
     except Exception as e:

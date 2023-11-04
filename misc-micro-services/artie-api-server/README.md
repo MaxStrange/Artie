@@ -34,7 +34,10 @@ SBC (single board computer) IDs:
 
 These are possible values for the submodule status reports:
 
-TODO
+* `working`: The module or submodule is in a health state.
+* `degraded`: The module or submodule is operating in a limited capacity.
+* `not working`: The module or submodule is known to be non-functional at this time.
+* `unknown`: The module or submodule's status is not currently known.
 
 ### Common Responses
 
