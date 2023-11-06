@@ -17,10 +17,12 @@ and I2C on the Controller Node.
 from artie_gpio import gpio
 from artie_i2c import i2c
 from artie_swd import swd
-from artie_util import boardconfig_controller as board
 from artie_util import artie_logging as alog
+from artie_util import boardconfig_controller as board
+from artie_util import constants
 from artie_util import rpycserver
 from artie_util import util
+from typing import Dict
 import argparse
 import datetime
 import os
@@ -43,6 +45,7 @@ class ResetMcuDriver(rpycserver.Service):
         super().__init__()
         self._fw_fpath = fw_fpath
         self._reset_pin = board.RESET_RESET
+        self._mcu_status = constants.SubmoduleStatuses.UNKNOWN
 
         # Initialize GPIO
         gpio.setup(self._reset_pin, gpio.OUT)
@@ -59,6 +62,9 @@ class ResetMcuDriver(rpycserver.Service):
         i2cinstance = i2c.check_for_address(board.I2C_ADDRESS_RESET_MCU)
         if i2cinstance is None:
             alog.error("Cannot find reset MCU on the I2C bus. We may not be able to reset other MCUs.")
+            self._mcu_status = constants.SubmoduleStatuses.NOT_WORKING
+        else:
+            self._mcu_status = constants.SubmoduleStatuses.WORKING
 
     def _init_mcu(self):
         """
@@ -85,7 +91,7 @@ class ResetMcuDriver(rpycserver.Service):
         gpio.output(self._reset_pin, gpio.LOW)
         time.sleep(1)    # Give the MCU a moment to come back online
 
-        # Sanity check that the MCU is present on the I2C bus
+        # Sanity check that the MCU is present on the I2C bus and set status
         self._check_mcu()
 
     def on_connect(self, conn):
@@ -101,6 +107,25 @@ class ResetMcuDriver(rpycserver.Service):
         Return the name of this service and the version.
         """
         return f"artie-reset-driver:{util.get_git_tag()}"
+
+    @rpyc.exposed
+    @alog.function_counter("status")
+    def status(self) -> Dict[str, str]:
+        """
+        Return the status of this service's submodules.
+        """
+        return {
+            "MCU": self._mcu_status,
+        }
+
+    @rpyc.exposed
+    @alog.function_counter("self_check")
+    def self_check(self):
+        """
+        Run a self diagnostics check and set our submodule statuses appropriately.
+        """
+        alog.info("Running self check...")
+        self._check_mcu()
 
     @rpyc.exposed
     @alog.function_counter("reset_target")

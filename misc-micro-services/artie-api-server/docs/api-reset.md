@@ -21,3 +21,30 @@ and Artie service will be interrupted or degraded during that time.
         * `artie-id`: The Artie ID.
         * `id`: The SBC ID. See [SBC IDs](../README.md#sbc-ids) for the list of available SBC IDs.
     * *Payload*: None
+
+## Get Status
+
+Get the reset service's submodules' statuses.
+
+* *GET*: `/reset/status`
+    * *Parameters*:
+        * `artie-id`: The Artie ID.
+* *Response 200*:
+    * *Payload (JSON)*:
+        ```json
+        {
+            "artie-id": "The Artie ID.",
+            "MCU": "<Status>"
+        }
+        ```
+    where `<Status>` is one of the available
+    status values as [found in the top-level API README](../README.md#statuses)
+
+## Self Test
+
+Initiate a self-test.
+
+* *POST*: `/reset/self-test`
+    * *Parameters*:
+        * `artie-id`: The Artie ID.
+    * *Payload*: None
