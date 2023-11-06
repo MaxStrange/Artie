@@ -1,6 +1,6 @@
 from artie_service_client import client as asc
 from artie_util import artie_logging as alog
-from typing import Tuple
+from typing import Tuple, Dict
 import enum
 
 class MouthValues(enum.StrEnum):
@@ -131,4 +131,32 @@ def reload_firmware(artie_id: str) -> Tuple[int|None, str|None]:
         return 504, f"Timed out trying to reload the mouth FW: {e}"
     except Exception as e:
         return 500, f"Error trying to reload the mouth FW: {e}"
+    return None, None
+
+def get_status(artie_id: str) -> Tuple[None|int, str|Dict[str, str]]:
+    """
+    Gets the status (a Dict of the form {submodule: status}). Returns a tuple of the form
+    (None|errorcode, status|errmsg)
+    """
+    try:
+        connection = asc.ServiceConnection(asc.Service.MOUTH_SERVICE, artie_id=artie_id)
+        status = connection.status()
+        return None, status
+    except TimeoutError as e:
+        return 504, f"Timed out trying to get the mouth status: {e}"
+    except Exception as e:
+        return 500, f"Error trying to get the mouth status: {e}"
+
+def self_test(artie_id: str) -> Tuple[None|int, None|str]:
+    """
+    Do the mouth self test. Returns a tuple of the form
+    (None|errorcode, None|errmsg)
+    """
+    try:
+        connection = asc.ServiceConnection(asc.Service.MOUTH_SERVICE, artie_id=artie_id)
+        connection.self_check()
+    except TimeoutError as e:
+        return 504, f"Timed out trying to do the mouth self test: {e}"
+    except Exception as e:
+        return 500, f"Error trying to reload the mouth self test: {e}"
     return None, None

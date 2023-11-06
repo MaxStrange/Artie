@@ -92,3 +92,74 @@ def reset_sbc():
     return {
         "error": "Not implemented"
     }
+
+@reset_api.route("/status")
+@alog.function_counter("get_reset_status")
+def get_reset_status():
+    """
+    Get the reset service's submodules' statuses.
+
+    * *GET*: `/reset/status`
+        * *Parameters*:
+            * `artie-id`: The Artie ID.
+    * *Response 200*:
+        * *Payload (JSON)*:
+            ```json
+            {
+                "artie-id": "The Artie ID.",
+                "MCU": "<Status>"
+            }
+            ```
+        where `<Status>` is one of the available
+        status values as [found in the top-level API README](../README.md#statuses)
+    """
+    # Double check params
+    if 'artie-id' not in r.args:
+        errbody = {
+            "artie-id": "Unknown",
+            "error": "Missing artie-id parameter."
+        }
+        return errbody, 400
+
+    err, status_or_errmsg = reset.get_status(artie_id=r.args['artie-id'])
+    if err:
+        errbody = {
+            "artie-id": r.args['artie-id'],
+            "error": f"{status_or_errmsg}"
+        }
+        return errbody, err
+    else:
+        return {
+            "artie-id": r.args['artie-id']
+        }
+
+@reset_api.route("/self-test")
+@alog.function_counter("reset_self_test")
+def reset_self_test():
+    """
+    Initiate a self-test.
+
+    * *POST*: `/reset/self-test`
+        * *Parameters*:
+            * `artie-id`: The Artie ID.
+        * *Payload*: None
+    """
+    # Double check params
+    if 'artie-id' not in r.args:
+        errbody = {
+            "artie-id": "Unknown",
+            "error": "Missing artie-id parameter."
+        }
+        return errbody, 400
+
+    err, errmsg = reset.self_test(artie_id=r.args['artie-id'])
+    if err:
+        errbody = {
+            "artie-id": r.args['artie-id'],
+            "error": f"{errmsg}"
+        }
+        return errbody, err
+    else:
+        return {
+            "artie-id": r.args['artie-id']
+        }

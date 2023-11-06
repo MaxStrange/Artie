@@ -483,3 +483,80 @@ def reload_eyebrows_firmware():
         return {
             "artie-id": r.args['artie-id']
         }
+
+@eyebrows_api.route("/status", methods=["GET"])
+@alog.function_counter("get_eyebrows_status")
+def get_eyebrows_status():
+    """
+    Get the eyebrows' submodules' statuses.
+
+    * *GET*: `/eyebrows/status`
+        * *Parameters*:
+            * `artie-id`: The Artie ID.
+    * *Response 200*:
+        * *Payload (JSON)*:
+            ```json
+            {
+                "artie-id": "The Artie ID.",
+                "FW": "<Status>",
+                "LED-LEFT": "<Status>",
+                "LED-RIGHT": "<Status>",
+                "LCD-LEFT": "<Status>",
+                "LCD-RIGHT": "<Status>",
+                "LEFT-SERVO": "<Status>",
+                "RIGHT-SERVO": "<Status>"
+            }
+            ```
+        where `<Status>` is one of the available
+        status values as [found in the top-level API README](../README.md#statuses)
+    """
+    # Double check params
+    if 'artie-id' not in r.args:
+        errbody = {
+            "artie-id": "Unknown",
+            "error": "Missing artie-id parameter."
+        }
+        return errbody, 400
+
+    err, status_or_errmsg = eyebrows.get_status(artie_id=r.args['artie-id'])
+    if err:
+        errbody = {
+            "artie-id": r.args['artie-id'],
+            "error": f"{status_or_errmsg}"
+        }
+        return errbody, err
+    else:
+        return {
+            "artie-id": r.args['artie-id']
+        }
+
+@eyebrows_api.route("/self-test", methods=["POST"])
+@alog.function_counter("eyebrows_self_test")
+def mouth_self_test():
+    """
+    Initiate a self-test.
+
+    * *POST*: `/eyebrows/self-test`
+        * *Parameters*:
+            * `artie-id`: The Artie ID.
+        * *Payload*: None
+    """
+    # Double check params
+    if 'artie-id' not in r.args:
+        errbody = {
+            "artie-id": "Unknown",
+            "error": "Missing artie-id parameter."
+        }
+        return errbody, 400
+
+    err, errmsg = eyebrows.self_test(artie_id=r.args['artie-id'])
+    if err:
+        errbody = {
+            "artie-id": r.args['artie-id'],
+            "error": f"{errmsg}"
+        }
+        return errbody, err
+    else:
+        return {
+            "artie-id": r.args['artie-id']
+        }

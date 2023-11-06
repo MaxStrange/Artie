@@ -303,3 +303,76 @@ def reload_mouth_firmware():
         return {
             "artie-id": r.args['artie-id']
         }
+
+@mouth_api.route("/status", methods=["GET"])
+@alog.function_counter("get_mouth_status")
+def get_mouth_status():
+    """
+    Get the mouth submodules' statuses.
+
+    * *GET*: `/mouth/status`
+        * *Parameters*:
+            * `artie-id`: The Artie ID.
+    * *Response 200*:
+        * *Payload (JSON)*:
+            ```json
+            {
+                "artie-id": "The Artie ID.",
+                "FW": "<Status>",
+                "LED": "<Status>",
+                "LCD": "<Status>"
+            }
+            ```
+        where `<Status>` is one of the available
+        status values as [found in the top-level API README](../README.md#statuses)
+    """
+    # Double check params
+    if 'artie-id' not in r.args:
+        errbody = {
+            "artie-id": "Unknown",
+            "error": "Missing artie-id parameter."
+        }
+        return errbody, 400
+
+    err, status_or_errmsg = mouth.get_status(artie_id=r.args['artie-id'])
+    if err:
+        errbody = {
+            "artie-id": r.args['artie-id'],
+            "error": f"{status_or_errmsg}"
+        }
+        return errbody, err
+    else:
+        return {
+            "artie-id": r.args['artie-id']
+        }
+
+@mouth_api.route("/self-test", methods=["POST"])
+@alog.function_counter("mouth_self_test")
+def mouth_self_test():
+    """
+    Initiate a self-test.
+
+    * *POST*: `/mouth/self-test`
+        * *Parameters*:
+            * `artie-id`: The Artie ID.
+        * *Payload*: None
+    """
+    # Double check params
+    if 'artie-id' not in r.args:
+        errbody = {
+            "artie-id": "Unknown",
+            "error": "Missing artie-id parameter."
+        }
+        return errbody, 400
+
+    err, errmsg = mouth.self_test(artie_id=r.args['artie-id'])
+    if err:
+        errbody = {
+            "artie-id": r.args['artie-id'],
+            "error": f"{errmsg}"
+        }
+        return errbody, err
+    else:
+        return {
+            "artie-id": r.args['artie-id']
+        }
