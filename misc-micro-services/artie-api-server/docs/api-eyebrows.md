@@ -132,13 +132,16 @@ Get the eyebrows' submodules' statuses.
         ```json
         {
             "artie-id": "The Artie ID.",
-            "FW": "<Status>",
-            "LED-LEFT": "<Status>",
-            "LED-RIGHT": "<Status>",
-            "LCD-LEFT": "<Status>",
-            "LCD-RIGHT": "<Status>",
-            "LEFT-SERVO": "<Status>",
-            "RIGHT-SERVO": "<Status>"
+            "submodule-statuses":
+                {
+                    "FW": "<Status>",
+                    "LED-LEFT": "<Status>",
+                    "LED-RIGHT": "<Status>",
+                    "LCD-LEFT": "<Status>",
+                    "LCD-RIGHT": "<Status>",
+                    "LEFT-SERVO": "<Status>",
+                    "RIGHT-SERVO": "<Status>"
+                }
         }
         ```
     where `<Status>` is one of the available

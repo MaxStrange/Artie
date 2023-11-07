@@ -88,7 +88,7 @@ class HWTest:
     Unlike other tests, this does not run as a sub-job. Instead, a single HWTestSuiteJob is created from
     the information in each of these instances.
     """
-    def __init__(self, test_name: str, cmd_to_run_in_cli: str, expected_results: List[str]) -> None:
+    def __init__(self, test_name: str, cmd_to_run_in_cli: str, expected_results: Dict[str, str]) -> None:
         self.test_name = test_name
         self.cmd_to_run_in_cli = cmd_to_run_in_cli
         self.expected_results = expected_results

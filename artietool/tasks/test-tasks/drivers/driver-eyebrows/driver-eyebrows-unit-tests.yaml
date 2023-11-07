@@ -80,3 +80,14 @@ steps:
         expected-outputs:
           - what: "right SERVO -> GO"
             where: ${DUT}
+      - test-name: self-check
+        cmd-to-run-in-cli: "artie-cli eyebrows status self-check --unit-test"
+        expected-outputs:
+          - what: "Checking FW subsystem..."
+            where: ${DUT}
+          - what: "Checking LED subsystem..."
+            where: ${DUT}
+          - what: "Checking LCD subsystem..."
+            where: ${DUT}
+          - what: "Checking servo subsystem..."
+            where: ${DUT}

@@ -28,6 +28,7 @@ class FirmwareSubmodule:
         }
 
     def self_check(self):
+        alog.test("Checking FW subsystem...", tests=['mouth-driver-unit-tests:self-check'])
         self._check_mcu()
 
     def load(self) -> bool:

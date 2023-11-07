@@ -26,6 +26,7 @@ class LedSubmodule:
         }
 
     def self_check(self):
+        alog.test("Checking LED subsystem...", tests=['mouth-driver-unit-tests:self-check'])
         # Store previous state
         prev_state = self._led_state
 

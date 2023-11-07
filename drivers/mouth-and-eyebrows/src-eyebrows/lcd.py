@@ -29,7 +29,7 @@ class LcdSubmodule:
         right_display = self._right_display_state
 
         # Initializing should set our statuses appropriately
-        alog.info("Checking LCD subsystem...")
+        alog.test("Checking LCD subsystem...", tests=['eyebrows-driver-unit-tests:self-check'])
         self.initialize()
 
         # Set back to originals

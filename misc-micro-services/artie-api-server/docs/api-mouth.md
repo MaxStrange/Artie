@@ -96,9 +96,12 @@ Get the mouth submodules' statuses.
         ```json
         {
             "artie-id": "The Artie ID.",
-            "FW": "<Status>",
-            "LED": "<Status>",
-            "LCD": "<Status>"
+            "submodule-statuses":
+                {
+                    "FW": "<Status>",
+                    "LED": "<Status>",
+                    "LCD": "<Status>"
+                }
         }
         ```
     where `<Status>` is one of the available

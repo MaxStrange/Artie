@@ -35,3 +35,8 @@ steps:
         expected-outputs:
           - what: "Resetting ALL MCU-class devices"
             where: ${DUT}
+      - test-name: self-check
+        cmd-to-run-in-cli: "artie-cli reset status self-check --unit-test"
+        expected-outputs:
+          - what: "Running self check..."
+            where: ${DUT}

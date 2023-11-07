@@ -124,7 +124,7 @@ class ResetMcuDriver(rpycserver.Service):
         """
         Run a self diagnostics check and set our submodule statuses appropriately.
         """
-        alog.info("Running self check...")
+        alog.test("Running self check...", tests=['reset-driver-unit-tests:self-check'])
         self._check_mcu()
 
     @rpyc.exposed
