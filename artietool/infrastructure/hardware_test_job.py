@@ -1,6 +1,44 @@
+"""
+Hold onto your butts, this is a wild ride.
+
+The YAML test definition specifies one or more Artie CLI commands to run
+and the submodule status values to expect as a result of the commands.
+
+Normally, every hardware test suite would represent a single task, which could be run in the main
+infrastructure as any other test task. But because hardware tests run as Kubernetes jobs,
+there's a lot of transient nonsense and overhead involved in running them. Because of this,
+I really want to only run a single Kubernetes hardware test job, regardless of the tests that were selected
+to run.
+
+TODO: This paragraph isn't true yet. Right now we have it set up to turn each YAML file into a single test job. We should have all YAMLs selected turned into a single test job.
+So, we scoop up all the hardware tests selected by the user and import them, combining them all into
+a single HardwareTestJob that has a single test step - but this step is composed of all the
+tests.
+
+The HardwareTestJob has a setup step that creates the Kubernetes job definition, which includes
+a job and a config map. The job runs a script which is mapped into the job's container by the config map.
+The job's container is just the normal Artie CLI container, so we need to use the config map to get
+the test script (which specifies how to run the CLI and interpret its outputs) into the container - that's why we use the config map.
+
+The test script is composed dynamically - it first creates a python script that can interpret outputs from the CLI,
+then it adds each test to the shell script. The result is something that looks like this:
+
+artie-cli eyebrows status --artie-id artie-001 | python interpret_test_output.py
+artie-cli mouth status --artie-id artie-001 | python interpret_test_output.py
+artie-cli reset status --artie-id artie-001 | python interpret_test_output.py
+etc.
+
+The script is written such that it should fail and return an exit code if any of its commands
+return non-zero exit codes. If the script fails, the Kubernetes job fails, and the result
+is reported by means of the standard infrastructure. If none of the script steps fail,
+the job passes.
+
+The job is created and run by the CollectedHardwareTestSteps object when the step is called
+by the infrastructure, its timeout is handled, and its results are checked by the normal __call__ method.
+"""
 from typing import List
-from . import result
-from . import test_job
+from ..infrastructure import result
+from ..infrastructure import test_job
 from .. import common
 from .. import docker
 from .. import kube
@@ -87,17 +125,26 @@ class CollectedHardwareTestSteps:
     def _convert_test_into_script(self, args, artie_id: str, test_def: test_job.HWTest) -> str:
         """
         Returns a single test's contents as lines in a script.
+
+        A test will usually have the following style of output:
+
+        ```
+        (artie-id) module:
+            submodule01: [working, degraded, not working, or unknown]
+            submodule02: [working, degraded, not working, or unknown]
+            etc.
+        ```
         """
         # E.g. artie-cli eyebrows status --artie-id artie-001
-        contents = test_def.cmd_to_run_in_cli + f" --artie-id {artie_id}"
+        cmd = test_def.cmd_to_run_in_cli + f" --artie-id {artie_id}"
+
+        # We run the command and pipe it into a python script we create dynamically here
+        contents = f"""
+echo '{}' > interpret_test_output.py
+{cmd} | python interpret_test_output.py\n
+"""
 
         # TODO: Figure out from test def how we validate the output
-
-
-    (artie-id) module:
-        submodule01: [working, degraded, not working, or unknown]
-        submodule02: [working, degraded, not working, or unknown]
-        etc.
 
         return contents
 
