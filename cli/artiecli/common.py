@@ -1,6 +1,8 @@
 """
 Common code for all the modules.
 """
+from typing import Dict
+
 try:
     import rpyc
     from rpyc.utils import factory
@@ -93,3 +95,23 @@ def format_print_result(msg: str, module: str, submodule: str, artie_id: str):
     Prints ({artie_id}) {module} {submodule}: {msg}
     """
     print(f"({artie_id}) {module} {submodule}: {msg}")
+
+def format_print_status_result(json_response: Dict[str, str], module: str, artie_id: str):
+    """
+    Prints the result of a status check.
+
+    Results look like this:
+
+    ```
+    (artie-id) module:
+        submodule01: [working, degraded, not working, or unknown]
+        submodule02: [working, degraded, not working, or unknown]
+        etc.
+    ```
+    """
+    ordered_response = [(k, v) for k, v in json_response.get('submodule-statuses', {}).items()]
+    ordered_response = sorted(ordered_response, key=lambda x: x[0])
+    s = f"({artie_id}) {module}:\n"
+    for k, v in ordered_response:
+        s += f"    {k}: [{v}]\n"
+    print(s)

@@ -34,7 +34,10 @@ Get the reset service's submodules' statuses.
         ```json
         {
             "artie-id": "The Artie ID.",
-            "MCU": "<Status>"
+            "submodule-statuses":
+                {
+                    "MCU": "<Status>"
+                }
         }
         ```
     where `<Status>` is one of the available

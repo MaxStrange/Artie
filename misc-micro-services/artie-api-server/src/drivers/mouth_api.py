@@ -317,10 +317,13 @@ def get_mouth_status():
         * *Payload (JSON)*:
             ```json
             {
-                "artie-id": "The Artie ID.",
-                "FW": "<Status>",
-                "LED": "<Status>",
-                "LCD": "<Status>"
+            "artie-id": "The Artie ID.",
+                "submodule-statuses":
+                    {
+                        "FW": "<Status>",
+                        "LED": "<Status>",
+                        "LCD": "<Status>"
+                    }
             }
             ```
         where `<Status>` is one of the available
@@ -343,7 +346,8 @@ def get_mouth_status():
         return errbody, err
     else:
         return {
-            "artie-id": r.args['artie-id']
+            "artie-id": r.args['artie-id'],
+            "submodule-statuses": status_or_errmsg
         }
 
 @mouth_api.route("/self-test", methods=["POST"])

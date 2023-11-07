@@ -35,6 +35,7 @@ class LcdSubmodule:
         }
 
     def self_check(self):
+        alog.test("Checking LCD subsystem...", tests=['mouth-driver-unit-tests:self-check'])
         # Get current value
         prev_state = self._current_display
 

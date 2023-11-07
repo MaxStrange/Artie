@@ -45,7 +45,7 @@ class LedSubmodule:
             self.right_led_status = status
 
     def self_check(self):
-        alog.info("Checking LED subsystem...")
+        alog.test("Checking LED subsystem...", tests=['eyebrows-driver-unit-tests:self-check'])
         self._self_check_one_side('left')
         self._self_check_one_side('right')
 

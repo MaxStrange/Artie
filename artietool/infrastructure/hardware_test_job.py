@@ -7,7 +7,7 @@ from .. import kube
 
 class CollectedHardwareTestSteps:
     """
-    The logic that we run inside a single
+    The logic that we run inside the single hardware test job.
     """
     def __init__(self, steps: List[test_job.HWTest]) -> None:
         self.steps = steps
@@ -17,6 +17,7 @@ class CollectedHardwareTestSteps:
         # Launch the k8s job
         res = self._launch_k8s_job(args)
 
+        # TODO: This is example code
         ##################################################################################################
         # Launch the CLI command
         res = self._run_cli(args)
@@ -37,7 +38,7 @@ class CollectedHardwareTestSteps:
         if results:
             return results[0]
 
-        return result.TestResult(self.test_name, producing_task_name=self.producing_task_name, status=TestStatuses.SUCCESS)
+        return result.TestResult(self.test_name, producing_task_name=self.producing_task_name, status=result.TestStatuses.SUCCESS)
         ##################################################################################################
 
     def _determine_artie_id(self, args) -> str:
@@ -91,6 +92,12 @@ class CollectedHardwareTestSteps:
         contents = test_def.cmd_to_run_in_cli + f" --artie-id {artie_id}"
 
         # TODO: Figure out from test def how we validate the output
+
+
+    (artie-id) module:
+        submodule01: [working, degraded, not working, or unknown]
+        submodule02: [working, degraded, not working, or unknown]
+        etc.
 
         return contents
 

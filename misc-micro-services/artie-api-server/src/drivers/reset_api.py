@@ -107,7 +107,10 @@ def get_reset_status():
             ```json
             {
                 "artie-id": "The Artie ID.",
-                "MCU": "<Status>"
+                "submodule-statuses":
+                    {
+                        "MCU": "<Status>"
+                    }
             }
             ```
         where `<Status>` is one of the available
@@ -130,7 +133,8 @@ def get_reset_status():
         return errbody, err
     else:
         return {
-            "artie-id": r.args['artie-id']
+            "artie-id": r.args['artie-id'],
+            "submodule-statuses": status_or_errmsg
         }
 
 @reset_api.route("/self-test")

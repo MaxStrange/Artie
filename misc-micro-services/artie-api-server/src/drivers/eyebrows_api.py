@@ -498,13 +498,16 @@ def get_eyebrows_status():
             ```json
             {
                 "artie-id": "The Artie ID.",
-                "FW": "<Status>",
-                "LED-LEFT": "<Status>",
-                "LED-RIGHT": "<Status>",
-                "LCD-LEFT": "<Status>",
-                "LCD-RIGHT": "<Status>",
-                "LEFT-SERVO": "<Status>",
-                "RIGHT-SERVO": "<Status>"
+                "submodule-statuses":
+                    {
+                        "FW": "<Status>",
+                        "LED-LEFT": "<Status>",
+                        "LED-RIGHT": "<Status>",
+                        "LCD-LEFT": "<Status>",
+                        "LCD-RIGHT": "<Status>",
+                        "LEFT-SERVO": "<Status>",
+                        "RIGHT-SERVO": "<Status>"
+                    }
             }
             ```
         where `<Status>` is one of the available
@@ -527,7 +530,8 @@ def get_eyebrows_status():
         return errbody, err
     else:
         return {
-            "artie-id": r.args['artie-id']
+            "artie-id": r.args['artie-id'],
+            "submodule-statuses": status_or_errmsg
         }
 
 @eyebrows_api.route("/self-test", methods=["POST"])

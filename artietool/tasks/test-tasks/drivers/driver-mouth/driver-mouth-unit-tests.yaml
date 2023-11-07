@@ -100,3 +100,12 @@ steps:
         expected-outputs:
           - what: "Mocking MCU FW load."
             where: ${DUT}
+      - test-name: self-check
+        cmd-to-run-in-cli: "artie-cli mouth status self-check --unit-test"
+        expected-outputs:
+          - what: "Checking FW subsystem..."
+            where: ${DUT}
+          - what: "Checking LED subsystem..."
+            where: ${DUT}
+          - what: "Checking LCD subsystem..."
+            where: ${DUT}

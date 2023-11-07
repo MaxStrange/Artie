@@ -28,7 +28,7 @@ class ServoSubmodule:
         # Go to our current position, which shouldn't really move the
         # servos, but should set our statuses appropriately in case we can't write to
         # the I2C bus.
-        alog.info("Checking servo subsystem...")
+        alog.test("Checking servo subsystem...", tests=['eyebrows-driver-unit-tests:self-check'])
         self.go('left', self._left_servo_degrees)
         self.go('right', self._right_servo_degrees)
 

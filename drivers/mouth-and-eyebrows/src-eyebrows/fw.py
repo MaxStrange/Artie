@@ -43,7 +43,7 @@ class FirmwareSubmodule:
             return True
 
     def self_check(self):
-        alog.info("Checking FW subsystem...")
+        alog.test("Checking FW subsystem...", tests=['eyebrows-driver-unit-tests:self-check'])
         self._check_mcu('left')
         self._check_mcu('right')
         if self._left_status == constants.SubmoduleStatuses.WORKING and self._right_status == constants.SubmoduleStatuses.WORKING:
