@@ -120,5 +120,4 @@ def fill_subparser(parser_uninstall: argparse.ArgumentParser, parent: argparse.A
     parser_uninstall.add_argument("-u", "--username", default=None, type=str, help="Username for the Artie we are uninstalling. Required unless --cluster-only.")
     parser_uninstall.add_argument("--artie-ip", default=None, type=common.validate_input_ip, help="IP address for the Artie we are uninstalling. Required unless --cluster-only.")
     parser_uninstall.add_argument("-p", "--password", type=str, default=None, help="The password for the Artie we are removing. It is more secure to pass this in over stdin when prompted, if possible.")
-    parser_uninstall.add_argument("--artie-name", type=str, required=True, help="The name of the Artie we are removing.")
     parser_uninstall.set_defaults(cmd=uninstall, module="uninstall-artie")
