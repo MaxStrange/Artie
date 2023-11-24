@@ -3,25 +3,14 @@ labels:
   - docker-image
   - hardware
 dependencies:
-  - base: artie-base
-  - artie-cli: docker-image
 type: test
 steps:
   - job: hardware-test-suite
-    cli-image:
-      dependency:
-        name: docker-image
-        producing-task: artie-cli
     steps:
-      - test-name: init-mcu
-        cmd-to-run-in-cli: "artie-cli help"
-        expected-outputs:
-          - what: "Writing 0x1 to "
-            where: daemonsets/reset-driver
-          - what: "Loaded FW successfully."
-            where: daemonsets/mouth-driver
-      - test-name: fw-load
-        cmd-to-run-in-cli: "artie-cli mouth fw load"
-        expected-outputs:
-          - what: "Writing 0x1 to "
-            where: daemonsets/reset-driver
+      - test-name: hw-mouth
+        cmds-to-run-in-cli:
+          - "artie-cli mouth self-test"
+        expected-results:
+          FW: "working"
+          LED: "working"
+          LCD: "working"
