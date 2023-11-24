@@ -16,16 +16,19 @@ a single HardwareTestJob that has a single test step - but this step is composed
 tests.
 
 The HardwareTestJob has a setup step that creates the Kubernetes job definition, which includes
-a job and a config map. The job runs a script which is mapped into the job's container by the config map.
+a job and two config maps. The job runs two scripts - a shell script that is dynamically created - and
+a Python script that interprets the output of the each step in the shell script. Both of these scripts
+are mapped into the container via the config maps.
 The job's container is just the normal Artie CLI container, so we need to use the config map to get
-the test script (which specifies how to run the CLI and interpret its outputs) into the container - that's why we use the config map.
+the shell script, which is created dynamically, and the Python script, which should change as a function of
+the test infrastructure version - not as a function of Artie CLI's version, into the container.
 
-The test script is composed dynamically - it first creates a python script that can interpret outputs from the CLI,
-then it adds each test to the shell script. The result is something that looks like this:
+The shell test script is composed dynamically by adding each test piped into
+an interpretation script. The result is something that looks like this:
 
-artie-cli eyebrows status --artie-id artie-001 | python interpret_test_output.py
-artie-cli mouth status --artie-id artie-001 | python interpret_test_output.py
-artie-cli reset status --artie-id artie-001 | python interpret_test_output.py
+artie-cli eyebrows self-test --artie-id artie-001 | python interpret_test_output.py
+artie-cli mouth self-test --artie-id artie-001 | python interpret_test_output.py
+artie-cli reset self-test --artie-id artie-001 | python interpret_test_output.py
 etc.
 
 The script is written such that it should fail and return an exit code if any of its commands
@@ -42,6 +45,7 @@ from ..infrastructure import test_job
 from .. import common
 from .. import docker
 from .. import kube
+import os
 
 class CollectedHardwareTestSteps:
     """
@@ -50,34 +54,40 @@ class CollectedHardwareTestSteps:
     def __init__(self, steps: List[test_job.HWTest]) -> None:
         self.steps = steps
         self.job_def = None  # Filled in during test setup
+        self.job_name = None  # Filled in during __call__
+        self.test_script_configmap_name = None  # Filled in during __call__
+        self.test_script_configmap_def = None  # Filled in during test setup
+        self.interpret_test_script_configmap_name = None  # Filled in during __call__
+        self.interpret_test_script_configmap_def = None  # Filled in during test setup
+
+    def _launch_k8s_job(self, args) -> result.TestResult:
+        test_script_configmap = kube.create_config_map(args, self.test_script_configmap_def)
+        interpret_script_configmap = kube.create_config_map(args, self.interpret_test_script_configmap_def)
+        job = kube.launch_job(args, self.job_def)
+        self.job_name = job.metadata.name
+        self.test_script_configmap_name = test_script_configmap.metadata.name
+        self.interpret_test_script_configmap_name = interpret_script_configmap.metadata.name
 
     def __call__(self, args) -> result.TestResult:
         # Launch the k8s job
         res = self._launch_k8s_job(args)
-
-        # TODO: This is example code
-        ##################################################################################################
-        # Launch the CLI command
-        res = self._run_cli(args)
         if res.status != result.TestStatuses.SUCCESS:
             return res
 
-        # Check the DUT(s) output(s)
-        results = self._check_duts(args)
-        results = [r for r in results if r is not None and r.status != result.TestStatuses.SUCCESS]
+        # Check the job status
+        while kube.check_job_status(args, self.job_name) == kube.JobStatuses.INCOMPLETE:
+            pass
 
-        # If we got more than one result, let's log the various problems and just return the first failing one
-        if len(results) > 1:
-            common.error(f"Multiple failures detected in {self.test_name}. Returning the first detected failure and logging all of them.")
-
-        for r in results:
-            common.error(f"Error in test {self.test_name}: {r.to_verbose_str()}")
-
-        if results:
-            return results[0]
-
-        return result.TestResult(self.test_name, producing_task_name=self.producing_task_name, status=result.TestStatuses.SUCCESS)
-        ##################################################################################################
+        job_status = kube.check_job_status(self.job_name)
+        if job_status == kube.JobStatuses.FAILED:
+            common.error(f"HW Job failed, the logs from the HW test job follow:")
+            kube.log_job_results(args, self.job_name)
+            return result.TestResult(self.test_name, producing_task_name=self.producing_task_name, status=result.TestStatuses.FAIL)
+        elif job_status == kube.JobStatuses.SUCCEEDED:
+            return result.TestResult(self.test_name, producing_task_name=self.producing_task_name, status=result.TestStatuses.SUCCESS)
+        else:
+            common.error(f"HW Job has unrecognized status: {job_status}")
+            return result.TestResult(self.test_name, producing_task_name=self.producing_task_name, status=result.TestStatuses.FAIL)
 
     def _determine_artie_id(self, args) -> str:
         """
@@ -135,16 +145,11 @@ class CollectedHardwareTestSteps:
             etc.
         ```
         """
-        # E.g. artie-cli eyebrows status --artie-id artie-001
+        # E.g. artie-cli eyebrows self-test --artie-id artie-001
         cmd = test_def.cmd_to_run_in_cli + f" --artie-id {artie_id}"
 
-        # We run the command and pipe it into a python script we create dynamically here
-        contents = f"""
-echo '{}' > interpret_test_output.py
-{cmd} | python interpret_test_output.py\n
-"""
-
-        # TODO: Figure out from test def how we validate the output
+        # We run the command and pipe it into the interpret script
+        contents = f"{cmd} | python /interpret_test_output.py\n"
 
         return contents
 
@@ -163,6 +168,19 @@ echo '{}' > interpret_test_output.py
 
         return contents
 
+    def _get_contents_of_interpret_test_script(self):
+      """
+      Get the contents of the script that interprets the output of a test.
+      """
+      fpath = os.path.join(common.repo_root(), "artietool", "test", "interpret_test_output.py")
+      if not os.path.isfile(fpath):
+          raise FileNotFoundError(f"Cannot find interpret_test_output.py, which should be found at {fpath}")
+
+      with open(fpath, 'r') as f:
+          contents = f.readlines()
+
+      return '\n'.join([line.rstrip() for line in contents])  # Remove the carriage return if there is one and replace with simple newline
+
     def create_job_def(self, args) -> None:
         """
         Create the k8s job def from all the information in the steps.
@@ -170,6 +188,7 @@ echo '{}' > interpret_test_output.py
         artie_id = self._determine_artie_id(args)
         delete_after_s = 1 * 24 * 60 * 60  # One day
         registry = self._determine_docker_registry(args)
+        interpret_test_output_contents = self._get_contents_of_interpret_test_script()
         test_script_contents = self._determine_test_script_contents(args, artie_id)
         timeout_s = args.test_timeout_s
         version = self._determine_version(args)
@@ -192,12 +211,6 @@ spec:
   backoffLimit: 1
   activeDeadlineSeconds: {timeout_s}
   ttlSecondsAfterFinished: {delete_after_s}
-  selector:
-    matchLabels:
-      app.kubernetes.io/component: hw-test
-      app.kubernetes.io/version: {version}
-      app.kubernetes.io/part-of: artie
-      artie/artie-id: {artie_id}
   template:
     metadata:
       labels:
@@ -228,11 +241,19 @@ spec:
           volumeMounts:
             - mountPath: /tests.sh
               name: test-script
+            - mountPath: /interpret_test_output.py
+              name: interpret-script
       volumes:
         - name: test-script
           configMap:
             name: test-script-configmap
----
+        - name: interpret-script
+          configMap:
+            name: interpret-script-configmap
+"""
+
+        self.test_script_configmap_def = \
+f"""
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -248,14 +269,32 @@ data:
   tests.sh: |
     {test_script_contents}
 """
+        self.interpret_test_script_configmap_def = \
+f"""
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: interpret-script-configmap
+  namespace: {kube.ArtieK8sValues.NAMESPACE}
+  labels:
+    app.kubernetes.io/component: hw-test
+    app.kubernetes.io/version: {version}
+    app.kubernetes.io/part-of: artie
+    artie/artie-id: {artie_id}
+  annotations:
+data:
+  interpret_test_output.py: |
+    {interpret_test_output_contents}
+"""
 
     def cleanup_job(self, args) -> None:
         """
         Clean up the k8s job if it is present on the cluster.
         """
-        # TODO: Remove the job
-        # TODO: Remove the configmap
-        pass
+        # Remove the job and its config maps
+        kube.delete_job(args, self.job_name)
+        kube.delete_configmap(args, self.test_script_configmap_name)
+        kube.delete_configmap(args, self.interpret_test_script_configmap_name)
 
 class HardwareTestJob(test_job.TestJob):
     def __init__(self, steps: List[test_job.HWTest]) -> None:
@@ -276,7 +315,7 @@ class HardwareTestJob(test_job.TestJob):
         """
         """
         if args.skip_teardown:
-            common.info(f"--skip-teardown detected. There may be a k8s job and configmap on the cluster that need to be cleaned up manually.")
+            common.info(f"--skip-teardown detected. There may be a k8s job and configmaps on the cluster that need to be cleaned up manually.")
             return
 
         super().teardown(args)

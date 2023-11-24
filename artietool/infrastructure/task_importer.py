@@ -5,7 +5,7 @@ from . import docker_build_job
 from . import docker_compose_test_suite_job
 from . import docker_manifest_job
 from . import file_transfer_from_container_job
-from ..test import hardware_test_job
+from . import hardware_test_job
 from . import single_container_cli_suite_job
 from . import single_container_sanity_suite_job
 from . import test_job

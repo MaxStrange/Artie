@@ -1,5 +1,5 @@
 """
-Wrapper around the Kubernetes API for convenience stuff.
+Semi-permeable wrapper around the Kubernetes API for convenience stuff.
 """
 from typing import Dict
 from typing import List
@@ -7,9 +7,11 @@ from typing import Tuple
 from . import common
 import dataclasses
 import enum
+import io
 import json
 import kubernetes as k8s
 import subprocess
+import yaml
 
 class ArtieK8sKeys(enum.StrEnum):
     """
@@ -48,6 +50,15 @@ class TaintEffects(enum.StrEnum):
     NO_SCHEDULE = "NoSchedule"  # Kubernetes will not schedule the pod onto that node
     PREFER_NO_SCHEDULE = "PreferNoSchedule"  # Kubernetes will try to not schedule the pod onto the node
     NO_EXECUTE = "NoExecute"  # The pod will be evicted from the node (if it is already running on the node), and will not be scheduled onto the node (if it is not yet running on the node).
+
+class JobStatuses(enum.StrEnum):
+    """
+    Possible statuses for a Kubernetes Job.
+    """
+    INCOMPLETE = "Incomplete"  # At least one pod is not done running
+    FAILED = "Failed"  # At least one pod has 'failed' status
+    SUCCEEDED = "Succeeded"  # All pods have completed and succeeded
+    UNKNOWN = "Unknown"  # Can't determine the state of this job
 
 @dataclasses.dataclass
 class HelmChart:
@@ -168,6 +179,34 @@ def check_helm_chart_status(args, chart_name: str, namespace=ArtieK8sValues.NAME
     else:
         return HelmChartStatuses(json_object[0]['status'])
 
+def delete_pod(args, pod_name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_errors=False):
+    """
+    Delete a K8s Pod.
+    """
+    _configure(args)
+    v1 = k8s.client.CoreV1Api()
+    try:
+        v1.delete_namespaced_pod(pod_name, namespace, grace_period_seconds=0, propagation_policy='Foreground')
+    except Exception as e:
+        if not ignore_errors:
+            raise e
+        else:
+            common.warning(f"Error deleting pod {namespace}:{pod_name}: {e}")
+
+def delete_configmap(args, name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_errors=False):
+    """
+    Delete a configmap.
+    """
+    _configure(args)
+    v1 = k8s.client.CoreV1Api()
+    try:
+        v1.delete_namespaced_config_map(name, namespace, grace_period_seconds=0, propagation_policy='Foreground')
+    except Exception as e:
+        if not ignore_errors:
+            raise e
+        else:
+            common.warning(f"Error deleting config map {namespace}:{name}: {e}")
+
 def delete_node(args, node_name: str, ignore_errors=False):
     """
     Remove the given node from the cluster as gracefully as we can.
@@ -179,6 +218,8 @@ def delete_node(args, node_name: str, ignore_errors=False):
     except Exception as e:
         if not ignore_errors:
             raise e
+        else:
+            common.warning(f"Error deleting node {node_name}: {e}")
 
 def get_artie_names(args) -> List[str]:
     """
@@ -255,6 +296,100 @@ def delete_helm_release(args, chart_name: str, namespace=ArtieK8sValues.NAMESPAC
     success, retcode, stderr, stdout = _handle_transient_network_errors(cmd)
     if not success:
         raise OSError(f"Helm failed: {stderr}; {stdout}")
+
+def check_job_status(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -> JobStatuses:
+    """
+    Check and return the status of the given job.
+    """
+    _configure(args)
+    v1 = k8s.client.BatchV1Api()
+
+    job = v1.read_namespaced_job_status(job_name, namespace)
+    status = job.status
+
+    if status.active > 0:
+        # At least one pod is still pending or running
+        return JobStatuses.INCOMPLETE
+    elif status.failed > 0:
+        # At least one pod failed
+        return JobStatuses.FAILED
+    elif status.succeeded > 0:
+        # No active or failed pods AND at least one pod is successful. Looks good.
+        return JobStatuses.SUCCEEDED
+    else:
+        # Can't understand this state. No active, failed, or succeeded pods.
+        common.error(f"Kubernetes job {namespace}:{job_name} has unknown status - no active, failed, or succeeded pods.")
+        return JobStatuses.UNKNOWN
+
+def get_pods_from_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -> List[k8s.client.V1Pod]:
+    """
+    Get all the pods for a given job and return them as a List of K8s Job objects.
+    """
+    _configure(args)
+    v1 = k8s.client.BatchV1Api()
+
+    job = v1.read_namespaced_job(job_name, namespace)
+    spec = job.spec
+    selector = spec.selector
+
+    v1 = k8s.client.CoreV1Api()
+    podlist = v1.list_namespaced_pod(namespace, label_selector=selector)
+    return podlist.items
+
+def log_job_results(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE):
+    """
+    Log all lines from all pods in the given job.
+    """
+    pods = get_pods_from_job(args, job_name, namespace)
+    _configure(args)
+    v1 = k8s.client.CoreV1Api()
+
+    for pod in pods:
+        logs = v1.read_namespaced_pod_log(pod.metadata.name, namespace)
+        common.info(f"Reading logs from pod {namespace}:{pod.metadata.name}:")
+        for line in logs.splitlines():
+            common.info(line.rstrip())
+
+def launch_job(args, job_def: str, namespace=ArtieK8sValues.NAMESPACE) -> k8s.client.V1Job:
+    """
+    Launch a K8s job and return it.
+
+    `job_def` should be a YAML definition like you would put in the YAML file.
+    """
+    _configure(args)
+    v1 = k8s.client.BatchV1Api()
+
+    job_def_dict = yaml.safe_load(io.StringIO(job_def))
+    body = k8s.client.V1Job(**job_def_dict)
+
+    return v1.create_namespaced_job(namespace, body)
+
+def delete_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_errors=False):
+    """
+    Delete a K8s job.
+    """
+    _configure(args)
+    v1 = k8s.client.BatchV1Api()
+    try:
+        v1.delete_namespaced_job(job_name, namespace, grace_period_seconds=0, propagation_policy='Foreground')
+    except Exception as e:
+        if not ignore_errors:
+            raise e
+        else:
+            common.warning(f"Error deleting job {namespace}:{job_name}: {e}")
+
+def create_config_map(args, config_map_def: str, namespace=ArtieK8sValues.NAMESPACE) -> k8s.client.V1ConfigMap:
+    """
+    Create a config map from the given `config_map_def`, which should be a YAML definition
+    like you would put in the config map YAMl file.
+    """
+    _configure(args)
+    v1 = k8s.client.CoreV1Api()
+
+    config_map_def_dict = yaml.safe_load(io.StringIO(config_map_def))
+    body = k8s.client.V1ConfigMap(**config_map_def_dict)
+
+    return v1.create_namespaced_config_map(namespace, body)
 
 def node_is_online(args, node_name: str) -> bool:
     """
