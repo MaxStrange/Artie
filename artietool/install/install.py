@@ -179,5 +179,4 @@ def fill_subparser(parser_install: argparse.ArgumentParser, parent: argparse.Arg
     parser_install.add_argument("-p", "--password", type=str, default=None, help="The password for the Artie we are adding. It is more secure to pass this in over stdin when prompted, if possible.")
     parser_install.add_argument("-t", "--token", type=str, default=None, help="Token that you were given after installing Artie Admind. If you have lost it, you can find it on the admin server at /var/lib/rancher/k3s/server/node-token. It is more secure to pass this in over stdin when prompted, if possible.")
     parser_install.add_argument("--token-file", type=common.argparse_file_path_type, default=None, help="A file that contains the Artie Admind token as its only contents.")
-    parser_install.add_argument("--artie-name", type=str, default=None, help="The name for this Artie. Must be unique among all the Arties in this cluster. If not given, we generate a unique one for you.")
     parser_install.set_defaults(cmd=install, module="install-artie")
