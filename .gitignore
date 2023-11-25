@@ -145,3 +145,6 @@ telemetry-example/
 
 # Secrets
 .secrets/
+
+# Artie Tool
+artie-tool-log.txt

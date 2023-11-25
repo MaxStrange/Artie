@@ -12,7 +12,7 @@ steps:
       dependency:
         name: docker-image
         producing-task: driver-eyebrows
-    cmd-to-run-in-dut: "python main.py /conf/mcu-fw.elf --port 18863 --loglevel info"
+    cmd-to-run-in-dut: "python -m src.main /conf/mcu-fw.elf --port 18863 --loglevel info"
     dut-port-mappings:
       - 18863: 18863
     cli-image:
