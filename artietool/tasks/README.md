@@ -260,13 +260,15 @@ file as `external`. See the example Compose files.
 
 ### Hardware Test Job
 
-All hardware tests are collected and run in a single Kubernetes job on the Artie cluster.
+All hardware tests selected by the user are collected and run in a single Kubernetes job on the Artie cluster.
 
 - *job*: hardware-test-suite
 - *steps*:
   - *test-name*: The name of the individual test.
-  - *cmds-to-run-in-cli*: The commands to run in the CLI continer. This is a list of strings, each of which will typically be of the form 'artie-cli <module> status'
-  - *expected-restults*: How to interpret the output from the CLI command. TODO
+  - *cmds-to-run-in-cli*: The commands to run in the CLI continer. This is a list of strings, each of which will typically be of the form 'artie-cli <module> self-test'
+  - *expected-results*: How to interpret the output from the CLI command. Should be a dict of key values, which should match the
+  format of the output of the self-test command in terms of the
+  submodule. For example: `LED-LEFT: "working"`
 
 ## Flash
 
