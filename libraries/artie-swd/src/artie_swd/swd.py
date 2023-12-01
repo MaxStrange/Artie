@@ -35,7 +35,7 @@ def load_fw_file(fw_fpath: str, iface_fname: str) -> bool:
 
     if util.in_test_mode():
         alog.info(f"Mocking SWD command: {cmd} {openocd_cmds}")
-        return
+        return True
 
     start_time = datetime.datetime.now().timestamp()
     result = subprocess.run(total_cmd, capture_output=True, encoding='utf-8')

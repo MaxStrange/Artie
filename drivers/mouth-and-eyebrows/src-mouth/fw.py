@@ -12,9 +12,10 @@ import os
 import time
 
 class FirmwareSubmodule:
-    def __init__(self, fw_fpath: str) -> None:
+    def __init__(self, fw_fpath: str, ipv6=False) -> None:
         self._fw_fpath = fw_fpath
         self._fw_status = constants.SubmoduleStatuses.UNKNOWN
+        self._ipv6 = ipv6
 
     def _set_status(self, worked: bool):
         if worked:

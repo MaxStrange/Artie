@@ -29,8 +29,7 @@ SERVICE_NAME = "mouth-driver"
 @rpyc.service
 class DriverServer(rpycserver.Service):
     def __init__(self, fw_fpath: str, ipv6=False):
-        self._ipv6 = ipv6
-        self._fw_submodule = fw.FirmwareSubmodule(fw_fpath)
+        self._fw_submodule = fw.FirmwareSubmodule(fw_fpath, ipv6=ipv6)
         self._led_submodule = led.LedSubmodule()
         self._lcd_submodule = lcd.LcdSubmodule()
 
