@@ -21,7 +21,7 @@ services:
       - METRICS_SERVER_PORT=8090
 
   eyebrows-driver:
-    command: python main.py /conf/mcu-fw.elf --port 18863 --loglevel info
+    command: python -m src.main /conf/mcu-fw.elf --port 18863 --loglevel info
     container_name: logging-itest-eyebrows-driver
     depends_on:
       - reset-driver

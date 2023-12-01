@@ -184,7 +184,7 @@ def list_all_addresses_on_instance(instance: int):
         return bus.instance_to_address_map[instance]
 
 @public_i2c_function
-def write_bytes_to_address(address: int, data: list):
+def write_bytes_to_address(address: int, data: list) -> bool:
     """
     Write the given bytes (which are actually a list of ints) to the given address.
     There should be at least one data value, and each value should be >= 0.
@@ -196,4 +196,4 @@ def write_bytes_to_address(address: int, data: list):
     except TypeError:
         data = [data]
 
-    bus.write(address, data)
+    return bus.write(address, data)
