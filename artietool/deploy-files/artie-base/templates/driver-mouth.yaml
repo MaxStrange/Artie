@@ -39,7 +39,7 @@ spec:
         - name: mouth-driver
           image: "{{ .Values.repository }}/artie-mouth-driver:{{ .Values.imageTag }}-arm64"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
-          command: ["python", "main.py", "/conf/mcu-fw.elf", "--port", "{{ .Values.ports.mouthDriver }}", "--loglevel", "info"]
+          command: ["python", "-m", "src.main", "/conf/mcu-fw.elf", "--port", "{{ .Values.ports.mouthDriver }}", "--loglevel", "info"]
           env:
             {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
           securityContext:
