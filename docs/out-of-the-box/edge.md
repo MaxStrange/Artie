@@ -110,12 +110,12 @@ TODO: Update to include deleting a Helm release on a specific Artie in a multi-A
 
 To remove an Artie from your cluster, you can run:
 
-1. `python artie-tool.py deploy artie base --delete`
+1. `python artie-tool.py deploy base --delete`
 1. `python artie-tool.py uninstall --artie-name <Your Artie's name>`
 
 ## Changing the Version of Artie Images
 
 To update the images used in your Artie deployment, you can run:
 
-1. `python artie-tool.py deploy artie base --delete`
-1. `python artie-tool.py deploy artie base --docker-tag <tag> [--docker-repo <repo>]`
+1. `python artie-tool.py deploy base --delete`
+1. `python artie-tool.py deploy base --chart-version <tag> [--deployment-repo <repo>]`
