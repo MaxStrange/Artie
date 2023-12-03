@@ -11,6 +11,7 @@ import io
 import json
 import kubernetes as k8s
 import subprocess
+import urllib3
 import yaml
 
 class ArtieK8sKeys(enum.StrEnum):
@@ -304,21 +305,25 @@ def check_job_status(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) ->
     _configure(args)
     v1 = k8s.client.BatchV1Api()
 
-    job = v1.read_namespaced_job_status(job_name, namespace)
-    status = job.status
+    try:
+        job = v1.read_namespaced_job_status(job_name, namespace)
+        status = job.status
 
-    if status.active > 0:
-        # At least one pod is still pending or running
-        return JobStatuses.INCOMPLETE
-    elif status.failed > 0:
-        # At least one pod failed
-        return JobStatuses.FAILED
-    elif status.succeeded > 0:
-        # No active or failed pods AND at least one pod is successful. Looks good.
-        return JobStatuses.SUCCEEDED
-    else:
-        # Can't understand this state. No active, failed, or succeeded pods.
-        common.error(f"Kubernetes job {namespace}:{job_name} has unknown status - no active, failed, or succeeded pods.")
+        if status.active is not None and status.active > 0:
+            # At least one pod is still pending or running
+            return JobStatuses.INCOMPLETE
+        elif status.failed is not None and status.failed > 0:
+            # At least one pod failed
+            return JobStatuses.FAILED
+        elif status.succeeded is not None and status.succeeded > 0:
+            # No active or failed pods AND at least one pod is successful. Looks good.
+            return JobStatuses.SUCCEEDED
+        else:
+            # Can't understand this state. No active, failed, or succeeded pods.
+            common.error(f"Kubernetes job {namespace}:{job_name} has unknown status - no active, failed, or succeeded pods.")
+            return JobStatuses.UNKNOWN
+    except urllib3.exceptions.MaxRetryError:
+        common.warning(f"Could not get the status for k8s job {namespace}:{job_name}; transient networking error")
         return JobStatuses.UNKNOWN
 
 def get_pods_from_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -> List[k8s.client.V1Pod]:
@@ -328,12 +333,10 @@ def get_pods_from_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -
     _configure(args)
     v1 = k8s.client.BatchV1Api()
 
-    job = v1.read_namespaced_job(job_name, namespace)
-    spec = job.spec
-    selector = spec.selector
+    #job = v1.read_namespaced_job(job_name, namespace)
 
     v1 = k8s.client.CoreV1Api()
-    podlist = v1.list_namespaced_pod(namespace, label_selector=selector)
+    podlist = v1.list_namespaced_pod(namespace, label_selector=f"job-name={job_name}")
     return podlist.items
 
 def log_job_results(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE):
@@ -350,20 +353,6 @@ def log_job_results(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE):
         for line in logs.splitlines():
             common.info(line.rstrip())
 
-def launch_job(args, job_def: str, namespace=ArtieK8sValues.NAMESPACE) -> k8s.client.V1Job:
-    """
-    Launch a K8s job and return it.
-
-    `job_def` should be a YAML definition like you would put in the YAML file.
-    """
-    _configure(args)
-    v1 = k8s.client.BatchV1Api()
-
-    job_def_dict = yaml.safe_load(io.StringIO(job_def))
-    body = k8s.client.V1Job(**job_def_dict)
-
-    return v1.create_namespaced_job(namespace, body)
-
 def delete_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_errors=False):
     """
     Delete a K8s job.
@@ -378,18 +367,26 @@ def delete_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_e
         else:
             common.warning(f"Error deleting job {namespace}:{job_name}: {e}")
 
-def create_config_map(args, config_map_def: str, namespace=ArtieK8sValues.NAMESPACE) -> k8s.client.V1ConfigMap:
+def create_from_yaml(args, yaml_contents: str, namespace=ArtieK8sValues.NAMESPACE):
     """
-    Create a config map from the given `config_map_def`, which should be a YAML definition
-    like you would put in the config map YAMl file.
+    Create a K8s resource from the given `yaml_contents`, which should be a YAML definition
+    like you would put in the K8s YAMl file.
+
+    Returns the list of items that were created from the YAML file, or the single object
+    that was created in the case that the list would only contain one object.
     """
     _configure(args)
-    v1 = k8s.client.CoreV1Api()
+    client = k8s.client.ApiClient()
 
-    config_map_def_dict = yaml.safe_load(io.StringIO(config_map_def))
-    body = k8s.client.V1ConfigMap(**config_map_def_dict)
+    # Convert from raw YAML into Python
+    yaml_object = yaml.safe_load(io.StringIO(yaml_contents))
+    result = k8s.utils.create_from_yaml(client, yaml_objects=[yaml_object], namespace=namespace)
 
-    return v1.create_namespaced_config_map(namespace, body)
+    # For whatever reason, the create_from_yaml function creates randomly nested lists.
+    while hasattr(result, '__len__') and len(result) == 1 and not issubclass(type(result), dict):
+        result = result[0]
+
+    return result
 
 def node_is_online(args, node_name: str) -> bool:
     """
