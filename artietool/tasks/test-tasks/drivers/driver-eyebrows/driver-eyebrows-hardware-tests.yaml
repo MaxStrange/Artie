@@ -9,7 +9,7 @@ steps:
     steps:
       - test-name: hw-eyebrows
         cmds-to-run-in-cli:
-          - "artie-cli eyebrows self-test"
+          - "artie-cli eyebrows status self-check"
         expected-results:
           FW: "working"
           LED-LEFT: "working"
