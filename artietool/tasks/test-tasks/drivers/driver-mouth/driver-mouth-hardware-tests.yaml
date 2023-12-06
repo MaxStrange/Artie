@@ -9,7 +9,7 @@ steps:
     steps:
       - test-name: hw-mouth
         cmds-to-run-in-cli:
-          - "artie-cli mouth self-test"
+          - "artie-cli mouth status self-check"
         expected-results:
           FW: "working"
           LED: "working"
