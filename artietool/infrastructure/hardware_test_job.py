@@ -158,7 +158,7 @@ class CollectedHardwareTestSteps:
           cmd = test_cmd + f" --artie-id {artie_id}"
 
           # We run the command and pipe it into the interpret script
-          contents += f"{cmd} | tee >(python /interpret_test_output.py)\n"
+          contents += f"{cmd} | python /interpret_test_output.py\n"
 
         return contents
 

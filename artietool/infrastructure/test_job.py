@@ -226,7 +226,7 @@ class TestJob(job.Job):
         # Check success
         success = True
         for r in results:
-            if r.status == TestStatuses.FAIL:
+            if r.status.value == TestStatuses.FAIL.value:
                 success = False
                 break
 
