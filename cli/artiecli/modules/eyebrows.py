@@ -74,7 +74,7 @@ class EyebrowClient(apiclient.APIClient):
     def status(self):
         response = self.get("/eyebrows/status", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error getting eyebrow status: {response}", module='eyebrows', submodule='status', artie_id=self.artie_id)
+            common.format_print_status_result(f"Error getting eyebrow status: {response}", module='eyebrows', submodule='status', artie_id=self.artie_id)
         else:
             common.format_print_status_result(response.json(), module='eyebrows', artie_id=self.artie_id)
 
@@ -82,10 +82,6 @@ class EyebrowClient(apiclient.APIClient):
         response = self.post("/eyebrows/self-test", params={'artie-id': self.artie_id})
         if response.status_code != 200:
             common.format_print_result(f"Error running eyebrow self-check: {response}", module='eyebrows', submodule='status', artie_id=self.artie_id)
-            return
-        else:
-            # Print the status now that the self-check has completed
-            self.status()
 
 def _connect_client(args) -> common._ConnectionWrapper | EyebrowClient:
     if common.in_test_mode(args):

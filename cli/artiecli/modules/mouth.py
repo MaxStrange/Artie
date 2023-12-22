@@ -73,7 +73,7 @@ class MouthClient(apiclient.APIClient):
     def status(self):
         response = self.get("/mouth/status", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error getting mouth status: {response}", module='mouth', submodule='status', artie_id=self.artie_id)
+            common.format_print_status_result(f"Error getting mouth status: {response}", module='mouth', submodule='status', artie_id=self.artie_id)
         else:
             common.format_print_status_result(response.json(), module='mouth', artie_id=self.artie_id)
 
@@ -81,10 +81,6 @@ class MouthClient(apiclient.APIClient):
         response = self.post("/mouth/self-test", params={'artie-id': self.artie_id})
         if response.status_code != 200:
             common.format_print_result(f"Error running mouth self-check: {response}", module='mouth', submodule='status', artie_id=self.artie_id)
-            return
-        else:
-            # Print the status now that the self-check has completed
-            self.status()
 
 
 def _connect_client(args) -> common._ConnectionWrapper | MouthClient:

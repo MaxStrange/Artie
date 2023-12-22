@@ -96,7 +96,7 @@ def format_print_result(msg: str, module: str, submodule: str, artie_id: str):
     """
     print(f"({artie_id}) {module} {submodule}: {msg}")
 
-def format_print_status_result(json_response: Dict[str, str], module: str, artie_id: str):
+def format_print_status_result(json_response: Dict[str, str] | str, module: str, artie_id: str):
     """
     Prints the result of a status check.
 
@@ -108,10 +108,22 @@ def format_print_status_result(json_response: Dict[str, str], module: str, artie
         submodule02: [working, degraded, not working, or unknown]
         etc.
     ```
+
+    If a str instead of a JSON dict is given for `json_response`, we print a message of the
+    form:
+
+    ```
+    (artie-id) module:
+        Error: [<error message>]
+    ```
     """
-    ordered_response = [(k, v) for k, v in json_response.get('submodule-statuses', {}).items()]
-    ordered_response = sorted(ordered_response, key=lambda x: x[0])
     s = f"({artie_id}) {module}:\n"
-    for k, v in ordered_response:
-        s += f"    {k}: [{v}]\n"
+    if issubclass(type(json_response), str):
+        s += f"    Error: [{json_response}]"
+    else:
+        ordered_response = [(k, v) for k, v in json_response.get('submodule-statuses', {}).items()]
+        ordered_response = sorted(ordered_response, key=lambda x: x[0])
+        for k, v in ordered_response:
+            s += f"    {k}: [{v}]\n"
+
     print(s)
