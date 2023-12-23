@@ -17,7 +17,7 @@ def _process_line(line: str) -> bool:
     """
     Return True if there was an error while processing.
     """
-    submodule_status_pattern = re.compile("\s+?P<submodule>:\s+\[?P<status>\]\s*")
+    submodule_status_pattern = re.compile("\s+?P<submodule>.*:\s+\[?P<status>.*\]\s*")
     if not line.strip().endswith("]"):
         print("Ignoring line that does not end with ']'")
         return False
@@ -37,15 +37,18 @@ def _process_line(line: str) -> bool:
     return False
 
 if __name__ == "__main__":
+    retcode = 0
     nprocessed = 0
     for line in sys.stdin.readlines():
         print("Processing line:", line)
         nprocessed += 1
         err = _process_line(line)
         if err:
-            print("Got an error while trying to process this line. Exiting with an error code.")
-            exit(1)
+            print("Got an error while trying to process this line. Setting error code.")
+            retcode = 1
 
     if nprocessed == 0:
         print("Did not process any input. This is an error.")
-        exit(2)
+        retcode = 1
+
+    exit(retcode)

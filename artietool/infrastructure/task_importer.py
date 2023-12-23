@@ -490,6 +490,7 @@ def _import_hardware_test_job(job_def: Dict, fpath: str) -> hardware_test_job.Ha
     return hardware_test_job.HardwareTestJob(cli_test_steps)
 
 def _import_test_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.TestTask:
+    test_task_type = task.TestTask
     jobs = []
     for job_def in steps_configs:
         _validate_dict(job_def, 'job', keyerrmsg=f"No 'job' key found in job description in 'steps' section of {fpath}")
@@ -501,11 +502,12 @@ def _import_test_task(header: TaskHeader, steps_configs: List[Dict], fpath: str)
             case 'docker-compose-test-suite':
                 jobs.append(_import_integration_test_job(job_def, fpath))
             case 'hardware-test-suite':
+                test_task_type = task.HardwareTestTask
                 jobs.append(_import_hardware_test_job(job_def, fpath))
             case _:
                 raise ValueError(f"Unrecognized 'job' type: '{job_def['job']}' in {fpath}")
 
-    return task.TestTask(
+    return test_task_type(
         name=header.task_name,
         labels=header.labels,
         dependencies=header.dependencies,

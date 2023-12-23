@@ -17,7 +17,7 @@ from artie_i2c import i2c
 from artie_util import artie_logging as alog
 from artie_util import util
 from artie_util import rpycserver
-from typing import List, Dict
+from typing import Dict, List
 from . import ebcommon
 from . import fw
 from . import lcd
@@ -58,7 +58,9 @@ class DriverServer(rpycserver.Service):
         """
         Return the status of this service's submodules.
         """
-        return self._fw_submodule.status() | self._led_submodule.status() | self._lcd_submodule.status() | self._servo_submodule.status()
+        status = self._fw_submodule.status() | self._led_submodule.status() | self._lcd_submodule.status() | self._servo_submodule.status()
+        alog.info(f"Received request for status. Status: {status}")
+        return {k: str(v) for k, v in status.items()}
 
     @rpyc.exposed
     @alog.function_counter("self_check")

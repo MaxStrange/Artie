@@ -275,7 +275,7 @@ def set_up_logging(args):
 
     stream_handler= logging.StreamHandler()
     handlers = [stream_handler]
-    if args.output:
+    if hasattr(args, 'output') and args.output:
         file_handler = logging.FileHandler(args.output)
         handlers += [file_handler]
 

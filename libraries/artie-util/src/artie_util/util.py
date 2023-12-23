@@ -61,7 +61,8 @@ def create_rpc_server(server, keyfpath: str, certfpath: str, port: int, ipv6=Fal
 
     protocol = {
         # See: https://rpyc.readthedocs.io/en/latest/api/core_protocol.html#rpyc.core.protocol.DEFAULT_CONFIG
-        # 'allow_public_attrs': True
+        'allow_all_attrs': True,
+        'allow_pickle': True,
     }
 
     t = ThreadPoolServer(

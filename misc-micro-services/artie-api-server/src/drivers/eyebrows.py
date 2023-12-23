@@ -167,7 +167,8 @@ def get_status(artie_id: str) -> Tuple[None|int, str|Dict[str, str]]:
     """
     try:
         connection = asc.ServiceConnection(asc.Service.EYEBROWS_SERVICE, artie_id=artie_id)
-        status = connection.status()
+        d = connection.status()
+        status = {k: d[k] for k in d}
         return None, status
     except TimeoutError as e:
         return 504, f"Timed out trying to get the eyebrow status: {e}"

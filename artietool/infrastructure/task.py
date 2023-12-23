@@ -117,20 +117,62 @@ class Task:
             j.link(self, i)
             j.claim_artifacts()
 
-class BuildTask(Task):
-    """
-    A BuildTask is a Task that builds something and is invoked by the CLI's 'build' module.
-    """
-    pass
-
 class TestTask(Task):
     """
     A TestTask is a Task that runs one or more tests and is invoked by the CLI's 'test' module.
     """
     pass
 
+class HardwareTestTask(TestTask):
+    """
+    A HardwareTestTask is a Task that runs on the actual Artie hardware. There's some nonsense
+    associated with it to ensure that we only run exactly one HardwareTestTask and one
+    hardware test job at a time.
+    """
+    def _collapse_all_hw_test_jobs(self, hw_test_jobs):
+        # Smush them all together into the first one
+        for j in hw_test_jobs[1:]:
+            hw_test_jobs[0].combine(j)
+
+        # Now remove them all but the first one
+        return [hw_test_jobs[0]]
+
+    def combine(self, other) -> None:
+        """
+        Combines this test task with another one. The other one is left unchanged.
+        """
+        if not issubclass(type(other), HardwareTestTask):
+            # Can't combine with a non-HardwareTestTask
+            return
+
+        # First of all, I should only have at most one hardware test job. Otherwise I need to collapse
+        # them into each other on my own object before I can combine them on another one.
+        common.info(f"Combining {self.name} with {other.name}")
+        self.name = "HW-Tests"
+        hw_test_jobs = [j for j in self.jobs if hasattr(j, 'is_hw_test_job') and j.is_hw_test_job]
+        if len(hw_test_jobs) == 0:
+            # This is odd. How are we a HardwareTestTask if we don't have any HardwareTestJobs?
+            raise ValueError(f"Misconfigured HardwareTestTask: no hardware test jobs associated with it.")
+        elif len(hw_test_jobs) > 1:
+            hw_test_jobs = self._collapse_all_hw_test_jobs(hw_test_jobs)
+
+        # We should now have exactly one hw_test_job
+        hw_test_job = hw_test_jobs[0]
+
+        # Next, that one hardware test job (if it exists) should gobble up ALL hardware test jobs
+        # in the other task.
+        for j in other.jobs:
+            if hasattr(j, 'is_hw_test_job') and j.is_hw_test_job:
+                hw_test_job.combine(j)
+
 class DeployTask(Task):
     """
     A DeployTask is a Task that removes or adds a set of items such as containers to the workload.
+    """
+    pass
+
+class BuildTask(Task):
+    """
+    A BuildTask is a Task that builds something and is invoked by the CLI's 'build' module.
     """
     pass
