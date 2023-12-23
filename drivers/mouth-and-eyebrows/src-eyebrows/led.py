@@ -19,24 +19,18 @@ class LedSubmodule:
         self.right_led_status = constants.SubmoduleStatuses.UNKNOWN
 
     def _self_check_one_side(self, side: str):
-        status = constants.SubmoduleStatuses.WORKING
         prev_state = self._left_led_state if side == 'left' else self._right_led_state
-        try:
-            self.on(side)
-            time.sleep(0.1)
-            self.off(side)
-            time.sleep(0.1)
-            match prev_state:
-                case 'on':
-                    self.on(side)
-                case 'off':
-                    self.off(side)
-                case 'heartbeat':
-                    self.heartbeat(side)
-        except Exception as e:
-            alog.error(f"Error trying to run self check on {side} eyebrow's LED: {e}")
-            status = constants.SubmoduleStatuses.NOT_WORKING
-        self._set_status(side, status)
+        self.on(side)
+        time.sleep(0.1)
+        self.off(side)
+        time.sleep(0.1)
+        match prev_state:
+            case 'on':
+                self.on(side)
+            case 'off':
+                self.off(side)
+            case 'heartbeat':
+                self.heartbeat(side)
 
     def _set_status(self, side: str, status: constants.SubmoduleStatuses):
         if side == 'left':

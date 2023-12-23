@@ -17,7 +17,7 @@ def _process_line(line: str) -> bool:
     """
     Return True if there was an error while processing.
     """
-    submodule_status_pattern = re.compile("\s+?P<submodule>.*:\s+\[?P<status>.*\]\s*")
+    submodule_status_pattern = re.compile("\s+(?P<submodule>.*):\s+\[(?P<status>.*)\]\s*")
     if not line.strip().endswith("]"):
         print("Ignoring line that does not end with ']'")
         return False
