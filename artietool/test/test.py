@@ -9,7 +9,7 @@ from ..infrastructure import result
 from ..infrastructure import run
 from ..infrastructure import task
 from ..infrastructure import task_importer
-from typing import Iterable
+from typing import Iterable, List
 import argparse
 import datetime
 import os
@@ -26,7 +26,7 @@ TEST_CLASSES = [
     "all-fw",
     "all-containers",
     "all-yocto",
-    "all-on-board",
+    "all-hw",
 ]
 
 def _create_test_folder_tag(args) -> str:
@@ -37,6 +37,19 @@ def _create_test_folder_tag(args) -> str:
     tag = args.docker_tag if hasattr(args, 'docker_tag') and args.docker_tag else common.git_tag()
     tag = "".join(c for c in tag if c.isalnum() or c in "._-")
     return tag
+
+def _combine_hw_tests(tasks: task.Task) -> List[task.Task]:
+    """
+    Combine all HW tests into a single one and return the resulting,
+    modified list of all tasks.
+    """
+    hw_tasks = [t for t in tasks if task.Labels.HARDWARE in t.labels]
+    if len(hw_tasks) > 1:
+        common.info("Combining all hardware test tasks into a single one")
+        for t in hw_tasks[1:]:
+            hw_tasks[0].combine(t)
+        hw_tasks = [hw_tasks[0]]
+    return [t for t in tasks if task.Labels.HARDWARE not in t.labels] + hw_tasks
 
 def _test_class_of_items(args):
     """
@@ -60,11 +73,15 @@ def _test_class_of_items(args):
             tasks = [t for t in TEST_TASKS if task.Labels.INTEGRATION in t.labels]
         case "all-sanity":
             tasks = [t for t in TEST_TASKS if task.Labels.SANITY in t.labels]
-        case "all-on-board":
+        case "all-hw":
             tasks = [t for t in TEST_TASKS if task.Labels.HARDWARE in t.labels]
         case _:
             raise ValueError(f"{args.module} is invalid for some reason")
 
+    # All hardware test tasks need to be combined into a single test task
+    tasks = _combine_hw_tests(tasks)
+
+    # Run them and return the results
     return run.run_tasks(args, tasks, TEST_TASKS + build.BUILD_TASKS)
 
 def _write_results_to_output_folder(args, res: result.TaskResult, dpath):

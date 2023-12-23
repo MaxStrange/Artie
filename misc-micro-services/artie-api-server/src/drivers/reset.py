@@ -47,6 +47,7 @@ def get_status(artie_id: str) -> Tuple[None|int, str|Dict[str, str]]:
     try:
         connection = asc.ServiceConnection(asc.Service.RESET_SERVICE, artie_id=artie_id)
         status = connection.status()
+        status = {k: status[k] for k in status}
         return None, status
     except TimeoutError as e:
         return 504, f"Timed out trying to get the reset status: {e}"

@@ -10,34 +10,34 @@ class EyebrowClient(apiclient.APIClient):
     def led_on(self, side: str):
         response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'on'})
         if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+            common.format_print_result(f"Error setting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
 
     def led_off(self, side: str):
         response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'off'})
         if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+            common.format_print_result(f"Error setting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
 
     def led_heartbeat(self, side: str):
         response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'heartbeat'})
         if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+            common.format_print_result(f"Error setting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
 
     def led_get(self, side: str):
         response = self.get(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error getting {side} LED value: {response}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
+            common.format_print_result(f"Error getting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
         else:
             common.format_print_result(f"{side} LED value: {response.json().get('state')}", module='eyebrows', submodule='LED', artie_id=response.json().get('artie-id'))
 
     def lcd_test(self, side: str):
         response = self.post(f"/eyebrows/lcd/{side}/test", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error testing {side} LCD: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+            common.format_print_result(f"Error testing {side} LCD: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
 
     def lcd_off(self, side: str):
         response = self.post(f"/eyebrows/lcd/{side}/off", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error clearing {side} LCD: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+            common.format_print_result(f"Error clearing {side} LCD: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
 
     def lcd_draw(self, side: str, draw_val: List[str]):
         body = {
@@ -45,43 +45,43 @@ class EyebrowClient(apiclient.APIClient):
         }
         response = self.post(f"/eyebrows/lcd/{side}", body=body, params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LCD: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+            common.format_print_result(f"Error setting {side} LCD: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
 
     def lcd_get(self, side: str):
         response = self.get(f"/eyebrows/lcd/{side}", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error getting {side} LCD value: {response}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
+            common.format_print_result(f"Error getting {side} LCD value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
         else:
             common.format_print_result(f"Display value: {response.json().get('vertices')}", module='eyebrows', submodule='LCD', artie_id=response.json().get('artie-id'))
 
     def servo_go(self, side: str, go_val: float):
         response = self.post(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id, 'degrees': f"{go_val:0.2f}"})
         if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} Servo: {response}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
+            common.format_print_result(f"Error setting {side} Servo: {response.content.decode('utf-8')}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
 
     def servo_get(self, side: str):
         response = self.get(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error getting {side} Servo: {response}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
+            common.format_print_result(f"Error getting {side} Servo: {response.content.decode('utf-8')}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
         else:
             common.format_print_result(f"{side} servo position in degrees: {response.json().get('degrees')}", module='eyebrows', submodule='servo', artie_id=response.json().get('artie-id'))
 
     def firmware_load(self):
         response = self.post(f"/eyebrows/fw", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error reloading eyebrow FW: {response}", module='eyebrows', submodule='FW', artie_id=self.artie_id)
+            common.format_print_result(f"Error reloading eyebrow FW: {response.content.decode('utf-8')}", module='eyebrows', submodule='FW', artie_id=self.artie_id)
 
     def status(self):
         response = self.get("/eyebrows/status", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_status_result(f"Error getting eyebrow status: {response}", module='eyebrows', submodule='status', artie_id=self.artie_id)
+            common.format_print_status_result(f"Error getting eyebrow status: {response.content.decode('utf-8')}", module='eyebrows', artie_id=self.artie_id)
         else:
             common.format_print_status_result(response.json(), module='eyebrows', artie_id=self.artie_id)
 
     def self_check(self):
         response = self.post("/eyebrows/self-test", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error running eyebrow self-check: {response}", module='eyebrows', submodule='status', artie_id=self.artie_id)
+            common.format_print_result(f"Error running eyebrow self-check: {response.content.decode('utf-8')}", module='eyebrows', submodule='status', artie_id=self.artie_id)
 
 def _connect_client(args) -> common._ConnectionWrapper | EyebrowClient:
     if common.in_test_mode(args):

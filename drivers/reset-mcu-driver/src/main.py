@@ -114,9 +114,7 @@ class ResetMcuDriver(rpycserver.Service):
         """
         Return the status of this service's submodules.
         """
-        return {
-            "MCU": self._mcu_status,
-        }
+        return {"MCU": str(self._mcu_status)}
 
     @rpyc.exposed
     @alog.function_counter("self_check")

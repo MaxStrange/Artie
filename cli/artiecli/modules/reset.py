@@ -30,14 +30,14 @@ class ResetClient(apiclient.APIClient):
     def status(self):
         response = self.get("/reset/status", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_status_result(f"Error getting reset status: {response}", module='reset', submodule='status', artie_id=self.artie_id)
+            common.format_print_status_result(f"Error getting reset status: {response.content.decode('utf-8')}", module='reset', artie_id=self.artie_id)
         else:
             common.format_print_status_result(response.json(), module='reset', artie_id=self.artie_id)
 
     def self_check(self):
         response = self.post("/reset/self-test", params={'artie-id': self.artie_id})
         if response.status_code != 200:
-            common.format_print_result(f"Error running reset self-check: {response}", module='reset', submodule='status', artie_id=self.artie_id)
+            common.format_print_result(f"Error running reset self-check: {response.content.decode('utf-8')}", module='reset', submodule='status', artie_id=self.artie_id)
 
 def _connect_client(args) -> common._ConnectionWrapper | ResetClient:
     if common.in_test_mode(args):

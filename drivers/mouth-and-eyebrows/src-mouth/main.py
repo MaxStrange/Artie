@@ -56,7 +56,9 @@ class DriverServer(rpycserver.Service):
         """
         Return the status of this service's submodules.
         """
-        return self._fw_submodule.status() | self._led_submodule.status() | self._lcd_submodule.status()
+        status = self._fw_submodule.status() | self._led_submodule.status() | self._lcd_submodule.status()
+        alog.info(f"Received request for status: {status}")
+        return {k: str(v) for k, v in status.items()}
 
     @rpyc.exposed
     @alog.function_counter("self_check")

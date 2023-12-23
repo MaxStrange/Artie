@@ -72,7 +72,7 @@ Now run the following to test that everything is working properly:
 
 ```shell
 python artie-tool.py deploy base
-python artie-tool.py test all-on-board
+python artie-tool.py test all-hw
 ```
 
 If everything went well, you should see a bunch of [OK] results.
