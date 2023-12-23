@@ -22,7 +22,7 @@ class LedSubmodule:
 
     def status(self):
         return {
-            "LED": self._led_state
+            "LED": self._led_status
         }
 
     def self_check(self):
