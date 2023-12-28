@@ -8,30 +8,14 @@
 // Third party library includes
 #include <i2c_fifo.h>
 #include <i2c_slave.h>
+// Library includes
+#include <errors.h>
 // Local includes
 #include "cmds.h"
 #include "../board/pinconfig.h"
-#include "../board/errors.h"
-
-/** The value that we will give out from the sensors subsystem the next time an i2c read is requested. */
-static float register_read_value = 0.0f;
-
-#ifdef MOUTH
-/** I2C address if we are the mouth. */
-static const uint MOUTH_I2C_ADDRESSS = 0x19;
-#else
-/** I2C address if we are the left eye. */
-static const uint LEFT_EYE_I2C_ADDRESS = 0x17;
-
-/** I2C address if we are the right eye. */
-static const uint RIGHT_EYE_I2C_ADDRESS = 0x18;
-#endif // MOUTH
 
 /** Baudrate for the I2C bus */
 static const uint I2C_BAUDRATE = 100 * 1000;
-
-/** Our I2C address */
-static uint OUR_I2C_ADDRESS = EYE_UNASSIGNED_SIDE;
 
 /** The number of items we can hold at maximum in the command queue. No testing was done to determine this value. */
 static const uint CMD_QUEUE_SIZE = 128;
@@ -77,27 +61,9 @@ static void _i2c_handler(i2c_inst_t *i2c, i2c_slave_event_t event)
     }
 }
 
-void cmds_set_register_value(float value)
-{
-    register_read_value = value;
-}
-
-side_t cmds_init(void)
+void cmds_init(uint i2c_address)
 {
     log_info("Init command module\n");
-
-#ifdef MOUTH
-    side_t left_or_right = EYE_UNASSIGNED_SIDE;
-    OUR_I2C_ADDRESS = MOUTH_I2C_ADDRESSS;
-#else
-    // Determine if we are right or left eyebrow/eye
-    // Read state: HIGH (1) means we are RIGHT
-    //              LOW (0) means we are LEFT
-    gpio_init(ADDRESS_PIN);
-    gpio_set_dir(ADDRESS_PIN, GPIO_IN);
-    side_t left_or_right = gpio_get(ADDRESS_PIN);
-    OUR_I2C_ADDRESS = (left_or_right == EYE_LEFT_SIDE) ? LEFT_EYE_I2C_ADDRESS : RIGHT_EYE_I2C_ADDRESS;
-#endif // MOUTH
 
     // Initialize I2C
     queue_init(&cmd_queue, sizeof(uint8_t), CMD_QUEUE_SIZE);
@@ -109,12 +75,7 @@ side_t cmds_init(void)
     gpio_pull_up(I2C_SCL_PIN);
 
     i2c_init(i2c0, I2C_BAUDRATE);
-#ifndef MOUTH
-    assert(OUR_I2C_ADDRESS != EYE_UNASSIGNED_SIDE);
-#endif // MOUTH
-    i2c_slave_init(i2c0, OUR_I2C_ADDRESS, &_i2c_handler);
-
-    return left_or_right;
+    i2c_slave_init(i2c0, i2c_address, &_i2c_handler);
 }
 
 bool cmds_get_next(cmd_t *ret)

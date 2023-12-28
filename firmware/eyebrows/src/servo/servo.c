@@ -5,10 +5,11 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "pico/time.h"
+// Library includes
+#include <errors.h>
 // Local includes
 #include "servo.h"
 #include "../cmds/cmds.h"
-#include "../board/errors.h"
 #include "../board/pinconfig.h"
 
 /** Macro for converting ms to micro seconds. */

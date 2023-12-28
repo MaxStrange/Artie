@@ -12,7 +12,10 @@
 extern "C" {
 #endif
 
+// Standard libraries
 #include <stdbool.h>
+// SDK includes
+#include "pico/stdlib.h"
 
 // Commands are of the form xxyy yyyy where xx are two bits which set the module
 //    and yy yyyy are six bits which specify the command.
@@ -22,13 +25,6 @@ extern "C" {
 #ifndef MOUTH
     #define CMD_MODULE_ID_SERVO    0x80    // 0b1000 0000 // Exclusive to eyes
 #endif // MOUTH
-
-/** Which eyebrow are we? */
-typedef enum {
-    EYE_LEFT_SIDE           = 0,
-    EYE_RIGHT_SIDE          = 1,
-    EYE_UNASSIGNED_SIDE     = 0xFF
-} side_t;
 
 /**
  * @brief The types of commands we can receive and act on.
@@ -62,9 +58,11 @@ typedef enum {
 void cmds_set_register_value(float value);
 
 /**
- * @brief Initialize the command module, which determines which MCU we are.
+ * @brief Initialize the command module.
+ *
+ * @param i2c_address The address of this MCU on the I2C bus.
  */
-side_t cmds_init(void);
+void cmds_init(uint i2c_address);
 
 /**
  * @brief Get the next command from the queue of so-far received commands.

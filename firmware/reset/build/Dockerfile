@@ -1,7 +1,10 @@
 ARG ARTIE_BASE_IMG
 FROM ${ARTIE_BASE_IMG} AS BASE_IMG
 
-COPY ./src /pico/src
+COPY ./reset/src /pico/src
+COPY ./libraries/leds /pico/src/leds
+COPY ./libraries/errors /pico/src/errors
+COPY ./libraries/cmds /pico/src/cmds
 WORKDIR /pico/src/build
 
 ARG BUILD_TYPE=Debug

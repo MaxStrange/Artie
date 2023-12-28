@@ -4,11 +4,10 @@
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 #include "hardware/pwm.h"
+// Library includes
+#include "../errors/errors.h"
 // Local includes
 #include "leds.h"
-#include "../board/pinconfig.h"
-#include "../cmds/cmds.h"
-#include "../board/errors.h"
 
 /** Possible modes of the LED. */
 typedef enum {
@@ -20,27 +19,30 @@ typedef enum {
 /** Depending on the mode of LED we want, the LED pin must be configured differently. */
 static led_mode_t led_mode = LED_MODE_UNASSIGNED;
 
+/** The GPIO pin that we use as the LED. This gets set during initialization. */
+static uint _LED_PIN = 0;
+
 /** Deconfigure LED pin from ON/OFF mode. */
 static inline void deconfigure_led_on_off_mode(void)
 {
-    gpio_init(LED_PIN);
+    gpio_init(_LED_PIN);
 }
 
 /** Deconfigure LED pin from heartbeat mode. */
 static inline void deconfigure_led_heartbeat_mode(void)
 {
-    uint slice_num = pwm_gpio_to_slice_num(LED_PIN);
+    uint slice_num = pwm_gpio_to_slice_num(_LED_PIN);
     pwm_set_enabled(slice_num, false);
     pwm_set_irq_enabled(slice_num, false);
     irq_set_enabled(PWM_IRQ_WRAP, false);
-    gpio_init(LED_PIN);
+    gpio_init(_LED_PIN);
 }
 
 /** Configure LED pin for ON/OFF mode. */
 static inline void configure_led_on_off_mode(void)
 {
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_init(_LED_PIN);
+    gpio_set_dir(_LED_PIN, GPIO_OUT);
 }
 
 /** IRQ for the PWM which handles heartbeat mode. */
@@ -50,7 +52,7 @@ static void heartbeat_on_pwm_wrap_cb(void)
     static volatile bool going_up = true;
 
     // Clear the interrupt flag that brought us here
-    pwm_clear_irq(pwm_gpio_to_slice_num(LED_PIN));
+    pwm_clear_irq(pwm_gpio_to_slice_num(_LED_PIN));
 
     if (going_up)
     {
@@ -72,7 +74,7 @@ static void heartbeat_on_pwm_wrap_cb(void)
     }
     // Square the fade value to make the LED's brightness appear more linear
     // Note this range matches with the wrap value
-    pwm_set_gpio_level(LED_PIN, fade * fade);
+    pwm_set_gpio_level(_LED_PIN, fade * fade);
 }
 
 /** Configure the LED pin for heartbeat mode. */
@@ -81,10 +83,10 @@ static void configure_led_heartbeat_mode(void)
     // This function is taken originally from the Pico examples
 
     // Tell the LED pin that the PWM is in charge of its value.
-    gpio_set_function(LED_PIN, GPIO_FUNC_PWM);
+    gpio_set_function(_LED_PIN, GPIO_FUNC_PWM);
 
     // Figure out which slice we just connected to the LED pin
-    uint slice_num = pwm_gpio_to_slice_num(LED_PIN);
+    uint slice_num = pwm_gpio_to_slice_num(_LED_PIN);
 
     // Register our interrupt handler with the PWM subsystem.
     pwm_clear_irq(slice_num);
@@ -153,25 +155,25 @@ static void configure_led(led_mode_t new_mode)
     }
 }
 
-static void leds_on(void)
+void leds_on(void)
 {
     if (led_mode != LED_MODE_ON_OFF)
     {
         configure_led(LED_MODE_ON_OFF);
     }
-    gpio_put(LED_PIN, 1);
+    gpio_put(_LED_PIN, 1);
 }
 
-static void leds_off(void)
+void leds_off(void)
 {
     if (led_mode != LED_MODE_ON_OFF)
     {
         configure_led(LED_MODE_ON_OFF);
     }
-    gpio_put(LED_PIN, 0);
+    gpio_put(_LED_PIN, 0);
 }
 
-static void leds_heartbeat(void)
+void leds_heartbeat(void)
 {
     if (led_mode != LED_MODE_HEARTBEAT)
     {
@@ -179,27 +181,9 @@ static void leds_heartbeat(void)
     }
 }
 
-void leds_init(void)
+void leds_init(uint led_pin)
 {
     log_info("Init LEDs\n");
+    _LED_PIN = led_pin;
     configure_led(LED_MODE_HEARTBEAT);
-}
-
-void leds_cmd(cmd_t command)
-{
-    switch (command)
-    {
-        case CMD_LED_ON:
-            leds_on();
-            break;
-        case CMD_LED_OFF:
-            leds_off();
-            break;
-        case CMD_LED_HEARTBEAT:
-            leds_heartbeat();
-            break;
-        default:
-            log_error("Illegal cmd type 0x%02X\n in LED subsystem", command);
-            break;
-    }
 }

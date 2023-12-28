@@ -15,14 +15,16 @@ extern "C" {
  * @brief Initializes the LEDs.
  *
  */
-void leds_init(void);
+void leds_init(uint led_pin);
 
-/**
- * @brief Handle the given LED subsystem command.
- *
- * @param command The command to handle.
- */
-void leds_cmd(cmd_t command);
+/** Turn the LED on. */
+void leds_on(void);
+
+/** Turn the LED off. */
+void leds_off(void);
+
+/** Turn the LED to heartbeat mode. */
+void leds_heartbeat(void);
 
 #ifdef __cplusplus
 }

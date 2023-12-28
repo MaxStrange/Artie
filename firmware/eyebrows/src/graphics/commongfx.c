@@ -1,12 +1,13 @@
 // Std lib includes
 #include <stdio.h>
 // SDK includes
-// Local includes
-#include "commongfx.h"
+// Library includes
+#include <errors.h>
 #include "lcd/LCD/LCD_1in14.h"
 #include "lcd/LCD/LCD_2in.h"
 #include "lcd/GUI/GUI_Paint.h"
-#include "../board/errors.h"
+// Local includes
+#include "commongfx.h"
 
 /** Union of two functions since they have slightly different signatures. */
 typedef union {

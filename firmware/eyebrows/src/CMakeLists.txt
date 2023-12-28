@@ -19,7 +19,6 @@ file(GLOB SOURCES
   "cmds/*.c"
   "graphics/*.c"
   "graphics/lcd/*/*.c"
-  "leds/*.c"
   "servo/*.c"
 )
 include_directories(
@@ -28,11 +27,14 @@ include_directories(
   "cmds"
   "graphics"
   "graphics/lcd/*"
-  "leds"
   "servo"
 )
 
+# Copied into our build tree via Dockerfile or build task
 add_subdirectory(i2c_slave)
+add_subdirectory(leds)
+add_subdirectory(errors)
+add_subdirectory(cmds)
 
 add_executable(eyebrows ${SOURCES})
 target_link_libraries(eyebrows
@@ -42,6 +44,9 @@ target_link_libraries(eyebrows
   hardware_i2c
   hardware_pwm
   i2c_slave
+  artie_led
+  artie_err
+  artie_cmds
   hardware_gpio
   hardware_clocks
   pico_time

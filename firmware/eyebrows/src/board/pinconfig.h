@@ -46,6 +46,13 @@ static const uint ADDRESS_PIN = 22;
 //
 // They make use of spi1 and i2c1
 
+/** Which eyebrow are we? */
+typedef enum {
+    EYE_LEFT_SIDE           = 0,
+    EYE_RIGHT_SIDE          = 1,
+    EYE_UNASSIGNED_SIDE     = 0xFF
+} side_t;
+
 #ifdef __cplusplus
 }
 #endif

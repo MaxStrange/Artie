@@ -3,9 +3,10 @@ FROM ${ARTIE_BASE_IMG} AS BASE_IMG
 
 RUN mkdir -p /pico/src/graphics/lcd
 
-ENV PICO_SDK_PATH=/pico/pico-sdk
-
-COPY ./src /pico/src
+COPY ./eyebrows/src /pico/src
+COPY ./libraries/leds /pico/src/leds
+COPY ./libraries/errors /pico/src/errors
+COPY ./libraries/cmds /pico/src/cmds
 WORKDIR /pico/src/build
 
 ARG BUILD_TYPE=Debug
