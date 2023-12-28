@@ -6,6 +6,7 @@
 #pragma once
 
 #include "../cmds/cmds.h"
+#include "../board/pinconfig.h"
 
 #ifdef __cplusplus
 extern "C" {

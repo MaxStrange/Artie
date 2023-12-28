@@ -1,8 +1,10 @@
 // Std lib includes
 // SDK includes
+// Library includes
+#include <errors.h>
 // Local includes
 #include "../cmds/cmds.h"
-#include "../board/errors.h"
+#include "../board/pinconfig.h"
 #ifdef MOUTH
     #include "mouthgfx.h"
 #else

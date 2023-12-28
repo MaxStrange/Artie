@@ -5,6 +5,9 @@ RUN mkdir -p /pico/src/graphics/lcd
 
 COPY ./eyebrows/src /pico/src
 COPY ./mouth/CMakeLists.txt /pico/src/CMakeLists.txt
+COPY ./libraries/leds /pico/src/leds
+COPY ./libraries/errors /pico/src/errors
+COPY ./libraries/cmds /pico/src/cmds
 WORKDIR /pico/src/build
 
 ARG BUILD_TYPE=Debug

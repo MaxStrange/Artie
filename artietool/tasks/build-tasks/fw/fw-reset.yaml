@@ -17,7 +17,7 @@ steps:
     buildx: false
     dockerfile-dpath: "${REPO_ROOT}/firmware/reset/build"
     dockerfile: Dockerfile
-    build-context: ".."
+    build-context: "../.."
     build-args:
       - ARTIE_BASE_IMG:
           dependency:

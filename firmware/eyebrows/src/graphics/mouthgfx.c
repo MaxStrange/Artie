@@ -2,12 +2,13 @@
 // Std lib includes
 #include <stdio.h>
 // SDK includes
+// Library includes
+#include <errors.h>
 // Local includes
 #include "commongfx.h"
 #include "lcd/LCD/LCD_2in.h"
 #include "lcd/GUI/GUI_Paint.h"
 #include "../cmds/cmds.h"
-#include "../board/errors.h"
 
 /** The width of the mouth. */
 #define MOUTH_WIDTH 275

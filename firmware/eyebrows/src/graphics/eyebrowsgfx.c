@@ -3,12 +3,14 @@
 // SDK includes
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
-// Local includes
-#include "commongfx.h"
+// Library includes
 #include "lcd/LCD/LCD_1in14.h"
 #include "lcd/GUI/GUI_Paint.h"
+#include <errors.h>
+// Local includes
+#include "commongfx.h"
+#include "../board/pinconfig.h"
 #include "../cmds/cmds.h"
-#include "../board/errors.h"
 
 /** The location of a given pair of vertices */
 typedef enum {
