@@ -5,6 +5,7 @@
 // Local includes
 #include "../cmds/cmds.h"
 #include "../board/pinconfig.h"
+#include "../board/types.h"
 #ifdef MOUTH
     #include "mouthgfx.h"
 #else

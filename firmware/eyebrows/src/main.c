@@ -10,6 +10,7 @@
 #include "cmds/cmds.h"
 #include "graphics/graphics.h"
 #include "board/pinconfig.h"
+#include "board/types.h"
 #ifndef MOUTH
     #include "servo/servo.h"
 #endif // MOUTH
@@ -32,9 +33,7 @@ static const uint RIGHT_EYE_I2C_ADDRESS = 0x18;
  */
 static side_t determine_side(void)
 {
-#ifdef MOUTH
-    return EYE_UNASSIGNED_SIDE
-#endif
+#ifndef MOUTH
     // Determine if we are right or left eyebrow/eye
     // Read state: HIGH (1) means we are RIGHT
     //              LOW (0) means we are LEFT
@@ -42,6 +41,9 @@ static side_t determine_side(void)
     gpio_set_dir(ADDRESS_PIN, GPIO_IN);
     side_t left_or_right = (side_t)gpio_get(ADDRESS_PIN);
     return left_or_right;
+#else
+    return EYE_UNASSIGNED_SIDE;
+#endif // MOUTH
 }
 
 /**
@@ -51,6 +53,7 @@ static side_t determine_side(void)
  */
 static inline uint determine_address(side_t side)
 {
+#ifndef MOUTH
     switch (side)
     {
         case EYE_LEFT_SIDE:
@@ -58,12 +61,11 @@ static inline uint determine_address(side_t side)
         case EYE_RIGHT_SIDE:
             return RIGHT_EYE_I2C_ADDRESS;
         default:
-#ifdef MOUTH
-            return MOUTH_I2C_ADDRESSS;
-#else
             return LEFT_EYE_I2C_ADDRESS;
-#endif // MOUTH
     }
+#else
+    return MOUTH_I2C_ADDRESSS;
+#endif // MOUTH
 }
 
 /**
@@ -105,7 +107,7 @@ int main()
     const uint address = determine_address(side);
 
     // Initialize I2C for communication with controller module.
-    cmds_init(address);
+    cmds_init(address, I2C_SDA_PIN, I2C_SCL_PIN);
 
     // Initialize LCD
     graphics_init(side);

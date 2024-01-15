@@ -7,6 +7,7 @@
 
 #include "../cmds/cmds.h"
 #include "../board/pinconfig.h"
+#include "../board/types.h"
 
 #ifdef __cplusplus
 extern "C" {

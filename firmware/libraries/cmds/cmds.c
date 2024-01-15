@@ -61,7 +61,7 @@ static void _i2c_handler(i2c_inst_t *i2c, i2c_slave_event_t event)
     }
 }
 
-void cmds_init(uint i2c_address)
+void cmds_init(uint i2c_address, uint sda_pin, uint scl_pin)
 {
     log_info("Init command module\n");
 
@@ -78,7 +78,7 @@ void cmds_init(uint i2c_address)
     i2c_slave_init(i2c0, i2c_address, &_i2c_handler);
 }
 
-bool cmds_get_next(cmd_t *ret)
+bool cmds_get_next(uint8_t *ret)
 {
     uint32_t ret_as_uint32 = 0;
     bool worked = queue_try_remove(&cmd_queue, &ret_as_uint32);

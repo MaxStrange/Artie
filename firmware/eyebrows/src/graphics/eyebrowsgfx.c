@@ -10,6 +10,7 @@
 // Local includes
 #include "commongfx.h"
 #include "../board/pinconfig.h"
+#include "../board/types.h"
 #include "../cmds/cmds.h"
 
 /** The location of a given pair of vertices */
