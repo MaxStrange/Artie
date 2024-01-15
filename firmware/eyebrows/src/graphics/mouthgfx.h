@@ -11,7 +11,7 @@ extern "C" {
 
 #ifdef MOUTH
 
-#include "../cmds/cmds.h"
+#include "../board/types.h"
 
 /**
  * @brief Initialize graphics (and LCD) libraries.

@@ -8,7 +8,7 @@
 #include "commongfx.h"
 #include "lcd/LCD/LCD_2in.h"
 #include "lcd/GUI/GUI_Paint.h"
-#include "../cmds/cmds.h"
+#include "../board/types.h"
 
 /** The width of the mouth. */
 #define MOUTH_WIDTH 275

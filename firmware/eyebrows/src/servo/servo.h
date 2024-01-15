@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 #include "../cmds/cmds.h"
+#include "../board/types.h"
 
 /**
  * @brief Initialize the servo subsystem.

@@ -17,10 +17,8 @@ add_compile_options(-Wall -Wextra -Werror -Wno-unused-function -Wno-unused-param
 file(GLOB SOURCES
   "*.c"
   "board/*.c"
-  "cmds/*.c"
   "graphics/*.c"
   "graphics/lcd/*/*.c"
-  "leds/*.c"
 )
 include_directories(
   "."
@@ -32,6 +30,9 @@ include_directories(
 )
 
 add_subdirectory(i2c_slave)
+add_subdirectory(leds)
+add_subdirectory(errors)
+add_subdirectory(cmds)
 
 add_executable(mouth ${SOURCES})
 target_link_libraries(mouth
@@ -41,6 +42,9 @@ target_link_libraries(mouth
   hardware_i2c
   hardware_pwm
   i2c_slave
+  artie_led
+  artie_err
+  artie_cmds
   hardware_gpio
   hardware_clocks
   pico_time

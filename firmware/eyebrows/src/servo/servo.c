@@ -11,6 +11,7 @@
 #include "servo.h"
 #include "../cmds/cmds.h"
 #include "../board/pinconfig.h"
+#include "../board/types.h"
 
 /** Macro for converting ms to micro seconds. */
 #define MS_TO_US(x) ((x) * 1000U)

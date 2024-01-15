@@ -16,7 +16,6 @@ add_compile_options(-Wall -Wextra -Werror -Wno-unused-function -Wno-unused-param
 file(GLOB SOURCES
   "*.c"
   "board/*.c"
-  "cmds/*.c"
   "graphics/*.c"
   "graphics/lcd/*/*.c"
   "servo/*.c"
