@@ -27,6 +27,7 @@ include_directories(
   "graphics"
   "graphics/lcd/*"
   "servo"
+  "errors"
 )
 
 # Copied into our build tree via Dockerfile or build task

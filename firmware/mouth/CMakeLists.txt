@@ -27,6 +27,7 @@ include_directories(
   "graphics"
   "graphics/lcd/*"
   "leds"
+  "errors"
 )
 
 add_subdirectory(i2c_slave)
