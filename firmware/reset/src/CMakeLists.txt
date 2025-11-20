@@ -15,18 +15,29 @@ add_compile_options(-Wall -Wextra -Werror -Wno-unused-function -Wno-unused-param
 # Add top-level source and header files
 file(GLOB SOURCES
   "*.c"
+  "board/*.c"
 )
 include_directories(
   "."
+  "board"
+  "cmds"
+  "leds"
+  "errors"
 )
 
 add_subdirectory(i2c_slave)
+add_subdirectory(leds)
+add_subdirectory(errors)
+add_subdirectory(cmds)
 
 add_executable(reset-mcu ${SOURCES})
 target_link_libraries(reset-mcu
   pico_stdlib
   hardware_i2c
   i2c_slave
+  artie_led
+  artie_err
+  artie_cmds
 )
 
 pico_add_extra_outputs(reset-mcu)
