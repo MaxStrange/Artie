@@ -30,6 +30,7 @@ class ArtieSerialConnection:
     def list_ports() -> list[str]:
         """List all available ports."""
         # TODO: Filter out all ports that can't possibly be an Artie Controller Node
+        #       based on VID/PID, etc. See: https://www.pyserial.com/docs/api-reference#listportinfo-properties
         ports = serial.tools.list_ports.comports()
         return [port.device for port in ports]
 
@@ -52,9 +53,30 @@ class ArtieSerialConnection:
         self.close()
         self.open()
 
+    def scan_for_wifi_networks(self) -> tuple[Exception, list[str]]:
+        """Scan for wifi networks and return a list of them."""
+        if not self._serial_connection or not self._serial_connection.is_open:
+            return serial.SerialException("Connection not open.")
+
+        # TODO: Implement the actual scanning here
+
+    def select_wifi(self, ssid: str, password: str) -> Exception|None:
+        """Select the wifi network and enter its password."""
+        if not self._serial_connection or not self._serial_connection.is_open:
+            return serial.SerialException("Connection not open.")
+
+        # TODO: Implement the wifi network selection logic
+
     def set_credentials(self, username: str, password: str) -> Exception|None:
         """Set the credentials on the connected Artie."""
         if not self._serial_connection or not self._serial_connection.is_open:
             return serial.SerialException("Connection not open.")
 
         # TODO: Implement the actual protocol for setting credentials over serial
+
+    def verify_wifi_connection(self) -> Exception|None:
+        """Verify that Artie is connected to the wifi network."""
+        if not self._serial_connection or not self._serial_connection.is_open:
+            return serial.SerialException("Connection not open.")
+
+        # TODO: Implement the actual verification logic

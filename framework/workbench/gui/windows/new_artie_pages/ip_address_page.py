@@ -1,10 +1,11 @@
 from PyQt6 import QtWidgets
+from comms import artie_serial
 import re
 
 class IPAddressPage(QtWidgets.QWizardPage):
-    """Page for collecting IP addresses"""
+    """Page for collecting the IP address"""
     
-    def __init__(self, config):
+    def __init__(self, config: artie_serial.ArtieSerialConnection):
         super().__init__()
         self.config = config
         self.setTitle("Network Configuration")

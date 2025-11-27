@@ -3,6 +3,9 @@ from comms import artie_serial
 
 class SerialConnectionPage(QtWidgets.QWizardPage):
     """Page prompting user to connect serial USB cable"""
+
+    _NO_PORTS_FOUND_TEXT = "No ports found"
+    """The text we display when there are no ports found."""
     
     def __init__(self):
         super().__init__()
@@ -54,6 +57,11 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
         
         # Populate ports on initialization
         self._refresh_ports()
+
+        # Set the chosen port as a QWizard 'field', which allows other pages
+        # in the wizard access to its value.
+        # The asterisk marks this field as mandatory.
+        self.registerField('serial.port*', self.port_combo)
     
     def _refresh_ports(self):
         """Refresh the list of available serial ports"""
@@ -64,7 +72,7 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
             self.port_combo.addItems(ports)
             self.port_combo.setEnabled(True)
         else:
-            self.port_combo.addItem("No ports found")
+            self.port_combo.addItem(self._NO_PORTS_FOUND_TEXT)
             self.port_combo.setEnabled(False)
     
     def validatePage(self):
@@ -78,7 +86,7 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
             return False
         
         selected_port = self.port_combo.currentText()
-        if selected_port == "No ports found":
+        if selected_port == self._NO_PORTS_FOUND_TEXT:
             QtWidgets.QMessageBox.warning(
                 self,
                 "No Port Selected",
@@ -88,6 +96,3 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
         
         return True
     
-    def get_selected_port(self):
-        """Get the currently selected port"""
-        return self.port_combo.currentText()
