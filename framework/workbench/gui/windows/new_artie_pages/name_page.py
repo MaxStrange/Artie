@@ -1,9 +1,10 @@
 from PyQt6 import QtWidgets
+from model import artie_profile
 
 class NamePage(QtWidgets.QWizardPage):
     """Page for naming the Artie"""
     
-    def __init__(self, config):
+    def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
         self.config = config
         self.setTitle("Name Your Artie")
@@ -32,5 +33,6 @@ class NamePage(QtWidgets.QWizardPage):
     
     def validatePage(self):
         """Store the name"""
-        self.config['artie_name'] = self.name_input.text()
+        self.config.artie_name = self.name_input.text()
+
         return True

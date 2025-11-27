@@ -1,4 +1,5 @@
 from PyQt6 import QtWidgets, QtCore
+from comms import tool
 
 class InstallPage(QtWidgets.QWizardPage):
     """Page that runs the artie-tool.py install command"""
@@ -6,6 +7,7 @@ class InstallPage(QtWidgets.QWizardPage):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self._artie_tool = tool.ArtieToolInvoker(self.config)
         self.setTitle("Installing Artie")
         self.setSubTitle("Running installation script...")
         self.setCommitPage(True)
@@ -33,21 +35,26 @@ class InstallPage(QtWidgets.QWizardPage):
     
     def _run_install(self):
         """Run the artie-tool.py install command"""
-        cmd = [
-            "python",
-            "artie-tool.py",
-            "install",
-            "--username", self.config['username'],
-            "--artie-ip", self.config['artie_ip'],
-            "--admin-ip", self.config['admin_ip'],
-            "--artie-name", self.config['artie_name']
-        ]
-        
-        self.output_text.append(f"Running: {' '.join(cmd)}\n")
-        
-        # TODO: Implement actual subprocess execution
-        # For now, simulate with timer
-        QtCore.QTimer.singleShot(2000, self._simulate_install_complete)
+        err = self._artie_tool.install()
+        if err:
+            self.output_text.append(f"\nERROR: Installation failed: {err}")
+            self.progress.setRange(0, 1)
+            self.progress.setValue(1)
+            self.install_complete = False
+            self.completeChanged.emit()
+            return
+
+        for stdout, stderr in self._artie_tool.read_all():
+            text = stdout + " " + stderr
+            self.output_text.append(text)
+
+        if not self._artie_tool.success:
+            self.output_text.append(f"\nERROR: Installation failed: {err}")
+            self.progress.setRange(0, 1)
+            self.progress.setValue(1)
+            self.install_complete = False
+            self.completeChanged.emit()
+            return
     
     def _simulate_install_complete(self):
         """Simulate installation completion"""
