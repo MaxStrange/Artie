@@ -1,13 +1,13 @@
 from comms import artie_serial
+from model import artie_profile
 from PyQt6 import QtWidgets
 
 class CredentialsPage(QtWidgets.QWizardPage):
     """Page for collecting Artie username and password"""
 
-    def __init__(self, config, connection: artie_serial.ArtieSerialConnection):
+    def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
         self.config = config
-        self.connection = connection
         self.setTitle("Set Artie Credentials")
         self.setSubTitle("Create a username and password for this Artie. "
                         "Credentials will be stored securely.")
@@ -57,17 +57,17 @@ class CredentialsPage(QtWidgets.QWizardPage):
             return False
 
         # Set the credentials on the serial connection
-        err = self.connection.set_credentials(username, password)
-        if err:
-            QtWidgets.QMessageBox.critical(
-                self,
-                "Error Setting Credentials",
-                f"An error occurred while setting credentials: {err}. Try submitting again."
-            )
-            self.connection.reset()
+        with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
+            err = connection.set_credentials(username, password)
+            if err:
+                QtWidgets.QMessageBox.critical(
+                        self,
+                        "Error Setting Credentials",
+                        f"An error occurred while setting credentials: {err}. Try submitting again."
+                    )
             return False
         
         # Store credentials
-        self.config['username'] = username
-        self.config['password'] = password
+        self.config.username = username
+        self.config.password = password
         return True
