@@ -1,21 +1,22 @@
 from PyQt6 import QtWidgets
-from comms import artie_serial
+from model import artie_profile
 import re
 
 class IPAddressPage(QtWidgets.QWizardPage):
     """Page for collecting the IP address"""
     
-    def __init__(self, config: artie_serial.ArtieSerialConnection):
+    def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
         self.config = config
         self.setTitle("Network Configuration")
-        self.setSubTitle("Enter the IP addresses for Artie and the admin server.")
+        self.setSubTitle("Enter the IP address for the admin server.")
         
         layout = QtWidgets.QFormLayout(self)
         
         # Artie IP
         self.artie_ip_input = QtWidgets.QLineEdit()
-        self.artie_ip_input.setPlaceholderText("e.g., 192.168.1.100")
+        self.artie_ip_input.setText(config.controller_node_ip)
+        self.artie_ip_input.setReadOnly(True)
         self.registerField("artie_ip*", self.artie_ip_input)
         layout.addRow("Artie IP Address:", self.artie_ip_input)
         
@@ -49,24 +50,12 @@ class IPAddressPage(QtWidgets.QWizardPage):
         # Simple IP validation
         ip_pattern = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
         
-        if not ip_pattern.match(artie_ip):
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Invalid IP",
-                "Please enter a valid IP address for Artie."
-            )
-            return False
-        
         if not ip_pattern.match(admin_ip):
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Invalid IP",
-                "Please enter a valid IP address for the admin server."
-            )
+            QtWidgets.QMessageBox.warning(self, "Invalid IP", "Please enter a valid IP address for the admin server.")
             return False
         
-        # Store IP addresses
-        self.config['artie_ip'] = artie_ip
-        self.config['admin_ip'] = admin_ip
-        self.config['admin_token'] = admin_token
+        # Store IP address and token
+        self.config.admin_node_ip = admin_ip
+        self.config.token = admin_token
+
         return True
