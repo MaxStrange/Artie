@@ -19,6 +19,16 @@ class ArtieToolInvoker:
         """Returns True if the subprocess completed successfully."""
         return self._retcode == 0
 
+    def deploy(self, configuration: str) -> Exception|None:
+        """Run the deploy command, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "deploy",
+            configuration
+        ]
+        return self._run_cmd(cmd)
+
     def install(self) -> Exception|None:
         """Run the install command, returning an error if something goes wrong."""
         cmd = [
@@ -71,6 +81,16 @@ class ArtieToolInvoker:
             yield self._process.stdout.read(nbytes).decode(), self._process.stderr.read(nbytes).decode()
 
         self._retcode = self._process.returncode
+
+    def test(self, test_type: str) -> Exception|None:
+        """Run the test command, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "test",
+            test_type
+        ]
+        return self._run_cmd(cmd)
 
     def _run_cmd(self, cmd: list[str]) -> Exception|None:
         """Run the command in a subprocess."""

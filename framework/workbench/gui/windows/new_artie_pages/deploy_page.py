@@ -1,4 +1,5 @@
 from PyQt6 import QtWidgets, QtCore
+from comms import tool
 
 class DeployPage(QtWidgets.QWizardPage):
     """Page that runs the artie-tool.py deploy base command"""
@@ -6,6 +7,7 @@ class DeployPage(QtWidgets.QWizardPage):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self._artie_tool = tool.ArtieToolInvoker(self.config)
         self.setTitle("Deploying Base Configuration")
         self.setSubTitle("Running deployment script...")
         self.setCommitPage(True)
@@ -30,25 +32,35 @@ class DeployPage(QtWidgets.QWizardPage):
         self.deploy_complete = False
         self.output_text.clear()
         QtCore.QTimer.singleShot(500, self._run_deploy)
+
+    def _complete_deployment(self, success: bool, err=None):
+        """Complete the deployment process"""
+        if success:
+            self.output_text.append("\nDeployment complete!")
+        else:
+            self.output_text.append(f"\nERROR: Deployment failed: {err}")
+        self.progress.setRange(0, 1)
+        self.progress.setValue(1)
+        self.deploy_complete = success
+        self.completeChanged.emit()
     
     def _run_deploy(self):
         """Run the artie-tool.py deploy base command"""
-        cmd = ["python", "artie-tool.py", "deploy", "base"]
-        
-        self.output_text.append(f"Running: {' '.join(cmd)}\n")
-        
-        # TODO: Implement actual subprocess execution
-        # For now, simulate with timer
-        QtCore.QTimer.singleShot(3000, self._simulate_deploy_complete)
-    
-    def _simulate_deploy_complete(self):
-        """Simulate deployment completion"""
-        self.output_text.append("\nDeployment complete!")
-        self.progress.setRange(0, 1)
-        self.progress.setValue(1)
-        self.deploy_complete = True
-        self.completeChanged.emit()
-    
+        err = self._artie_tool.deploy("base")
+        if err:
+            self._complete_deployment(False, err)
+            return
+
+        for stdout, stderr in self._artie_tool.read_all():
+            text = stdout + " " + stderr
+            self.output_text.append(text)
+
+        if not self._artie_tool.success:
+            self._complete_deployment(False, "artie-tool.py reported an error.")
+            return
+
+        self._complete_deployment(True)
+
     def isComplete(self):
         """Only allow next when deployment is complete"""
         return self.deploy_complete
