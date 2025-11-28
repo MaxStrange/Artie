@@ -33,15 +33,22 @@ class InstallPage(QtWidgets.QWizardPage):
         self.output_text.clear()
         QtCore.QTimer.singleShot(500, self._run_install)
     
+    def _complete_install(self, success: bool, err=None):
+        """Complete the installation process"""
+        if success:
+            self.output_text.append("\nInstallation complete!")
+        else:
+            self.output_text.append(f"\nERROR: Installation failed: {err}")
+        self.progress.setRange(0, 1)
+        self.progress.setValue(1)
+        self.install_complete = success
+        self.completeChanged.emit()
+    
     def _run_install(self):
         """Run the artie-tool.py install command"""
         err = self._artie_tool.install()
         if err:
-            self.output_text.append(f"\nERROR: Installation failed: {err}")
-            self.progress.setRange(0, 1)
-            self.progress.setValue(1)
-            self.install_complete = False
-            self.completeChanged.emit()
+            self._complete_install(False, err)
             return
 
         for stdout, stderr in self._artie_tool.read_all():
@@ -49,20 +56,10 @@ class InstallPage(QtWidgets.QWizardPage):
             self.output_text.append(text)
 
         if not self._artie_tool.success:
-            self.output_text.append(f"\nERROR: Installation failed: {err}")
-            self.progress.setRange(0, 1)
-            self.progress.setValue(1)
-            self.install_complete = False
-            self.completeChanged.emit()
+            self._complete_install(False, "artie-tool.py reported an error.")
             return
-    
-    def _simulate_install_complete(self):
-        """Simulate installation completion"""
-        self.output_text.append("\nInstallation complete!")
-        self.progress.setRange(0, 1)
-        self.progress.setValue(1)
-        self.install_complete = True
-        self.completeChanged.emit()
+
+        self._complete_install(True)
     
     def isComplete(self):
         """Only allow next when installation is complete"""

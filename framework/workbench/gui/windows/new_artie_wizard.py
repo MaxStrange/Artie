@@ -31,7 +31,6 @@ class PageID(enum.IntEnum):
 
 class NewArtieWizard(QtWidgets.QWizard):
     """Wizard for adding and configuring a new Artie robot"""
-    
    
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,4 +56,5 @@ class NewArtieWizard(QtWidgets.QWizard):
 
         self.setStartId(PageID.POWER)
 
-        # TODO: Now we have an Artie profile. We need to save it.
+        # Now we have an Artie profile. We need to save it.
+        self.artie_config.save()
