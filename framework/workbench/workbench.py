@@ -2,6 +2,7 @@
 This module contains the code for Artie Workbench,
 a graphical user interface for interacting with, setting up, and monitoring Artie robots.
 """
+from model import settings
 from PyQt6 import QtWidgets
 import pathlib
 import sys
@@ -30,7 +31,8 @@ def main():
     load_stylesheet(app)
 
     # Create the main window
-    window = MainWindow()
+    workbench_settings = settings.WorkbenchSettings.load()
+    window = MainWindow(workbench_settings)
     window.show()
     sys.exit(app.exec())
 

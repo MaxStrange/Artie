@@ -14,6 +14,7 @@ class ArtieMenuBar(QtWidgets.QMenuBar):
     deploy_helm_requested = QtCore.pyqtSignal()
     about_requested = QtCore.pyqtSignal()
     exit_requested = QtCore.pyqtSignal()
+    settings_requested = QtCore.pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,6 +30,11 @@ class ArtieMenuBar(QtWidgets.QMenuBar):
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.exit_requested.emit)
         file_menu.addAction(exit_action)
+
+        settings_action = QtGui.QAction("&Settings", self)
+        settings_action.setShortcut("Ctrl+S")
+        settings_action.triggered.connect(self.settings_requested.emit)
+        file_menu.addAction(settings_action)
         
         # Artie menu
         artie_menu = self.addMenu("&Artie")

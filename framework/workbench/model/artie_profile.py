@@ -1,10 +1,10 @@
 """
 This module contains the code for keeping track of an Artie Profile.
 """
+from util import artie_secrets
 import dataclasses
 import pathlib
 import json
-import secrets
 
 # Default save path is in the user's home directory under .artie/workbench/profiles
 DEFAULT_SAVE_PATH = pathlib.Path.home() / ".artie" / "workbench" / "profiles"
@@ -47,14 +47,18 @@ class ArtieProfile:
 
         profile = ArtieProfile(**data)
 
-        # Load the password and token in an OS-dependent manner
-        profile.password = secrets.get_secret(f"artie_{profile.artie_name}_password")
-        profile.token = secrets.get_secret(f"artie_{profile.artie_name}_token")
+        # Load the password and token
+        profile.password = artie_secrets.get_secret(f"artie_{profile.artie_name}_password")
+        profile.token = artie_secrets.get_secret(f"artie_{profile.artie_name}_token")
 
         return profile
 
     def save(self, path=None):
-        """Save the Artie profile to disk. If `path` is not given, we save to the default location."""
+        """
+        Save the Artie profile to disk. If `path` is not given, we save to the default location.
+
+        `path` should be a directory; the filename will be derived from the Artie name.
+        """
         if path is None:
             name = self.artie_name or "unnamed_artie"
             path = DEFAULT_SAVE_PATH / f"{name}.json"
@@ -72,5 +76,24 @@ class ArtieProfile:
             json.dump(data, f, indent=4)
 
         # Save the password and token in an OS-dependent manner
-        secrets.store_secret(f"artie_{self.artie_name}_password", self.password)
-        secrets.store_secret(f"artie_{self.artie_name}_token", self.token)
+        artie_secrets.store_secret(f"artie_{self.artie_name}_password", self.password)
+        artie_secrets.store_secret(f"artie_{self.artie_name}_token", self.token)
+
+def list_profiles(path=None) -> list[str]:
+    """
+    List all saved Artie profiles in the given path.
+    If `path` is not given, we look in the default location.
+
+    `path` should be a directory.
+    """
+    if path is None:
+        path = DEFAULT_SAVE_PATH
+    else:
+        path = pathlib.Path(path)
+
+    profiles = []
+    if path.exists() and path.is_dir():
+        for file in path.glob("*.json"):
+            profiles.append(file.stem)
+
+    return profiles
