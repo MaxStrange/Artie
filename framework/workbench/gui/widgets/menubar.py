@@ -9,12 +9,13 @@ class ArtieMenuBar(QtWidgets.QMenuBar):
     """Custom menu bar for Artie Workbench with robot icon"""
     
     # Signals for menu actions
-    switch_artie_requested = QtCore.pyqtSignal()
+    about_requested = QtCore.pyqtSignal()
     add_artie_requested = QtCore.pyqtSignal()
     deploy_helm_requested = QtCore.pyqtSignal()
-    about_requested = QtCore.pyqtSignal()
     exit_requested = QtCore.pyqtSignal()
+    remove_artie_requested = QtCore.pyqtSignal()
     settings_requested = QtCore.pyqtSignal()
+    switch_artie_requested = QtCore.pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -46,6 +47,10 @@ class ArtieMenuBar(QtWidgets.QMenuBar):
         add_artie_action = QtGui.QAction("&Add New Artie...", self)
         add_artie_action.triggered.connect(self.add_artie_requested.emit)
         artie_menu.addAction(add_artie_action)
+
+        remove_artie_action = QtGui.QAction("&Remove Artie...", self)
+        remove_artie_action.triggered.connect(self.remove_artie_requested.emit)
+        artie_menu.addAction(remove_artie_action)
         
         # Deployment menu
         deployment_menu = self.addMenu("&Deployment")

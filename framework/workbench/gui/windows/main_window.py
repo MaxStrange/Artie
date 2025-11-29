@@ -48,12 +48,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMenuBar(menubar)
         
         # Connect menu signals to handlers
-        menubar.exit_requested.connect(self.close)
-        menubar.switch_artie_requested.connect(self._switch_artie)
-        menubar.add_artie_requested.connect(self._add_artie)
-        menubar.deploy_helm_requested.connect(self._deploy_helm_chart)
         menubar.about_requested.connect(self._show_about)
+        menubar.add_artie_requested.connect(self._add_artie)
+        menubar.exit_requested.connect(self.close)
+        menubar.deploy_helm_requested.connect(self._deploy_helm_chart)
+        menubar.remove_artie_requested.connect(self._remove_artie)
         menubar.settings_requested.connect(self._show_settings)
+        menubar.switch_artie_requested.connect(self._switch_artie)
     
     def _setup_central_widget(self):
         """Create the central widget with tabs"""
@@ -111,6 +112,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self,
             "Deploy",
             "Helm chart deployment dialog will appear here"
+        )
+
+    def _remove_artie(self):
+        """Handle removing an Artie"""
+        QtWidgets.QMessageBox.information(
+            self,
+            "Remove Artie",
+            "Artie removal dialog will appear here"
         )
     
     def _show_about(self):

@@ -24,7 +24,6 @@ class SettingsDialog(QtWidgets.QDialog):
             if widget is not None:
                 layout.addWidget(widget)
 
-
         # Buttons
         button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self._apply_settings)
