@@ -10,13 +10,19 @@ from ..widgets.logging_tab import LoggingTab
 from ..widgets.sensors_tab import SensorsTab
 from ..widgets.experiment_tab import ExperimentTab
 from . import new_artie_wizard
+from . import switch_artie_dialog
+from model import artie_profile
+from model import settings
 
 
 class MainWindow(QtWidgets.QMainWindow):
     """Main window for the Artie Workbench application"""
     
-    def __init__(self):
+    def __init__(self, workbench_settings: settings.WorkbenchSettings = None):
         super().__init__()
+        self.settings = workbench_settings
+        self.current_profile = self.settings.last_opened_profile
+
         self.setWindowTitle("Artie Workbench")
         self.setMinimumSize(1000, 700)
         
@@ -39,6 +45,7 @@ class MainWindow(QtWidgets.QMainWindow):
         menubar.add_artie_requested.connect(self._add_artie)
         menubar.deploy_helm_requested.connect(self._deploy_helm_chart)
         menubar.about_requested.connect(self._show_about)
+        menubar.settings_requested.connect(self._show_settings)
     
     def _setup_central_widget(self):
         """Create the central widget with tabs"""
@@ -76,11 +83,13 @@ class MainWindow(QtWidgets.QMainWindow):
     # Menu action handlers
     def _switch_artie(self):
         """Handle switching to a different Artie"""
-        QtWidgets.QMessageBox.information(
-            self,
-            "Switch Artie",
-            "Artie selection dialog will appear here"
-        )
+        profiles = artie_profile.list_profiles()
+
+        dialog = switch_artie_dialog.SwitchArtieDialog(profiles, self.current_profile, self)
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selected_profile = dialog.selected_profile
+            if selected_profile:
+                self.current_profile = selected_profile
     
     def _add_artie(self):
         """Handle adding a new Artie"""
@@ -104,4 +113,12 @@ class MainWindow(QtWidgets.QMainWindow):
             "<p>A graphical user interface for interacting with, setting up, "
             "and monitoring Artie robots.</p>"
             "<p>© 2025</p>"
+        )
+
+    def _show_settings(self):
+        """Show settings dialog"""
+        QtWidgets.QMessageBox.information(
+            self,
+            "Settings",
+            "Settings dialog will appear here"
         )
