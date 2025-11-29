@@ -2,6 +2,7 @@
 Main window for Artie Workbench
 """
 from PyQt6 import QtWidgets, QtCore, QtGui
+
 from ..widgets.menubar import ArtieMenuBar
 from ..widgets.hardware_tab import HardwareTab
 from ..widgets.software_tab import SoftwareTab
@@ -10,6 +11,7 @@ from ..widgets.logging_tab import LoggingTab
 from ..widgets.sensors_tab import SensorsTab
 from ..widgets.experiment_tab import ExperimentTab
 from . import new_artie_wizard
+from . import settings_dialog
 from . import switch_artie_dialog
 from model import artie_profile
 from model import settings
@@ -17,6 +19,12 @@ from model import settings
 
 class MainWindow(QtWidgets.QMainWindow):
     """Main window for the Artie Workbench application"""
+
+    # Signal for profile switch
+    profile_switched_signal = QtCore.pyqtSignal(artie_profile.ArtieProfile)
+
+    # Signal for settings change
+    settings_changed_signal = QtCore.pyqtSignal(settings.WorkbenchSettings)
     
     def __init__(self, workbench_settings: settings.WorkbenchSettings = None):
         super().__init__()
@@ -85,11 +93,12 @@ class MainWindow(QtWidgets.QMainWindow):
         """Handle switching to a different Artie"""
         profiles = artie_profile.list_profiles()
 
-        dialog = switch_artie_dialog.SwitchArtieDialog(profiles, self.current_profile, self)
+        dialog = switch_artie_dialog.SwitchArtieDialog(self.settings, profiles, self.current_profile, self)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             selected_profile = dialog.selected_profile
             if selected_profile:
                 self.current_profile = selected_profile
+                self.profile_switched_signal.emit(self.current_profile)
     
     def _add_artie(self):
         """Handle adding a new Artie"""
@@ -117,8 +126,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _show_settings(self):
         """Show settings dialog"""
-        QtWidgets.QMessageBox.information(
-            self,
-            "Settings",
-            "Settings dialog will appear here"
-        )
+        dialog = settings_dialog.SettingsDialog(self.settings, self)
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            new_settings = dialog.get_updated_settings()
+            self.settings = new_settings
+            self.settings_changed_signal.emit(self.settings)

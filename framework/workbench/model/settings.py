@@ -2,21 +2,27 @@
 This module contains the code for all the settings in Artie Workbench.
 """
 import dataclasses
+import enum
 import json
 import pathlib
 
 # Default save path is in the user's home directory under .artie/workbench/settings
 DEFAULT_SAVE_PATH = pathlib.Path.home() / ".artie" / "workbench" / "settings"
 
+class GuiViewOption(enum.StrEnum):
+    """Enumeration of GUI view options for settings fields."""
+    FILE_PICKER = "file_picker"
+    DIRECTORY_PICKER = "directory_picker"
+
 @dataclasses.dataclass
 class WorkbenchSettings:
     """
     An instance of WorkbenchSettings contains all the settings for Artie Workbench.
     """
-    last_opened_profile: str = None
+    last_opened_profile: str = dataclasses.field(default="", metadata={'view': None})
     """The name of the last opened Artie profile."""
 
-    workbench_save_path: str = str(DEFAULT_SAVE_PATH.parent)
+    workbench_save_path: str = dataclasses.field(default=str(DEFAULT_SAVE_PATH.parent), metadata={'view': GuiViewOption.DIRECTORY_PICKER})
     """The path where Workbench saves its stuff."""
 
     @staticmethod

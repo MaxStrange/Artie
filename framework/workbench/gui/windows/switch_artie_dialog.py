@@ -7,23 +7,28 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from typing import List, Optional
+from model import artie_profile
+from model import settings
 
 
 class SwitchArtieDialog(QDialog):
     """Dialog for switching between Artie profiles."""
     
-    profile_selected = pyqtSignal(str)  # Emits the selected profile name
+    # Signal emitted when a profile is selected
+    profile_selected = pyqtSignal(artie_profile.ArtieProfile)
     
-    def __init__(self, profiles: List[str], current_profile: Optional[str] = None, parent=None):
+    def __init__(self, workbench_settings: settings.WorkbenchSettings, profiles: List[artie_profile.ArtieProfile], current_profile: Optional[artie_profile.ArtieProfile] = None, parent=None):
         """
         Initialize the Switch Artie Dialog.
         
         Args:
-            profiles: List of available profile names
-            current_profile: Name of the currently active profile
+            profiles: List of available profiles
+            current_profile: Currently active profile
             parent: Parent widget
+
         """
         super().__init__(parent)
+        self.settings = workbench_settings
         self.profiles = profiles
         self.current_profile = current_profile
         self.selected_profile = None
@@ -71,7 +76,7 @@ class SwitchArtieDialog(QDialog):
         self.profile_list.clear()
         
         for profile in self.profiles:
-            item = QListWidgetItem(profile)
+            item = QListWidgetItem(profile.artie_name)
             
             # Highlight current profile
             if profile == self.current_profile:
@@ -79,24 +84,23 @@ class SwitchArtieDialog(QDialog):
                 font = item.font()
                 font.setBold(True)
                 item.setFont(font)
-                item.setText(f"{profile} (current)")
+                item.setText(f"{profile.artie_name} (current)")
                 
             self.profile_list.addItem(item)
             
         # Select first non-current profile by default
-        if self.profile_list.count() > 0:
-            for i in range(self.profile_list.count()):
-                item = self.profile_list.item(i)
-                if item.data(Qt.UserRole) != "current":
-                    self.profile_list.setCurrentItem(item)
-                    break                    
+        for i in range(self.profile_list.count()):
+            item = self.profile_list.item(i)
+            if item.data(Qt.UserRole) != "current":
+                self.profile_list.setCurrentItem(item)
+                break                    
                     
     def on_selection_changed(self, current: QListWidgetItem, previous: QListWidgetItem):
         """Handle profile selection change."""
         if current:
             # Extract profile name (remove " (current)" suffix if present)
             profile_name = current.text().replace(" (current)", "")
-            self.selected_profile = profile_name
+            self.selected_profile = artie_profile.ArtieProfile.load(profile_name, path=self.settings.workbench_save_path)
             
             # Enable OK button only if different from current profile
             is_current = current.data(Qt.UserRole) == "current"
@@ -114,13 +118,6 @@ class SwitchArtieDialog(QDialog):
         """Handle OK button click."""
         if self.selected_profile and self.selected_profile != self.current_profile:
             self.profile_selected.emit(self.selected_profile)
+
         super().accept()
         
-    def get_selected_profile(self) -> Optional[str]:
-        """
-        Get the selected profile name.
-        
-        Returns:
-            Selected profile name or None if cancelled
-        """
-        return self.selected_profile
