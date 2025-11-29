@@ -2,7 +2,7 @@
 This module contains the code for Artie Workbench,
 a graphical user interface for interacting with, setting up, and monitoring Artie robots.
 """
-from model import settings
+from .model import settings
 from PyQt6 import QtWidgets
 import pathlib
 import sys

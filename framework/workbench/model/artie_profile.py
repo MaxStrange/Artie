@@ -79,7 +79,7 @@ class ArtieProfile:
         artie_secrets.store_secret(f"artie_{self.artie_name}_password", self.password)
         artie_secrets.store_secret(f"artie_{self.artie_name}_token", self.token)
 
-def list_profiles(path=None) -> list[str]:
+def list_profiles(path=None) -> list[ArtieProfile]:
     """
     List all saved Artie profiles in the given path.
     If `path` is not given, we look in the default location.
@@ -94,6 +94,6 @@ def list_profiles(path=None) -> list[str]:
     profiles = []
     if path.exists() and path.is_dir():
         for file in path.glob("*.json"):
-            profiles.append(file.stem)
+            profiles.append(ArtieProfile.load(file.stem, path=path))
 
     return profiles
