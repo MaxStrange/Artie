@@ -13,6 +13,7 @@ from ..widgets.experiment_tab import ExperimentTab
 from . import new_artie_wizard
 from . import settings_dialog
 from . import switch_artie_dialog
+from . import deploy_chart_dialog
 from model import artie_profile
 from model import settings
 
@@ -52,7 +53,6 @@ class MainWindow(QtWidgets.QMainWindow):
         menubar.add_artie_requested.connect(self._add_artie)
         menubar.exit_requested.connect(self.close)
         menubar.deploy_helm_requested.connect(self._deploy_helm_chart)
-        menubar.remove_artie_requested.connect(self._remove_artie)
         menubar.settings_requested.connect(self._show_settings)
         menubar.switch_artie_requested.connect(self._switch_artie)
     
@@ -108,20 +108,9 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def _deploy_helm_chart(self):
         """Handle deploying a Helm chart"""
-        QtWidgets.QMessageBox.information(
-            self,
-            "Deploy",
-            "Helm chart deployment dialog will appear here"
-        )
+        dialog = deploy_chart_dialog.DeployChartDialog(self.settings, self.current_profile, self)
+        dialog.exec()
 
-    def _remove_artie(self):
-        """Handle removing an Artie"""
-        QtWidgets.QMessageBox.information(
-            self,
-            "Remove Artie",
-            "Artie removal dialog will appear here"
-        )
-    
     def _show_about(self):
         """Show about dialog"""
         QtWidgets.QMessageBox.about(

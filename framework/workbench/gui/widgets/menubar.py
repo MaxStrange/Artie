@@ -13,7 +13,6 @@ class ArtieMenuBar(QtWidgets.QMenuBar):
     add_artie_requested = QtCore.pyqtSignal()
     deploy_helm_requested = QtCore.pyqtSignal()
     exit_requested = QtCore.pyqtSignal()
-    remove_artie_requested = QtCore.pyqtSignal()
     settings_requested = QtCore.pyqtSignal()
     switch_artie_requested = QtCore.pyqtSignal()
     
@@ -48,10 +47,6 @@ class ArtieMenuBar(QtWidgets.QMenuBar):
         add_artie_action.triggered.connect(self.add_artie_requested.emit)
         artie_menu.addAction(add_artie_action)
 
-        remove_artie_action = QtGui.QAction("&Remove Artie...", self)
-        remove_artie_action.triggered.connect(self.remove_artie_requested.emit)
-        artie_menu.addAction(remove_artie_action)
-        
         # Deployment menu
         deployment_menu = self.addMenu("&Deployment")
         

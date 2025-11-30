@@ -39,10 +39,19 @@ def deploy(args):
 
     return retcode
 
+def list_deployments(args):
+    """
+    List all deployments.
+    """
+    for t in DEPLOY_TASKS:
+        print(t.name)
+
+    return 0
+
 def fill_subparser(parser_deploy: argparse.ArgumentParser, parent: argparse.ArgumentParser):
     subparsers = parser_deploy.add_subparsers(title="deploy-module", description="Choose what to deploy")
 
-    # Args that are useful for all build tasks
+    # Args that are useful for all deploy tasks
     option_parser = argparse.ArgumentParser(parents=[parent], add_help=False)
     group = option_parser.add_argument_group("Deploy", "Deploy Options")
     group.add_argument("--chart-version", default=None, type=str, help="If given, we override the default version of the deployment with this value.")
@@ -54,3 +63,7 @@ def fill_subparser(parser_deploy: argparse.ArgumentParser, parent: argparse.Argu
         task_parser = subparsers.add_parser(t.name, parents=[option_parser])
         t.fill_subparser(task_parser, option_parser)         # Fill argparse with anything that is specific to the task
         task_parser.set_defaults(cmd=deploy, module=t.name)  # Regardless of the task chosen, the command is always 'deploy' from this module
+
+    # Add the list task
+    list_parser = subparsers.add_parser("list", parents=[option_parser], help="List all deployments")
+    list_parser.set_defaults(cmd=list_deployments, module="deploy")

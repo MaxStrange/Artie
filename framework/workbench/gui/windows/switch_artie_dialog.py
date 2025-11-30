@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QListWidgetItem
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from typing import List, Optional
+from typing import Optional
 from model import artie_profile
 from model import settings
 
@@ -17,7 +17,7 @@ class SwitchArtieDialog(QDialog):
     # Signal emitted when a profile is selected
     profile_selected = pyqtSignal(artie_profile.ArtieProfile)
     
-    def __init__(self, workbench_settings: settings.WorkbenchSettings, profiles: List[artie_profile.ArtieProfile], current_profile: Optional[artie_profile.ArtieProfile] = None, parent=None):
+    def __init__(self, workbench_settings: settings.WorkbenchSettings, profiles: list[artie_profile.ArtieProfile], current_profile: Optional[artie_profile.ArtieProfile] = None, parent=None):
         """
         Initialize the Switch Artie Dialog.
         
