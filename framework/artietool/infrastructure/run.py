@@ -87,6 +87,28 @@ def _check_tasks_against_dependencies(args, tasks, tasks_we_have_run_so_far):
     # Couldn't find one
     return None
 
+def _collect_single_task_result(args, workers, q, results, tasks_we_ran):
+    """
+    Collect a single task result from the workers.
+    """
+    worker_index, result = q.get()
+    results.append(result)
+    workers[worker_index][0].join()
+    task_we_ran = workers[worker_index][1]
+    tasks_we_ran.append(task_we_ran)
+    workers[worker_index] = None
+    # Append artifacts to args so that dependent tasks can access them
+    artifact.add_artifacts_from_result(args, result)
+    common.info(f"Task {result.name} finished.")
+
+def _collect_remaining_results_on_failure(args, workers, q, results, tasks_we_ran):
+    """
+    Collect results from all remaining workers when a failure has occurred
+    and --fail-fast is enabled.
+    """
+    while any(worker is not None for worker in workers):
+        _collect_single_task_result(args, workers, q, results, tasks_we_ran)
+
 def _run_all_multiprocess(args, tasks):
     """
     Run the given `tasks`, each with `args` in parallel, using however many
@@ -100,6 +122,10 @@ def _run_all_multiprocess(args, tasks):
     while len(results) != ntasks:
         have_capacity = None in workers
         still_work_to_do = len(tasks) > 0
+        if args.fail_fast and not all(r.success for r in results if r is not None):
+            common.error("A task has failed and --fail-fast is enabled. Aborting remaining tasks.")
+            _collect_remaining_results_on_failure(workers, q, results)
+            break
 
         if have_capacity and still_work_to_do:
             task_ready_index = _check_tasks_against_dependencies(args, tasks, tasks_we_ran)
@@ -116,15 +142,8 @@ def _run_all_multiprocess(args, tasks):
         else:
             # Otherwise, sleep until at least one worker is done
             # When that worker is done, collect its results and terminate the worker process
-            worker_index, result = q.get()
-            results.append(result)
-            workers[worker_index][0].join()
-            task_we_ran = workers[worker_index][1]
-            tasks_we_ran.append(task_we_ran)
-            workers[worker_index] = None
-            # Append artifacts to args so that dependent tasks can access them
-            artifact.add_artifacts_from_result(args, result)
-            common.info(f"Task {result.name} finished.")
+            _collect_single_task_result(args, workers, q, results, tasks_we_ran)
+
     return results, tasks_we_ran
 
 def _recurse_dependencies(args, t: task.Task, remaining_tasks: List[task.Task], updated_tasks: List[task.Task], all_tasks: List[task.Task]):

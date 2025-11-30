@@ -40,7 +40,7 @@ jobs:
           password: ${{secrets.DOCKERHUB_PAT}}
       - id: build
         name: Build Docker Images
-        run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1
+        run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
         shell: bash
         working-directory: ${{github.workspace}}/framework
       - id: upartifacts
