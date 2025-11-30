@@ -12,6 +12,7 @@ runs:
       name: Install Dependencies
       run: pip install -r requirements.txt
       shell: bash
+      working-directory: ${{github.workspace}}/framework
     - id: qemu
       name: Set up QEMU
       uses: docker/setup-qemu-action@v2
