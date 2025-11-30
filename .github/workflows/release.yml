@@ -42,6 +42,7 @@ jobs:
         name: Build Docker Images
         run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG
         shell: bash
+        working-directory: ${{github.workspace}}/framework
       - id: upartifacts
         name: Upload Artifacts
         uses: actions/upload-artifact@v3

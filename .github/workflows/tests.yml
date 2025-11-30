@@ -42,6 +42,7 @@ jobs:
         name: Build Docker Images
         run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG
         shell: bash
+        working-directory: ${{github.workspace}}/framework
       - id: upartifacts
         name: Upload Artifacts
         uses: actions/upload-artifact@v3
@@ -82,18 +83,22 @@ jobs:
         name: Run Sanity Tests
         run: python3 artie-tool.py test all-sanity --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-sanity.txt --test-timeout-s 120
         shell: bash
+        working-directory: ${{github.workspace}}/framework
         continue-on-error: true
       - id: test-unit
         name: Run Unit Tests
         run: python3 artie-tool.py test all-unit --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-unit.txt --test-timeout-s 120
         shell: bash
+        working-directory: ${{github.workspace}}/framework
         continue-on-error: true
       - id: test-integration
         name: Run Integration Tests
         run: python3 artie-tool.py test all-integration --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-integration.txt --test-timeout-s 120
         shell: bash
+        working-directory: ${{github.workspace}}/framework
         continue-on-error: true
       - id: collect-test-results
         name: Collect Test Results
         run: grep "All tasks succeeded" testlog-sanity.txt && grep "All tasks succeeded" testlog-unit.txt && grep "All tasks succeeded" testlog-integration.txt
         shell: bash
+        working-directory: ${{github.workspace}}/framework
