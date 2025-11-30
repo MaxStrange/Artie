@@ -189,7 +189,7 @@ class CollectedHardwareTestSteps:
       """
       Get the contents of the script that interprets the output of a test.
       """
-      fpath = os.path.join(common.repo_root(), "artietool", "test", "interpret_test_output.py")
+      fpath = os.path.join(common.repo_root(), "framework", "artietool", "test", "interpret_test_output.py")
       if not os.path.isfile(fpath):
           raise FileNotFoundError(f"Cannot find interpret_test_output.py, which should be found at {fpath}")
 

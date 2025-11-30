@@ -11,7 +11,7 @@ import argparse
 import os
 
 # Populate the DEPLOY_TASKS list by parsing all the 'deploy' config files
-DEPLOY_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "artietool", "tasks", "deploy-tasks"))
+DEPLOY_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "framework", "artietool", "tasks", "deploy-tasks"))
 
 def deploy(args):
     """

@@ -15,7 +15,7 @@ import datetime
 import os
 
 # Populate the 'TEST_TASKS' list by parsing all the 'test' config files
-TEST_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "artietool", "tasks", "test-tasks"))
+TEST_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "framework", "artietool", "tasks", "test-tasks"))
 
 TEST_CLASSES = [
     "all",

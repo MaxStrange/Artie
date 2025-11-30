@@ -13,6 +13,6 @@ steps:
       - docker-image
     img-base-name: pico-base
     buildx: false
-    dockerfile-dpath: "${REPO_ROOT}/libraries/base-image"
+    dockerfile-dpath: "${REPO_ROOT}/framework/libraries/base-image"
     dockerfile: Dockerfile.pico
     build-context: "."

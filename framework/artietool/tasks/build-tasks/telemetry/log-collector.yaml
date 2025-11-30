@@ -18,7 +18,7 @@ steps:
     img-base-name: artie-log-collector
     buildx: true
     platform: linux/amd64
-    dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/fluent-bit-log-collector"
+    dockerfile-dpath: "${REPO_ROOT}/framework/libraries/telemetry/fluent-bit-log-collector"
     dockerfile: Dockerfile
     build-context: "."
   - job: docker-build
@@ -27,7 +27,7 @@ steps:
     img-base-name: artie-log-collector
     buildx: true
     platform: linux/arm64
-    dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/fluent-bit-log-collector"
+    dockerfile-dpath: "${REPO_ROOT}/framework/libraries/telemetry/fluent-bit-log-collector"
     dockerfile: Dockerfile
     build-context: "."
   - job: docker-manifest

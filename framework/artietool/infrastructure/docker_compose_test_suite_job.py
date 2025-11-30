@@ -11,7 +11,7 @@ class DockerComposeTestSuiteJob(test_job.TestJob):
         super().__init__(artifacts=[], steps=steps)
         self.compose_fname = compose_fname
         self.compose_variables = compose_docker_image_variables  # List of (key, value) pairs; gets transformed into dict[str: str] when setup() is called
-        self.compose_dpath = os.path.join(common.repo_root(), "artietool", "compose-files")
+        self.compose_dpath = os.path.join(common.repo_root(), "framework", "artietool", "compose-files")
         self.docker_network_name = docker_network_name
         self.project_name = os.path.splitext(self.compose_fname)[0].replace('.', '-')
         self._dut_pids = {}

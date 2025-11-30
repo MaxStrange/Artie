@@ -15,7 +15,7 @@ steps:
       - docker-image
     img-base-name: artie-eyebrows
     buildx: false
-    dockerfile-dpath: "${REPO_ROOT}/firmware/eyebrows/build"
+    dockerfile-dpath: "${REPO_ROOT}/artie-common/firmware/eyebrows/build"
     dockerfile: Dockerfile
     build-context: "../.."
     build-args:

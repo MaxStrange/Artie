@@ -18,7 +18,7 @@ steps:
     img-base-name: artie-metrics-collector
     buildx: true
     platform: linux/amd64
-    dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/prometheus"
+    dockerfile-dpath: "${REPO_ROOT}/framework/libraries/telemetry/prometheus"
     dockerfile: Dockerfile
     build-context: "."
   - job: docker-build
@@ -27,7 +27,7 @@ steps:
     img-base-name: artie-metrics-collector
     buildx: true
     platform: linux/arm64
-    dockerfile-dpath: "${REPO_ROOT}/libraries/telemetry/prometheus"
+    dockerfile-dpath: "${REPO_ROOT}/framework/libraries/telemetry/prometheus"
     dockerfile: Dockerfile
     build-context: "."
   - job: docker-manifest
