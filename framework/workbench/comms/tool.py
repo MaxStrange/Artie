@@ -50,6 +50,21 @@ class ArtieToolInvoker:
         except subprocess.TimeoutExpired as e:
             return e
 
+    def list_deployments(self) -> tuple[Exception|None, list[str]]:
+        """List deployments, returning an error if something goes wrong, otherwise a list of deployment names."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "deploy",
+            "list",
+            "--loglevel", "error"
+        ]
+        err, stdout, _ = self._run_cmd_blocking(cmd)
+        if err:
+            return (err, [])
+
+        return (None, stdout.strip().splitlines())
+
     def read(self) -> tuple[Exception|None, str, str]:
         """
         Read available output from the subprocess.
@@ -78,12 +93,12 @@ class ArtieToolInvoker:
             return "", ""
 
         while self._process.poll() is None:
-            yield self._process.stdout.read(nbytes).decode(), self._process.stderr.read(nbytes).decode()
+            yield (self._process.stdout.read(nbytes).decode(), self._process.stderr.read(nbytes).decode())
 
         self._retcode = self._process.returncode
 
     def test(self, test_type: str) -> Exception|None:
-        """Run the test command, returning an error if something goes wrong."""
+        """Run the test command asynchronously, returning an error if something goes wrong."""
         cmd = [
             "python",
             "artie-tool.py",
@@ -93,8 +108,26 @@ class ArtieToolInvoker:
         return self._run_cmd(cmd)
 
     def _run_cmd(self, cmd: list[str]) -> Exception|None:
-        """Run the command in a subprocess."""
+        """Run the command in a subprocess asynchronously."""
         try:
             self._process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except OSError as err:
             return err
+
+    def _run_cmd_blocking(self, cmd: list[str]) -> tuple[Exception|None, str, str]:
+        """Run the command in a subprocess, blocking until it completes. Return an exception or None, stdout, and stderr."""
+        try:
+            completed_process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            stdout = completed_process.stdout.decode('utf-8', errors='replace')
+            stderr = completed_process.stderr.decode('utf-8', errors='replace')
+            self._process = completed_process
+            self._retcode = completed_process.returncode
+            return (None, stdout, stderr)
+        except OSError as err:
+            return (err, "", "")
+        except subprocess.CalledProcessError as err:
+            stdout = err.stdout.decode('utf-8', errors='replace') if err.stdout else ""
+            stderr = err.stderr.decode('utf-8', errors='replace') if err.stderr else ""
+            self._process = None
+            self._retcode = err.returncode
+            return (err, stdout, stderr)

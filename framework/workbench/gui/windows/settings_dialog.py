@@ -5,15 +5,37 @@ import dataclasses
 from PyQt6 import QtWidgets, QtCore
 from model import settings
 
+class _SettingsWidgetWrapper:
+    """Wrapper for a single settings field widget"""
+
+    def __init__(self, settings_field_name: str, get_value_callback, widget: QtWidgets.QWidget):
+        self._get_value_callback = get_value_callback
+        self._settings_field_name = settings_field_name
+        self._widget = widget
+
+    @property
+    def widget(self):
+        """Get the underlying widget"""
+        return self._widget
+
+    def get_settings_value(self):
+        """Get the current value from the widget"""
+        return self._get_value_callback()
+
+    def get_field_name(self):
+        """Get the name of the settings field this widget represents"""
+        return self._settings_field_name
+
+
 class SettingsDialog(QtWidgets.QDialog):
     """Dialog for modifying Workbench settings"""
-
-    settings_changed_signal = QtCore.pyqtSignal(settings.WorkbenchSettings)
 
     def __init__(self, current_settings: settings.WorkbenchSettings, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
         self.current_settings = current_settings
+        self.updated_settings = None
+        self._settings_widgets = []
 
         # Layout
         layout = QtWidgets.QVBoxLayout()
@@ -22,7 +44,8 @@ class SettingsDialog(QtWidgets.QDialog):
             view_option = field.metadata.get('view', None)
             widget = self._create_widget_for_field(field, view_option)
             if widget is not None:
-                layout.addWidget(widget)
+                layout.addWidget(widget.widget)
+                self._settings_widgets.append(widget)
 
         # Buttons
         button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
@@ -34,10 +57,17 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def _apply_settings(self):
         """Apply the settings and emit the signal"""
-        # TODO: In case there are any settings that need special handling, do it here
+        kwargs = dataclasses.asdict(self.current_settings)
+        new_settings = settings.WorkbenchSettings(**kwargs)
+        for widget in self._settings_widgets:
+            updated_value = widget.get_settings_value()
+            field_name = widget.get_field_name()
+            setattr(new_settings, field_name, updated_value)
+
+        self.updated_settings = new_settings
         self.accept()
 
-    def _create_widget_for_field(self, field: dataclasses.Field, view_option: settings.GuiViewOption|None):
+    def _create_widget_for_field(self, field: dataclasses.Field, view_option: settings.GuiViewOption|None) -> _SettingsWidgetWrapper|None:
         """Create a widget for a given settings field based on its view option"""
         match view_option:
             case None:
@@ -58,7 +88,7 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.addWidget(label)
         layout.addWidget(line_edit)
 
-        return container
+        return _SettingsWidgetWrapper(field.name, lambda: line_edit.text(), container)
 
     def _create_directory_picker(self, field: dataclasses.Field):
         """Create a directory picker widget for a settings field"""
@@ -80,4 +110,8 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.addWidget(line_edit)
         layout.addWidget(browse_button)
 
-        return container
+        return _SettingsWidgetWrapper(field.name, lambda: line_edit.text(), container)
+
+    def get_updated_settings(self) -> settings.WorkbenchSettings:
+        """Retrieve the updated settings from the dialog"""
+        return self.updated_settings
