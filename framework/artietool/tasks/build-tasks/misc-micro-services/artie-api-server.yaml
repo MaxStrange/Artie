@@ -19,7 +19,7 @@ steps:
     img-base-name: artie-api-server
     buildx: true
     platform: linux/amd64
-    dockerfile-dpath: "${REPO_ROOT}/misc-micro-services/artie-api-server"
+    dockerfile-dpath: "${REPO_ROOT}/framework/misc-micro-services/artie-api-server"
     dockerfile: Dockerfile
     build-context: "."
     build-args:
@@ -35,7 +35,7 @@ steps:
     img-base-name: artie-api-server
     buildx: true
     platform: linux/arm64
-    dockerfile-dpath: "${REPO_ROOT}/misc-micro-services/artie-api-server"
+    dockerfile-dpath: "${REPO_ROOT}/framework/misc-micro-services/artie-api-server"
     dockerfile: Dockerfile
     build-context: "."
     build-args:

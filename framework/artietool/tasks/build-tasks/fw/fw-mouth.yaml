@@ -15,7 +15,7 @@ steps:
       - docker-image
     img-base-name: artie-mouth
     buildx: false
-    dockerfile-dpath: "${REPO_ROOT}/firmware/mouth/build"
+    dockerfile-dpath: "${REPO_ROOT}/artie-common/firmware/mouth/build"
     dockerfile: Dockerfile
     build-context: "../.."
     build-args:

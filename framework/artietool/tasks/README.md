@@ -66,7 +66,7 @@ steps:
     img-base-name: artie-eyebrow-driver
     buildx: true
     platform: linux/arm64
-    dockerfile-dpath: "${REPO_ROOT}/drivers/mouth-and-eyebrows"
+    dockerfile-dpath: "${REPO_ROOT}/artie-common/drivers/mouth-and-eyebrows"
     dockerfile: Dockerfile
     build-context: "."
     dependency-files:

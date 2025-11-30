@@ -17,7 +17,7 @@ steps:
     img-base-name: artie-cli
     buildx: true
     platform: linux/amd64
-    dockerfile-dpath: "${REPO_ROOT}/cli/test"
+    dockerfile-dpath: "${REPO_ROOT}/framework/cli/test"
     dockerfile: Dockerfile
     build-context: ".."
   - job: docker-build
@@ -26,7 +26,7 @@ steps:
     img-base-name: artie-cli
     buildx: true
     platform: linux/arm64
-    dockerfile-dpath: "${REPO_ROOT}/cli/test"
+    dockerfile-dpath: "${REPO_ROOT}/framework/cli/test"
     dockerfile: Dockerfile
     build-context: ".."
   - job: docker-manifest

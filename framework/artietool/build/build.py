@@ -11,7 +11,7 @@ import argparse
 import os
 
 # Populate the BUILD_TASKS list by parsing all the 'build' config files
-BUILD_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "artietool", "tasks", "build-tasks"))
+BUILD_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "framework", "artietool", "tasks", "build-tasks"))
 
 # The available list of task classes/categories
 BUILD_CLASSES = [

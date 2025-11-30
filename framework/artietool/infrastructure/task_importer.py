@@ -444,7 +444,7 @@ def _import_compose_network_name(compose_fname: str) -> str:
     """
     Determine the name of the Docker compose network based on the information in the compose file.
     """
-    compose_dpath = os.path.join(common.repo_root(), "artietool", "compose-files")
+    compose_dpath = os.path.join(common.repo_root(), "framework", "artietool", "compose-files")
     compose_fpath = os.path.join(compose_dpath, compose_fname)
     with open(compose_fpath, 'r') as f:
         compose_config = yaml.load(f, yaml.FullLoader)
@@ -536,7 +536,7 @@ def _convert_deploy_what(what_val: str) -> deploy_job.DeploymentConfigurations:
 def _import_add_deploy_job(job_def: Dict, fpath: str, header: TaskHeader) -> deploy_job.AddDeployJob:
     _validate_dict(job_def, 'what', keyerrmsg=f"Missing 'what' definition in 'job' definition in {fpath}")
     what = _convert_deploy_what(job_def['what'])
-    chart = os.path.join(common.repo_root(), "artietool", job_def['chart'])
+    chart = os.path.join(common.repo_root(), "framework", "artietool", job_def['chart'])
     return deploy_job.AddDeployJob(header.artifacts, what, chart)
 
 def _import_deploy_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.DeployTask:

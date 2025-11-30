@@ -15,7 +15,7 @@ steps:
       - docker-image
     img-base-name: artie-reset
     buildx: false
-    dockerfile-dpath: "${REPO_ROOT}/firmware/reset/build"
+    dockerfile-dpath: "${REPO_ROOT}/artie-common/firmware/reset/build"
     dockerfile: Dockerfile
     build-context: "../.."
     build-args:

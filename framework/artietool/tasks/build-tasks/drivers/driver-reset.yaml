@@ -16,7 +16,7 @@ steps:
     img-base-name: artie-reset-driver
     buildx: true
     platform: linux/arm64
-    dockerfile-dpath: "${REPO_ROOT}/drivers/reset-mcu-driver"
+    dockerfile-dpath: "${REPO_ROOT}/artie-common/drivers/reset-mcu-driver"
     dockerfile: Dockerfile
     dependency-files:
       - dependency:

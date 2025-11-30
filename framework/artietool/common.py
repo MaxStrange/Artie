@@ -135,7 +135,7 @@ def copy_artie_libs(dest):
     """
     Copy all the Artie Libraries into the given folder.
     """
-    libpath = os.path.join(repo_root(), "libraries")
+    libpath = os.path.join(repo_root(), "framework", "libraries")
     libs = [os.path.join(libpath, d) for d in os.listdir(libpath) if os.path.isdir(os.path.join(libpath, d)) and d != "base-image"]
     for lib in libs:
         destpath = os.path.join(dest, os.path.basename(lib))
@@ -169,7 +169,7 @@ def get_task_modules():
     """
     Get the file names (without .py) of all the task modules for dynamic import.
     """
-    task_folder = os.path.join(repo_root(), "artietool", "tasks")
+    task_folder = os.path.join(repo_root(), "framework", "artietool", "tasks")
     return [os.path.splitext(fname)[0] for fname in os.listdir(task_folder) if os.path.splitext(fname)[-1] == ".py"]
 
 def find_task_from_name(name: str, tasks):
@@ -258,7 +258,7 @@ def repo_root() -> str:
     Return the absolute path of the root of the Artie repository.
     """
     thisdir = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.join(thisdir, "..")
+    root = os.path.join(thisdir, "..", "..")
     if not os.path.isdir(root):
         raise FileNotFoundError("The Artie directory seems to have been altered in a way that I can't understand.")
 
