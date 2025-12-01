@@ -204,31 +204,11 @@ def _import_labels(config: Dict, fpath: str) -> List[task.Labels]:
 
     labels = []
     for label in label_list:
-        match label:
-            case task.Labels.DOCKER_IMAGE:
-                labels.append(task.Labels.DOCKER_IMAGE)
-            case task.Labels.FIRMWARE:
-                labels.append(task.Labels.FIRMWARE)
-            case task.Labels.YOCTO:
-                labels.append(task.Labels.YOCTO)
-            case task.Labels.BASE_IMAGE:
-                labels.append(task.Labels.BASE_IMAGE)
-            case task.Labels.STRESS:
-                labels.append(task.Labels.STRESS)
-            case task.Labels.UNIT:
-                labels.append(task.Labels.UNIT)
-            case task.Labels.INTEGRATION:
-                labels.append(task.Labels.INTEGRATION)
-            case task.Labels.SANITY:
-                labels.append(task.Labels.SANITY)
-            case task.Labels.TELEMETRY:
-                labels.append(task.Labels.TELEMETRY)
-            case task.Labels.CONTAINER_SET:
-                labels.append(task.Labels.CONTAINER_SET)
-            case task.Labels.HARDWARE:
-                labels.append(task.Labels.HARDWARE)
-            case _:
-                raise ValueError(f"Unrecognized label '{label}' in 'labels' section of {fpath}")
+        if label in task.Labels:
+            labels.append(label)
+        else:
+            raise ValueError(f"Unrecognized label '{label}' in 'labels' section of {fpath}")
+
     return labels
 
 def _import_task_header(config: Dict, fpath: str) -> TaskHeader:
