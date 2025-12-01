@@ -20,6 +20,7 @@ BUILD_CLASSES = [
     "all-containers",
     "all-yocto",
     "all-base-images",
+    "all-driver"
 ]
 
 def _build_class_of_items(args):
@@ -38,6 +39,8 @@ def _build_class_of_items(args):
             tasks = [t for t in BUILD_TASKS if task.Labels.YOCTO in t.labels]
         case "all-base-images":
             tasks = [t for t in BUILD_TASKS if task.Labels.BASE_IMAGE in t.labels]
+        case "all-driver":
+            tasks = [t for t in BUILD_TASKS if task.Labels.DRIVER in t.labels]
         case _:
             raise ValueError(f"{args.module} is invalid for some reason")
 

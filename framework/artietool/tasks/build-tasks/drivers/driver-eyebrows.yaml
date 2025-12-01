@@ -1,6 +1,7 @@
 name: driver-eyebrows
 labels:
   - docker-image
+  - driver
 dependencies:
   - fw-eyebrows: fw-files
   - artie-base-image: docker-image-arm64

@@ -40,17 +40,45 @@ jobs:
           password: ${{secrets.DOCKERHUB_PAT}}
       - id: build_log_collector
         name: Build Log Collector Docker Image
-        run: python3 artie-tool.py build log-collector --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
+        run: python3 artie-tool.py build log-collector --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
         shell: bash
         working-directory: ${{github.workspace}}/framework
       - id: clean_after_log_collector
         uses: ./.github/actions/clean-after-build
-      - id: build_prometheus
-        name: Build Prometheus Docker Image
-        run: python3 artie-tool.py build prometheus --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
+      - id: build_metrics_collector
+        name: Build Metrics Collector Docker Image
+        run: python3 artie-tool.py build metrics-collector --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
         shell: bash
         working-directory: ${{github.workspace}}/framework
-      - id: clean_after_prometheus
+      - id: clean_after_metrics_collector
+        uses: ./.github/actions/clean-after-build
+      - id: build_api_server
+        name: Build Artie API Server Docker Image
+        run: python3 artie-tool.py build artie-api-server --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+        shell: bash
+        working-directory: ${{github.workspace}}/framework
+      - id: clean_after_api_server
+        uses: ./.github/actions/clean-after-build
+      - id: build_all_fw_images
+        name: Build All Firmware Docker Images
+        run: python3 artie-tool.py build all-firmware --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+        shell: bash
+        working-directory: ${{github.workspace}}/framework
+      - id: clean_after_fw_images
+        uses: ./.github/actions/clean-after-build
+      - id: build_all_driver_images
+        name: Build All Driver Docker Images
+        run: python3 artie-tool.py build all-driver --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+        shell: bash
+        working-directory: ${{github.workspace}}/framework
+      - id: clean_after_driver_images
+        uses: ./.github/actions/clean-after-build
+      - id: build_artie_cli
+        name: Build Artie Tool Docker Image
+        run: python3 artie-tool.py build artie-cli --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+        shell: bash
+        working-directory: ${{github.workspace}}/framework
+      - id: clean_after_artie_cli
         uses: ./.github/actions/clean-after-build
       - id: upartifacts
         name: Upload Artifacts
