@@ -38,11 +38,20 @@ jobs:
         with:
           username: ${{secrets.DOCKERHUB_USERNAME}}
           password: ${{secrets.DOCKERHUB_PAT}}
-      - id: build
-        name: Build Docker Images
-        run: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
+      - id: build_log_collector
+        name: Build Log Collector Docker Image
+        run: python3 artie-tool.py build log-collector --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
         shell: bash
         working-directory: ${{github.workspace}}/framework
+      - id: clean_after_log_collector
+        uses: ./.github/actions/clean-after-build
+      - id: build_prometheus
+        name: Build Prometheus Docker Image
+        run: python3 artie-tool.py build prometheus --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
+        shell: bash
+        working-directory: ${{github.workspace}}/framework
+      - id: clean_after_prometheus
+        uses: ./.github/actions/clean-after-build
       - id: upartifacts
         name: Upload Artifacts
         uses: actions/upload-artifact@v4
