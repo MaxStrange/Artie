@@ -6,7 +6,6 @@ runs:
     - id: clean
       name: Clean Docker System
       run: |
-        docker system prune
-        docker rmi $(docker images -a -q)
+        docker rmi $(docker images "*artie*" -q)
       shell: bash
       working-directory: ${{github.workspace}}/framework
