@@ -203,8 +203,9 @@ def _import_labels(config: Dict, fpath: str) -> List[task.Labels]:
         label_list = []
 
     labels = []
+    allowed_labels = set([label.value for label in task.Labels])
     for label in label_list:
-        if label in task.Labels:
+        if label in allowed_labels:
             labels.append(label)
         else:
             raise ValueError(f"Unrecognized label '{label}' in 'labels' section of {fpath}")
