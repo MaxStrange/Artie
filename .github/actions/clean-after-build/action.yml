@@ -1,0 +1,12 @@
+name: 'Clean After Build'
+description: 'Clean up after building'
+runs:
+  using: "composite"
+  steps:
+    - id: clean
+      name: Clean Docker System
+      run: |
+        docker system prune
+        docker rmi $(docker images -a -q)
+      shell: bash
+      working-directory: ${{github.workspace}}/framework
