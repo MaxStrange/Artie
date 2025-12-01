@@ -1,6 +1,7 @@
 name: driver-mouth
 labels:
   - docker-image
+  - driver
 dependencies:
   - fw-mouth: fw-files
   - artie-base-image: docker-image-arm64

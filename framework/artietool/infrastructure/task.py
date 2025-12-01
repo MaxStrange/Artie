@@ -18,6 +18,7 @@ class Labels(StrEnum):
     YOCTO = 'yocto'                 # A task that builds/tests a Yocto image
     BASE_IMAGE = 'base-image'       # A task that builds/tests a common base image
     TELEMETRY = 'telemetry'         # A task that builds/tests telemetry
+    DRIVER = 'driver'               # A task that builds/tests a driver
 
     STRESS = 'stress'               # A stress test
     UNIT = 'unit'                   # A unit test

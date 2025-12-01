@@ -1,6 +1,7 @@
 name: driver-reset
 labels:
   - docker-image
+  - driver
 dependencies:
   - fw-reset: fw-files
   - artie-base-image: docker-image-arm64
