@@ -9,3 +9,4 @@ runs:
         docker rmi $(docker images "*artie*" -q)
       shell: bash
       working-directory: ${{github.workspace}}/framework
+      continue-on-error: true
