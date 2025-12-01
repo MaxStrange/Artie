@@ -19,10 +19,10 @@ Under this model of deployment:
 * A dev machine. This can be the admin server or a compute node, but you may want to keep it separate.
   Either way, you'll need to make sure that you have the following installed:
     - Python 3.11+
-    - [Kubectl](https://kubernetes.io/docs/tasks/tools/) - v1.25
-    - [Helm](https://helm.sh/docs/intro/quickstart/) - 3.12 (don't install Kubernetes separately - Artie comes prepackaged with it)
+    - [Kubectl](https://kubernetes.io/docs/tasks/tools/) - v1.32
+    - [Helm](https://helm.sh/docs/intro/quickstart/) - 4.0 (don't install Kubernetes separately - Artie comes prepackaged with it)
     - If you haven't already, make sure to install the Python dependencies for Artie Tool after cloning this repo:
-      `pip install -r requirements.txt` from the root directory of the repo.
+      `pip install -r requirements.txt` from the 'framework' directory of the repo.
 
 ## Turn Artie on for the First Time
 
