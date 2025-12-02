@@ -124,7 +124,7 @@ def _run_all_multiprocess(args, tasks):
         still_work_to_do = len(tasks) > 0
         if args.fail_fast and not all(r.success for r in results if r is not None):
             common.error("A task has failed and --fail-fast is enabled. Aborting remaining tasks.")
-            _collect_remaining_results_on_failure(workers, q, results)
+            _collect_remaining_results_on_failure(args, workers, q, results, tasks_we_ran)
             break
 
         if have_capacity and still_work_to_do:
