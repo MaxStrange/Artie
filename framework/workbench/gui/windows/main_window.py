@@ -70,13 +70,13 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.tab_widget)
         
         # Add tabs using custom widgets
-        self.tab_widget.addTab(HardwareTab(), "Hardware")
-        self.tab_widget.addTab(SoftwareTab(), "Software")
-        self.tab_widget.addTab(TeleopTab(), "Teleop")
-        self.tab_widget.addTab(LoggingTab(), "Logging")
-        self.tab_widget.addTab(SensorsTab(), "Sensors")
-        self.tab_widget.addTab(ExperimentTab(), "Experiment")
-    
+        self.tab_widget.addTab(HardwareTab(self, self.settings, self.current_profile), "Hardware")
+        self.tab_widget.addTab(SoftwareTab(self, self.settings, self.current_profile), "Software")
+        self.tab_widget.addTab(TeleopTab(self, self.settings, self.current_profile), "Teleop")
+        self.tab_widget.addTab(LoggingTab(self, self.settings, self.current_profile), "Logging")
+        self.tab_widget.addTab(SensorsTab(self, self.settings, self.current_profile), "Sensors")
+        self.tab_widget.addTab(ExperimentTab(self, self.settings, self.current_profile), "Experiment")
+
     def _setup_statusbar(self):
         """Create the status bar"""
         statusbar = self.statusBar()
