@@ -61,14 +61,14 @@ jobs:
         uses: ./.github/actions/clean-after-build
       - id: build_all_fw_images
         name: Build All Firmware Docker Images
-        run: python3 artie-tool.py build all-fw --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+        run: python3 artie-tool.py build all-fw --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
         shell: bash
         working-directory: ${{github.workspace}}/framework
       - id: clean_after_fw_images
         uses: ./.github/actions/clean-after-build
       - id: build_all_driver_images
         name: Build All Driver Docker Images
-        run: python3 artie-tool.py build all-driver --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+        run: python3 artie-tool.py build all-driver --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --nprocs 1 --fail-fast
         shell: bash
         working-directory: ${{github.workspace}}/framework
       - id: clean_after_driver_images
