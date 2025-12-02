@@ -83,10 +83,10 @@ if [[ "$NO_DOCKER" != 1 ]]; then
 fi
 
 # Install K3S (version is limited by Yocto compatibility. See: https://layers.openembedded.org/layerindex/branch/master/layer/meta-virtualization/)
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.32.0-rc2+k3s1+git39f4cbb3367544477e9e678626c0add76e731624" K3S_URL=$URL K3S_TOKEN=$TOKEN INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -s - --docker
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.32.0+k3s1" K3S_URL=$URL K3S_TOKEN=$TOKEN INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -s - --docker
 
-# Pin K3S and Docker to the current version to avoid unwanted automatic upgrades
-sudo apt-mark hold k3s docker-ce docker-ce-cli containerd.io docker-ce-rootless-extras docker-buildx-plugin
+# Pin Docker to the current version to avoid unwanted automatic upgrades
+sudo apt-mark hold docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-ce-rootless-extras docker-buildx-plugin docker-model-plugin
 
 # Open the firewall for the K3S API server
 sudo ufw allow 6443/tcp
