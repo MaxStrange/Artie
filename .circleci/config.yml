@@ -48,13 +48,11 @@ jobs:
             mkdir -p $HOME/.docker
             echo '{"credsStore":"secretservice"}' > $HOME/.docker/config.json
       - run:
-          name: Docker Login
+          name: Build All
           command: |
             echo '$USER' | gnome-keyring-daemon --unlock
             echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-      - run:
-          name: Build All
-          command: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+            python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
           working_directory: framework
       - persist_to_workspace:
           root: .
