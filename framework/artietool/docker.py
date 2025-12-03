@@ -188,7 +188,7 @@ def parse_docker_image_name(fully_qualified_name: str):
     """
     # Thank you, Stack Overflow: https://stackoverflow.com/questions/74990220/how-to-use-docker-image-tag-parsing-regex-in-javascript
     # With a minor modification
-    r = re.compile("^(?P<repository>[\w.\-_]+(?::\d+|)|)(?:/|)(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+|))(:(?P<tag>[\w.\-_]{1,127})|)$")
+    r = re.compile(r"^(?P<repository>[\w.\-_]+(?::\d+|)|)(?:/|)(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+|))(:(?P<tag>[\w.\-_]{1,127})|)$")
     o = r.match(fully_qualified_name)
     if not o:
         errmsg = f"Could not understand the given string as a Docker image ID: {fully_qualified_name}"
@@ -295,9 +295,9 @@ def get_extra_docker_build_args(args):
 
 def _parse_json_for_names_manually(json_output: str) -> Dict[str, str]:
     # Example: "Name":"eyebrows-itest-api-server"
-    pattern_name = re.compile("\"Name\":\"(?P<name>)\"")
+    pattern_name = re.compile(r"\"Name\":\"(?P<name>)\"")
     # Example: "ID":"791e54dd426b"
-    pattern_id = re.compile("\"ID\":\"(?P<id>)\"")
+    pattern_id = re.compile(r"\"ID\":\"(?P<id>)\"")
     ids = {}
     for line in json_output.splitlines():
         if 'Name' and 'ID' in line:
@@ -472,7 +472,7 @@ def docker_login(args):
 
     # If this is for Dockerhub, don't use the registry
     client = docker.from_env(timeout=API_CALL_TIMEOUT_S)
-    if re.compile(".+://.+").match(args.docker_repo):
+    if re.compile(r".+://.+").match(args.docker_repo):
         client.login(username=args.docker_username, password=pswd, registry=args.docker_repo)
     else:
         client.login(username=args.docker_username, password=pswd)
