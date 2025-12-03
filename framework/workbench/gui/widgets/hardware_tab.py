@@ -36,7 +36,7 @@ class HardwareTab(QtWidgets.QWidget):
         sbc_layout = QtWidgets.QVBoxLayout(sbc_group)
         
         sbc_text = QtWidgets.QTextBrowser()
-        sbc_text.setPlaceholderText("K3S node status and Yocto image versions will appear here...")
+        sbc_text.setPlaceholderText("K3S node status will appear here...")
         sbc_layout.addWidget(sbc_text)
         
         layout.addWidget(sbc_group)
