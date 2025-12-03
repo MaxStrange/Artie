@@ -1,5 +1,5 @@
-docker
-requests<2.29.0
+docker>=7.1.0
+requests
 rpyc==5.3.1
 pyyaml
 kubernetes==28.*
