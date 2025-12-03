@@ -7,7 +7,6 @@ from artie_util import boardconfig_controller as board
 from artie_util import constants
 from artie_i2c import i2c
 from artie_service_client import client as asc
-from artie_swd import swd
 from . import ebcommon
 from typing import Dict
 import os
@@ -69,26 +68,12 @@ class FirmwareSubmodule:
             alog.error(f"Given a FW file path of {self._fw_fpath}, but it doesn't exist. Unlikely that we can operate the eyebrows.")
             return False
 
-        left_iface_fname = os.environ.get("SWD_CONFIG_LEFT", None)
-        if left_iface_fname is None:
-            alog.warning(f"The SWD_CONFIG_LEFT env variable is not set. Will attempt a default location/name.")
-            left_iface_fname = "raspberrypi-swd.cfg"
-
-        right_iface_fname = os.environ.get("SWD_CONFIG_RIGHT", None)
-        if right_iface_fname is None:
-            alog.warning(f"The SWD_CONFIG_RIGHT env variable is not set. Will attempt a default location/name.")
-            right_iface_fname = "raspberrypi-right-swd.cfg"
-
         if util.in_test_mode():
             alog.test("Mocking MCU FW load.", tests=['eyebrows-driver-unit-tests:init-mcu'])
 
-        # Use SWD to load the two FW files
-        if not swd.load_fw_file(self._fw_fpath, left_iface_fname):
-            alog.error(f"Error when trying to load FW into left eyebrow MCU. It is likely that MCU is inoperable.")
-            worked = False
-        if not swd.load_fw_file(self._fw_fpath, right_iface_fname):
-            alog.error(f"Error when trying to load FW into right eyebrow MCU. It is likely that MCU is inoperable.")
-            worked = False
+        # Use CAN to load the two FW files
+        # TODO
+        pass
 
         # Reset the eyebrows
         worked &= asc.reset(board.MCU_RESET_ADDR_RL_EYEBROWS, ipv6=self._ipv6)

@@ -9,7 +9,6 @@ labels:
 dependencies:
     - fw-eyebrows: fw-files
     - artie-base-image: docker-image
-    - open-ocd-image: docker-image
 artifacts:
     - name: docker-image
       type: docker-image
@@ -90,10 +89,6 @@ steps:
             # We will use the actual name of the docker image produced by the pre-requisite task
             name: docker-image
             producing-task: artie-base-image
-      - OPENOCD_IMG:
-          dependency:
-            name: docker-image
-            producing-task: open-ocd-image
 ```
 
 - *steps*: A list of `job` items, each of which must be one of the following:

@@ -8,15 +8,10 @@ This driver is responsible for:
 * Loading MCU firmware
 * Sending reset requests, along with an MCU address to the MCU
 
-This driver accepts RPC requests and controls the
-MCU over the Controller Node's I2C bus. It is therefore
-meant to be run on the Controller Node, and it needs to
-be run inside a container that has access to both SWD
-and I2C on the Controller Node.
+This driver must be run on a node with CAN access.
 """
 from artie_gpio import gpio
 from artie_i2c import i2c
-from artie_swd import swd
 from artie_util import artie_logging as alog
 from artie_util import boardconfig_controller as board
 from artie_util import constants
@@ -76,16 +71,14 @@ class ResetMcuDriver(rpycserver.Service):
             alog.error(msg)
             raise FileNotFoundError(msg)
 
-        iface_fname = os.environ.get("SWD_CONFIG_RESET", None)
-        if iface_fname is None:
-            alog.warning(f"The SWD_CONFIG_RESET env variable is not set. Will attempt a default location/name.")
-            iface_fname = "raspberrypi-reset-swd.cfg"
-
         if util.in_test_mode():
             alog.test("Mocking MCU FW load.", tests=['reset-driver-unit-tests:init-mcu'])
 
-        # Use SWD to load the FW file
-        swd.load_fw_file(self._fw_fpath, iface_fname)
+        # Use CAN to load the FW file
+        # TODO
+        pass
+
+        # Reset the MCU by toggling its reset pin
         gpio.output(self._reset_pin, gpio.HIGH)
         time.sleep(0.1)  # Give it a moment to reset
         gpio.output(self._reset_pin, gpio.LOW)

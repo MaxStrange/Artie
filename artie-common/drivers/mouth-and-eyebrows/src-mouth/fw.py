@@ -3,7 +3,6 @@ Code pertaining to the FW subsystem.
 """
 from artie_i2c import i2c
 from artie_service_client import client as asc
-from artie_swd import swd
 from artie_util import artie_logging as alog
 from artie_util import boardconfig_controller as board
 from artie_util import constants
@@ -43,16 +42,14 @@ class FirmwareSubmodule:
             alog.error(f"Given a FW file path of {self._fw_fpath}, but it doesn't exist.")
             return False
 
-        mouth_iface_fname = os.environ.get("SWD_CONFIG_MOUTH", None)
-        if mouth_iface_fname is None:
-            alog.warning(f"The SWD_CONFIG_MOUTH env variable is not set. Will attempt a default location/name.")
-            mouth_iface_fname = "raspberrypi-mouth-swd.cfg"
-
         if util.in_test_mode():
             alog.test("Mocking MCU FW load.", tests=['mouth-driver-unit-tests:init-mcu'])
 
-        # Use SWD to load the FW file
-        worked = swd.load_fw_file(self._fw_fpath, mouth_iface_fname)
+        # Use CAN to load the FW file
+        # TODO
+        pass
+
+        # Reset the MCU to start running the new FW
         worked &= asc.reset(board.MCU_RESET_ADDR_MOUTH, ipv6=self._ipv6)
         time.sleep(0.1)  # Give it a moment to come back online
 
