@@ -1,0 +1,108 @@
+# TODO: Set up an organization context named 'docker-hub' with DOCKERHUB_USERNAME and DOCKERHUB_PAT
+#       environment variables for Docker Hub authentication.
+# TODO: Add filters to trigger this workflow only on specific branches or tags as needed.
+
+
+version: 2.1
+
+executors:
+  ubuntu-executor:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    working_directory: /tmp
+
+jobs:
+  build:
+    executor: ubuntu-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Set up Docker Tag Environment Variable
+          command: |
+            echo "export DOCKER_TAG=${CIRCLE_SHA1:0:8}" >> $BASH_ENV
+      - run:
+          name: Install Python
+          command: |
+            apt-get update
+            apt-get install -y python3 python3-pip
+      - run:
+          name: Install Requirements
+          command: |
+            pip install -r framework/requirements.txt
+      - run:
+          name: Docker Login
+          command: |
+            echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Build All
+          command: python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
+          working_directory: framework
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build-artifacts
+
+  test:
+    executor: ubuntu-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Set up Docker Tag Environment Variable
+          command: |
+            echo "export DOCKER_TAG=${CIRCLE_SHA1:0:8}" >> $BASH_ENV
+      - run:
+          name: Setup Base
+          command: |
+            pip install -r framework/requirements.txt || true
+      - run:
+          name: Display Structure of Downloaded Files
+          command: ls -R
+      - run:
+          name: Docker Login
+          command: |
+            echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Run Sanity Tests
+          command: python3 artie-tool.py test all-sanity --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-sanity.txt --test-timeout-s 120
+          working_directory: framework
+          no_output_timeout: 5m
+      - run:
+          name: Run Unit Tests
+          command: python3 artie-tool.py test all-unit --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-unit.txt --test-timeout-s 120
+          working_directory: framework
+          no_output_timeout: 5m
+          when: always
+      - run:
+          name: Run Integration Tests
+          command: python3 artie-tool.py test all-integration --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-integration.txt --test-timeout-s 120
+          working_directory: framework
+          no_output_timeout: 5m
+          when: always
+      - run:
+          name: Collect Test Results
+          command: grep "All tasks succeeded" testlog-sanity.txt && grep "All tasks succeeded" testlog-unit.txt && grep "All tasks succeeded" testlog-integration.txt
+          working_directory: framework
+          when: always
+      - store_artifacts:
+          path: framework/testlog-sanity.txt
+      - store_artifacts:
+          path: framework/testlog-unit.txt
+      - store_artifacts:
+          path: framework/testlog-integration.txt
+
+workflows:
+  artie-build-and-test:
+    jobs:
+      - build:
+          context:
+            - docker-hub
+      - test:
+          requires:
+            - build
+          context:
+            - docker-hub
