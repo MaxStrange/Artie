@@ -52,6 +52,7 @@ jobs:
           command: |
             echo '$USER' | gnome-keyring-daemon --unlock
             echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker buildx create —use
             python3 artie-tool.py build all --enable-error-tracing --docker-repo $DOCKER_REPO --force-build --docker-tag $DOCKER_TAG --fail-fast
           working_directory: framework
       - persist_to_workspace:
