@@ -26,12 +26,17 @@ def status(args):
     match args.module:
         case "nodes":
             pass
+        case "pods":
+            pass
         case "mcus":
             pass
         case "actuators":
             pass
-        case _:
+        case "sensors":
             pass
+        case _:
+            common.error(f"Unknown status module: {args.module}")
+            retcode = 1
 
     return retcode
 
@@ -43,11 +48,16 @@ def fill_subparser(parser_status: argparse.ArgumentParser, parent: argparse.Argu
     group = option_parser.add_argument_group("Status", "Status Options")
     group.add_argument("--timeout-s", type=int, default=30, help="Timeout in seconds for status operations (default: 30s)")
     group.add_argument("--logs", choices=[option.value[0] for option in LogOptions], default=LogOptions.NONE.value[0], help=f"Whether to fetch logs along with status. Chooses from: {list(zip([option.value[0] for option in LogOptions], [option.value[1] for option in LogOptions]))} (default: {LogOptions.NONE.value[0]})")
+    group.add_argument("--list", action='store_true', help="If given, we will list the available items instead of getting status for a specific item.")
 
     # Add all the status tasks
-    k3s_parser = subparsers.add_parser("nodes", parents=[option_parser])
-    k3s_parser.add_argument("--node", "-n", default="all", type=str, help="The node to get status for. If not given, we get the status for all nodes.")
-    k3s_parser.set_defaults(cmd=status, module="nodes")
+    node_parser = subparsers.add_parser("nodes", parents=[option_parser])
+    node_parser.add_argument("--node", "-n", default="all", type=str, help="The node to get status for. If not given, we get the status for all nodes.")
+    node_parser.set_defaults(cmd=status, module="nodes")
+
+    pod_parser = subparsers.add_parser("pods", parents=[option_parser])
+    pod_parser.add_argument("--pod", "-p", default="all", type=str, help="The pod to get status for. If not given, we get the status for all pods.")
+    pod_parser.set_defaults(cmd=status, module="pods")
 
     mcu_parser = subparsers.add_parser("mcus", parents=[option_parser])
     mcu_parser.add_argument("--mcu", "-m", default="all", type=str, help="The MCU to get heartbeat status for. If not given, we get the status for all MCUs.")
@@ -56,3 +66,7 @@ def fill_subparser(parser_status: argparse.ArgumentParser, parent: argparse.Argu
     actuator_parser = subparsers.add_parser("actuators", parents=[option_parser])
     actuator_parser.add_argument("--actuator", "-a", default="all", type=str, help="The actuator to get status for. If not given, we get the status for all actuators.")
     actuator_parser.set_defaults(cmd=status, module="actuators")
+
+    sensor_parser = subparsers.add_parser("sensors", parents=[option_parser])
+    sensor_parser.add_argument("--sensor", "-s", default="all", type=str, help="The sensor to get status for. If not given, we get the status for all sensors.")
+    sensor_parser.set_defaults(cmd=status, module="sensors")
