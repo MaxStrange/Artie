@@ -25,7 +25,7 @@ jobs:
           name: Install Dependencies
           command: |
             sudo apt-get update
-            sudo apt-get install -y python3 python3-pip libsecret-1-0 libsecret-1-dev dbus
+            sudo apt-get install -y python3 python3-pip libsecret-1-0 libsecret-1-dev dbus-x11
       - run:
           name: Install Python Requirements
           command: |
