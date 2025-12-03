@@ -13,6 +13,7 @@ from artietool.flash import flash
 from artietool.install import install
 from artietool.install import uninstall
 from artietool.release import release
+from artietool.status import status
 from artietool.test import test
 import argparse
 import multiprocessing
@@ -105,6 +106,10 @@ if __name__ == "__main__":
     # Parser for the deploy command
     parser_deploy = subparsers.add_parser("deploy", parents=[option_parser])
     deploy.fill_subparser(parser_deploy, option_parser)
+
+    # Parser for the status command
+    parser_status = subparsers.add_parser("status", parents=[option_parser])
+    status.fill_subparser(parser_status, option_parser)
 
     # Parser for clean command
     parser_clean = subparsers.add_parser("clean", parents=[option_parser])
