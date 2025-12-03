@@ -50,6 +50,7 @@ jobs:
       - run:
           name: Docker Login
           command: |
+            echo '$USER' | gnome-keyring-daemon --unlock
             echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
           name: Build All
