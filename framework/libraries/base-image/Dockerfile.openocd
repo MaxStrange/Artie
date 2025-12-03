@@ -10,7 +10,9 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libftdi-dev \
     libusb-1.0-0-dev \
     pkg-config \
-    git
+    git \
+    jimsh \
+    libjim-dev
 
 WORKDIR /repos
 RUN git clone https://github.com/raspberrypi/openocd.git --branch rpi-common --recursive --depth=1

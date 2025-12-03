@@ -24,7 +24,11 @@ def status(args):
     retcode = 0
 
     match args.module:
-        case "k3s-nodes":
+        case "nodes":
+            pass
+        case "mcus":
+            pass
+        case "actuators":
             pass
         case _:
             pass
@@ -41,9 +45,9 @@ def fill_subparser(parser_status: argparse.ArgumentParser, parent: argparse.Argu
     group.add_argument("--logs", choices=[option.value[0] for option in LogOptions], default=LogOptions.NONE.value[0], help=f"Whether to fetch logs along with status. Chooses from: {list(zip([option.value[0] for option in LogOptions], [option.value[1] for option in LogOptions]))} (default: {LogOptions.NONE.value[0]})")
 
     # Add all the status tasks
-    k3s_parser = subparsers.add_parser("k3s-nodes", parents=[option_parser])
+    k3s_parser = subparsers.add_parser("nodes", parents=[option_parser])
     k3s_parser.add_argument("--node", "-n", default="all", type=str, help="The node to get status for. If not given, we get the status for all nodes.")
-    k3s_parser.set_defaults(cmd=status, module="k3s-nodes")
+    k3s_parser.set_defaults(cmd=status, module="nodes")
 
     mcu_parser = subparsers.add_parser("mcus", parents=[option_parser])
     mcu_parser.add_argument("--mcu", "-m", default="all", type=str, help="The MCU to get heartbeat status for. If not given, we get the status for all MCUs.")
