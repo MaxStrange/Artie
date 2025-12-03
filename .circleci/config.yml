@@ -33,7 +33,7 @@ jobs:
       - run:
           name: Set up Secret Service for Docker Credentials
           command: |
-            wget -O docker-credential-secretservice https://github.com/docker/docker-credential-helpers/releases/download/v0.9.4/docker-credential-pass-v0.9.4.linux-amd64
+            wget -O docker-credential-secretservice https://github.com/docker/docker-credential-helpers/releases/download/v0.9.4/docker-credential-secretservice-v0.9.4.linux-amd64
             chmod +x docker-credential-secretservice
             sudo mv docker-credential-secretservice /usr/local/bin/
       - run:
