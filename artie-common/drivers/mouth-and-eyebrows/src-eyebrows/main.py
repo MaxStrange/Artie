@@ -11,7 +11,7 @@ This driver accepts ZeroRPC requests and controls the
 MCUs over the Controller Node's I2C bus. It is
 therefore meant to be run on the Controller Node,
 and it needs to be run inside a container that
-has access to both SWD and I2C on the Controller Node.
+has access to CAN on the Controller Node.
 """
 from artie_i2c import i2c
 from artie_util import artie_logging as alog

@@ -153,7 +153,7 @@ while in the case of StartRPC and TxData frames, 'sender address' is the request
   The ACK/NACK frame should be sent from the remote node only once, at the end of the final TxData
   frame (in the case of a multi-frame RPC) or after the StartRPC frame (in the case of a single-frame RPC).
 * *StartReturn 0xxx=0011*: In the case of synchronous RPCs, a single StartReturn frame is sent from the remote
-  node to the requesting node as soon as possible after the remote procdedure call is finished.
+  node to the requesting node as soon as possible after the remote procedure call is finished.
   This frame may contain an entire return value, in the case of a single-frame return, or it may
   contain part of the return data along with metadata (in the case of a multi-frame return).
   In the case of asynchronous RPCs, no return value is sent back, and as such, no StartReturn frame is sent.

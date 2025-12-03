@@ -5,7 +5,6 @@ labels:
 dependencies:
   - fw-eyebrows: fw-files
   - artie-base-image: docker-image-arm64
-  - open-ocd-image: docker-image
 artifacts:
   - name: docker-image
     type: docker-image
@@ -38,7 +37,3 @@ steps:
           dependency:
             name: docker-image-arm64
             producing-task: artie-base-image
-      - OPENOCD_IMG:
-          dependency:
-            name: docker-image
-            producing-task: open-ocd-image

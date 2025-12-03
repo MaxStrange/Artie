@@ -29,12 +29,6 @@ WORKDIR /tmp/artie-gpio
 RUN pip install .
 RUN rm -rf /tmp/artie-gpio
 
-# Build artie-swd
-COPY ./tmp/artie-swd /tmp/artie-swd/
-WORKDIR /tmp/artie-swd
-RUN pip install .
-RUN rm -rf /tmp/artie-swd
-
 # Build artie-service-client
 COPY ./tmp/artie-service-client /tmp/artie-service-client/
 WORKDIR /tmp/artie-service-client

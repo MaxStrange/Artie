@@ -47,16 +47,14 @@ def _load_fw_file(fw_fpath: str):
     ----------
     - fw_fpath: File path of the .elf file to load.
     """
-    mouth_iface_fname = os.environ.get("SWD_CONFIG_MOUTH", "raspberrypi-mouth-swd.cfg")
-    openocd_cmds = f'program {fw_fpath} verify reset exit'
-    logging.info(f"Attempting to load {fw_fpath} into MCU...")
-    cmd = f'openocd -f interface/{mouth_iface_fname} -f target/rp2040.cfg -c '
-    result = subprocess.run(cmd.split() + [openocd_cmds], capture_output=True, encoding='utf-8')
+    # TODO: Load FW over CAN
+    logging.info("Loaded FW successfully.")
+    return
 
     if result.returncode != 0:
         logging.error(f"Non-zero return code when attempting to load FW. Got return code {result.returncode}")
         logging.error(f"Mouth MCU may be non-responsive.")
-        logging.error(f"Got stdout and stderr from openocd subprocess:")
+        logging.error(f"Got stdout and stderr from subprocess:")
         logging.error(f"STDOUT: {result.stdout}")
         logging.error(f"STDERR: {result.stderr}")
     else:
@@ -82,7 +80,7 @@ def fw_load(args):
     GPIO.setup(reset_pin, GPIO.OUT)
     GPIO.output(reset_pin, GPIO.LOW)
 
-    # Use SWD to load the FW file
+    # Use CAN to load the FW file
     _load_fw_file(fw_fpath)
     GPIO.output(reset_pin, GPIO.HIGH)
     time.sleep(0.1)  # Give it a moment to reset
