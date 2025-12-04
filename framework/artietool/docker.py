@@ -21,7 +21,7 @@ except ModuleNotFoundError:
     logging.error("'docker' not installed. Make sure to install dependencies with 'pip install -r requirements.txt'")
     exit(1)
 
-API_CALL_TIMEOUT_S = 30
+API_CALL_TIMEOUT_S = 600
 
 class DockerImageName:
     def __init__(self, repo: str, name: str, tag: str) -> None:
