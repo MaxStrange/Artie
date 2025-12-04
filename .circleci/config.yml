@@ -8,6 +8,10 @@ executors:
     machine:
       image: ubuntu-2404:current
     resource_class: medium
+  arm-executor:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: arm.medium
 
 jobs:
   build:
@@ -61,7 +65,7 @@ jobs:
             - build-artifacts
 
   test:
-    executor: ubuntu-executor
+    executor: arm-executor
     steps:
       - checkout
       - attach_workspace:
@@ -102,7 +106,6 @@ jobs:
           command: |
             echo '$USER' | gnome-keyring-daemon --unlock
             echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker buildx create --use --platform linux/amd64,linux/arm64
             python3 artie-tool.py test all-sanity --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-sanity.txt --test-timeout-s 120
           working_directory: framework
           no_output_timeout: 5m
@@ -111,7 +114,6 @@ jobs:
           command: |
             echo '$USER' | gnome-keyring-daemon --unlock
             echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker buildx create --use --platform linux/amd64,linux/arm64
             python3 artie-tool.py test all-unit --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-unit.txt --test-timeout-s 120
           working_directory: framework
           no_output_timeout: 5m
@@ -121,7 +123,6 @@ jobs:
           command: |
             echo '$USER' | gnome-keyring-daemon --unlock
             echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker buildx create --use --platform linux/amd64,linux/arm64
             python3 artie-tool.py test all-integration --enable-error-tracing --docker-repo $DOCKER_REPO --docker-tag $DOCKER_TAG --docker-logs --nprocs 1 --output testlog-integration.txt --test-timeout-s 120
           working_directory: framework
           no_output_timeout: 5m
