@@ -28,6 +28,11 @@ class DockerManifestJob(job.Job):
         return evaluated_images
 
     def __call__(self, args) -> result.JobResult:
+        if args.docker_repo is None:
+            common.info("No docker repo specified. Skipping docker manifest creation.")
+            self.mark_all_artifacts_as_built()
+            return result.JobResult(self.name, success=True, artifacts=self.artifacts)
+
         common.info(f"Creating docker manifest...")
 
         # Turn all the images we need into real images from dependencies
@@ -41,6 +46,9 @@ class DockerManifestJob(job.Job):
         common.info(f"Creating manifest named {manifest_name}...")
         insecure = args.insecure_docker_repo
         manifest = docker.create_manifest(manifest_name, evaluated_images, insecure=insecure)
+
+        common.info(f"Annotating manifest {manifest_name}...")
+        docker.annotate_manifest(manifest_name, evaluated_images)
 
         common.info(f"Pushing manifest {manifest_name}...")
         docker.push_manifest(manifest)

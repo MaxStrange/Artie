@@ -1,4 +1,4 @@
-ARG ARTIE_BASE_IMG
+ARG ARTIE_BASE_IMG=thisarg/isrequired:latest
 FROM ${ARTIE_BASE_IMG} AS BASE_IMG
 
 COPY ./reset/src /pico/src

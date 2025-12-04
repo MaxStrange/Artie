@@ -219,6 +219,30 @@ def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag
     tag_and_platform = f"{tag}-{platform}" if platform else f"{tag}"
     return DockerImageName(repo_prefix, name, tag_and_platform)
 
+def annotate_manifest(manifest_name: str, docker_image_names: List[str|DockerImageName]):
+    """
+    Annotate the given manifest with the proper architecture information.
+    """
+    for image_name in docker_image_names:
+        tag = get_tag_from_name(image_name)
+        if tag.endswith("-arm64"):
+            arch = "arm64"
+        elif tag.endswith("-amd64"):
+            arch = "amd64"
+        else:
+            msg = f"Cannot determine architecture from tag {tag} of image {image_name} when annotating manifest {manifest_name}."
+            common.error(msg)
+            raise ValueError(msg)
+
+        cmd = ["docker", "manifest", "annotate", manifest_name, str(image_name), "--arch", arch]
+        common.info(f"Running command: {' '.join(cmd)}")
+        p = subprocess.run(cmd, capture_output=True)
+        if p.returncode != 0:
+            common.error(f"Failed to run cmd: {cmd}")
+            common.error(f"Subprocess's stderr: {p.stderr.decode('utf-8')}")
+            common.error(f"Subprocess's stdout: {p.stdout.decode('utf-8')}")
+            p.check_returncode()
+
 def create_manifest(manifest_name: str, docker_image_names: List[str|DockerImageName], insecure=False) -> DockerManifest:
     """
     Create a Docker Manifest on the host file system and return an object representing it.
