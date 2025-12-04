@@ -1,4 +1,4 @@
-ARG ARTIE_BASE_IMG
+ARG ARTIE_BASE_IMG=thisarg/isrequired:latest
 FROM ${ARTIE_BASE_IMG}
 
 # Copy in the FW
