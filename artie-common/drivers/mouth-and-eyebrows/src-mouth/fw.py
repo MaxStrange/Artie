@@ -50,7 +50,7 @@ class FirmwareSubmodule:
         pass
 
         # Reset the MCU to start running the new FW
-        worked &= asc.reset(board.MCU_RESET_ADDR_MOUTH, ipv6=self._ipv6)
+        worked = asc.reset(board.MCU_RESET_ADDR_MOUTH, ipv6=self._ipv6)
         time.sleep(0.1)  # Give it a moment to come back online
 
         # Sanity check that the MCU is present on the I2C bus
