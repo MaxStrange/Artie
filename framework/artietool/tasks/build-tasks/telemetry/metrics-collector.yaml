@@ -14,24 +14,24 @@ type: build
 steps:
   - job: docker-build
     artifacts:
-      - docker-image-arm64
+      - docker-image-amd64
     img-base-name: artie-metrics-collector
     buildx: true
     platform: linux/amd64
     dockerfile-dpath: "${REPO_ROOT}/framework/libraries/telemetry/prometheus"
     dockerfile: Dockerfile
     build-context: "."
-    build-args:
-      - ARCHITECTURE: arm64
   - job: docker-build
     artifacts:
-      - docker-image-amd64
+      - docker-image-arm64
     img-base-name: artie-metrics-collector
     buildx: true
     platform: linux/arm64
     dockerfile-dpath: "${REPO_ROOT}/framework/libraries/telemetry/prometheus"
     dockerfile: Dockerfile
     build-context: "."
+    build-args:
+      - ARCHITECTURE: arm64
   - job: docker-manifest
     artifacts:
       - docker-image
