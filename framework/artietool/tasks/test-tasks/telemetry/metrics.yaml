@@ -38,4 +38,4 @@ steps:
         cmd-to-run-in-cli: "artie-cli help"
         expected-outputs:
           - what: "Test Passed"
-            where: metrics-collector
+            where: metrics-itest-metrics-collector

@@ -38,7 +38,7 @@ services:
       - METRICS_SERVER_PORT=8090
 
   log-collector:
-    container_name: log-collector
+    container_name: telemetry-itest-log-collector
     image: ${LOG_COLLECTOR_TEST_IMAGE}
     expose:
       - 5170
@@ -46,7 +46,7 @@ services:
       - telemetry-itest
 
   metrics-collector:
-    container_name: metrics-collector
+    container_name: telemetry-itest-metrics-collector
     image: ${METRICS_COLLECTOR_TEST_IMAGE}
     depends_on:
       - eyebrows-driver
