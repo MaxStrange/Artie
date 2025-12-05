@@ -7,19 +7,20 @@ executors:
   ubuntu-executor:
     machine:
       image: ubuntu-2404:current
-    resource_class: medium
+    resource_class: large
   arm-executor:
     machine:
       image: ubuntu-2404:current
     resource_class: arm.medium
 
-jobs:
-  build:
-    executor: ubuntu-executor
+commands:
+  setup:
+    description: "Set up Docker environment and install dependencies."
+    parameters:
+      architecture:
+        type: string
+        default: "amd64"
     steps:
-      - checkout
-      - attach_workspace:
-          at: .
       - run:
           name: Set up Docker Environment Variables
           command: |
@@ -43,7 +44,7 @@ jobs:
       - run:
           name: Set up Secret Service for Docker Credentials
           command: |
-            wget -O docker-credential-secretservice https://github.com/docker/docker-credential-helpers/releases/download/v0.9.4/docker-credential-secretservice-v0.9.4.linux-amd64
+            wget -O docker-credential-secretservice https://github.com/docker/docker-credential-helpers/releases/download/v0.9.4/docker-credential-secretservice-v0.9.4-<<parameters.architecture>>
             chmod +x docker-credential-secretservice
             sudo mv docker-credential-secretservice /usr/local/bin/
       - run:
@@ -51,6 +52,16 @@ jobs:
           command: |
             mkdir -p $HOME/.docker
             echo '{"credsStore":"secretservice"}' > $HOME/.docker/config.json
+
+jobs:
+  build:
+    executor: ubuntu-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - setup:
+          architecture: "amd64"
       - run:
           name: Build All
           command: |
@@ -64,43 +75,14 @@ jobs:
           paths:
             - build-artifacts
 
-  test:
+  test-sanity:
     executor: arm-executor
     steps:
       - checkout
       - attach_workspace:
           at: .
-      - run:
-          name: Set up Docker Environment Variables
-          command: |
-            echo "export DOCKER_TAG=${CIRCLE_SHA1:0:8}" >> $BASH_ENV
-            echo "export DOCKER_REPO=maxfieldstrange" >> $BASH_ENV
-      - run:
-          name: Install Dependencies
-          command: |
-            sudo apt-get update
-            sudo apt-get install -y python3 python3-pip libsecret-1-0 libsecret-1-dev dbus-x11 gnome-keyring
-      - run:
-          name: Install Python Requirements
-          command: |
-            pip install -r framework/requirements.txt
-      - run:
-          name: Start D-Bus
-          command: |
-            eval $(dbus-launch --sh-syntax)
-            echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $BASH_ENV
-            echo "DBUS_SESSION_BUS_PID=$DBUS_SESSION_BUS_PID" >> $BASH_ENV
-      - run:
-          name: Set up Secret Service for Docker Credentials
-          command: |
-            wget -O docker-credential-secretservice https://github.com/docker/docker-credential-helpers/releases/download/v0.9.4/docker-credential-secretservice-v0.9.4.linux-arm64
-            chmod +x docker-credential-secretservice
-            sudo mv docker-credential-secretservice /usr/local/bin/
-      - run:
-          name: Set up Docker Config File
-          command: |
-            mkdir -p $HOME/.docker
-            echo '{"credsStore":"secretservice"}' > $HOME/.docker/config.json
+      - setup:
+          architecture: "arm64"
       - run:
           name: Run Sanity Tests
           command: |
@@ -110,6 +92,22 @@ jobs:
           working_directory: framework
           no_output_timeout: 5m
       - run:
+          name: Collect Test Results
+          command: grep "All tasks succeeded" testlog-sanity.txt
+          working_directory: framework
+          when: always
+      - store_artifacts:
+          path: framework/testlog-sanity.txt
+
+  test-unit:
+    executor: arm-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - setup:
+          architecture: "arm64"
+      - run:
           name: Run Unit Tests
           command: |
             echo '$USER' | gnome-keyring-daemon --unlock
@@ -118,6 +116,22 @@ jobs:
           working_directory: framework
           no_output_timeout: 5m
           when: always
+      - run:
+          name: Collect Test Results
+          command: grep "All tasks succeeded" testlog-unit.txt
+          working_directory: framework
+          when: always
+      - store_artifacts:
+          path: framework/testlog-unit.txt
+
+  test-integration:
+    executor: arm-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - setup:
+          architecture: "arm64"
       - run:
           name: Run Integration Tests
           command: |
@@ -129,13 +143,9 @@ jobs:
           when: always
       - run:
           name: Collect Test Results
-          command: grep "All tasks succeeded" testlog-sanity.txt && grep "All tasks succeeded" testlog-unit.txt && grep "All tasks succeeded" testlog-integration.txt
+          command: grep "All tasks succeeded" testlog-integration.txt
           working_directory: framework
           when: always
-      - store_artifacts:
-          path: framework/testlog-sanity.txt
-      - store_artifacts:
-          path: framework/testlog-unit.txt
       - store_artifacts:
           path: framework/testlog-integration.txt
 
@@ -145,7 +155,17 @@ workflows:
       - build:
           context:
             - docker-hub
-      - test:
+      - test-sanity:
+          requires:
+            - build
+          context:
+            - docker-hub
+      - test-unit:
+          requires:
+            - build
+          context:
+            - docker-hub
+      - test-integration:
           requires:
             - build
           context:

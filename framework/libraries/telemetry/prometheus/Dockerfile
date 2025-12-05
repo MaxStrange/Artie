@@ -1,5 +1,7 @@
 FROM debian:bullseye
 
+ARG ARCHITECTURE=amd64
+
 # Prereqs
 RUN apt-get update && apt-get install -y \
     openssl \
@@ -13,7 +15,7 @@ RUN pip3 install requests
 
 # Install Prometheus
 WORKDIR /app
-RUN wget https://github.com/prometheus/prometheus/releases/download/v2.37.8/prometheus-2.37.8.linux-amd64.tar.gz -O prometheus.tar.gz
+RUN wget https://github.com/prometheus/prometheus/releases/download/v2.37.8/prometheus-2.37.8.linux-${ARCHITECTURE}.tar.gz -O prometheus.tar.gz
 RUN tar -xzf prometheus.tar.gz -C . --strip-components=1 && rm prometheus.tar.gz
 
 # Args for prometheus's shell script

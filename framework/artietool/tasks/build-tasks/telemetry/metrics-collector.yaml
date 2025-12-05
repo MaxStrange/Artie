@@ -21,6 +21,8 @@ steps:
     dockerfile-dpath: "${REPO_ROOT}/framework/libraries/telemetry/prometheus"
     dockerfile: Dockerfile
     build-context: "."
+    build-args:
+      - ARCHITECTURE: arm64
   - job: docker-build
     artifacts:
       - docker-image-amd64
