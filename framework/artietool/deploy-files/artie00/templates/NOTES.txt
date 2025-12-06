@@ -1,0 +1,19 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your Artie00 robot instance has been deployed!
+
+This chart extends artie-base (version {{ .Chart.Dependencies.artie-base.Version }}) with artie00-specific configuration.
+
+Artie ID: {{ .Values.artie-base.artieId }}
+Image Tag: {{ .Values.artie-base.imageTag }}
+Namespace: {{ .Values.artie-base.namespace }}
+
+To check the status of your deployment:
+
+  kubectl get pods --namespace {{ .Values.artie-base.namespace }}
+
+To view logs from the API server:
+
+  kubectl logs -l app.kubernetes.io/name=artie-api-server --namespace {{ .Values.artie-base.namespace }}
+
+For more information, visit: https://github.com/MaxStrange/Artie

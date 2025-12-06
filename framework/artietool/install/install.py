@@ -1,9 +1,11 @@
 """
 All the machinery for installing.
 """
+from typing import Dict
 from typing import List
 from typing import Tuple
 from .. import common
+from ..infrastructure import hw_config
 from .. import kube
 import argparse
 import datetime
@@ -12,6 +14,7 @@ import os
 import re
 import subprocess
 import time
+import yaml
 
 def _create_unique_artie_name(node_names: List[str]) -> str:
     """
@@ -68,6 +71,80 @@ def _get_token(args) -> Tuple[bool, str|None]:
     else:
         return _get_token_from_user(args)
 
+def _initialize_sbc(args, sbc_config: hw_config.SBC, artie_name: str, artie_ip: str, artie_username: str, 
+                    artie_password: str, k3s_token: str, admin_ip: str) -> Tuple[bool, str]:
+    """
+    Initialize a single board computer by creating its K3S config and joining it to the cluster.
+    
+    Returns: (success, node_name)
+    """
+    node_name = f"{sbc_config.name}-{artie_name}"
+
+    common.info(f"Initializing SBC: {sbc_config.name} (node: {node_name})...")
+
+    # Create K3S config file
+    config_file_contents = "\n".join([
+        f'node-name: "{node_name}"',
+        f'token: "{k3s_token}"',
+        f'server: "https://{admin_ip}:6443"',
+    ])
+    
+    config_file = os.path.join(common.get_scratch_location(), f"config-{sbc_config.name}.yaml")
+    with open(config_file, 'w') as f:
+        f.write(config_file_contents)
+    
+    # Copy config to the SBC
+    common.scp_to(artie_ip, artie_username, artie_password, target=config_file, dest="/etc/rancher/k3s/config.yaml")
+    os.remove(config_file)
+    
+    # Restart k3s agent
+    common.ssh("systemctl daemon-reload", artie_ip, artie_username, artie_password)
+    common.ssh("systemctl restart k3s-agent.service", artie_ip, artie_username, artie_password)
+    
+    return True, node_name
+
+def _create_artie_metadata_configmap(args, artie_name: str, artie_config: hw_config.HWConfig):
+    """
+    Create a ConfigMap in Kubernetes containing metadata about this Artie's hardware configuration.
+    """
+    common.info("Creating Artie hardware metadata ConfigMap...")
+    
+    # Build the metadata structure
+    metadata = {
+        'artie-name': artie_name,
+        'single-board-computers': yaml.dump(artie_config.sbcs),
+        'microcontrollers': yaml.dump(artie_config.mcus),
+        'sensors': yaml.dump(artie_config.sensors),
+        'actuators': yaml.dump(artie_config.actuators),
+    }
+    
+    # Create ConfigMap YAML
+    configmap_yaml = {
+        'apiVersion': 'v1',
+        'kind': 'ConfigMap',
+        'metadata': {
+            'name': f'artie-hw-config-{artie_name}',
+            'namespace': kube.ArtieK8sValues.NAMESPACE,
+            'labels': {
+                'app.kubernetes.io/name': 'artie-hw-config',
+                'app.kubernetes.io/part-of': 'artie',
+                kube.ArtieK8sKeys.ARTIE_ID: artie_name,
+            }
+        },
+        'data': metadata
+    }
+    
+    # Delete existing ConfigMap if it exists
+    try:
+        kube.delete_configmap(args, f'artie-hw-config-{artie_name}', ignore_errors=True)
+    except:
+        pass
+    
+    # Create the ConfigMap
+    configmap_yaml_str = yaml.dump(configmap_yaml)
+    kube.create_from_yaml(args, configmap_yaml_str)
+    common.info(f"Created hardware metadata ConfigMap: artie-hw-config-{artie_name}")
+
 def install(args):
     """
     Top-level install function.
@@ -87,6 +164,22 @@ def install(args):
     if p.returncode != 0:
         common.error(f"Could not run helm command. Is Helm installed?")
         retcode = p.returncode
+        return retcode
+
+    # Load Artie type configuration
+    common.info(f"Loading Artie type configuration from {args.artie_type_file}...")
+    try:
+        artie_config = hw_config.HWConfig.from_config(args.artie_type_file)
+        common.info(f"Found {len(artie_config.sbcs)} SBC(s), {len(artie_config.mcus)} MCU(s), {len(artie_config.sensors)} sensor(s), and {len(artie_config.actuators)} actuator(s).")
+    except Exception as e:
+        common.error(f"Failed to load Artie type configuration: {e}")
+        retcode = 1
+        return retcode
+
+    # Assert that there is at least a controller node
+    if artie_config.controller_node is None:
+        common.error(f"No controller-node found in this Artie configuration. Cannot proceed with installation.")
+        retcode = 1
         return retcode
 
     # Check for any already installed arties and get their names
@@ -115,60 +208,58 @@ def install(args):
         retcode = 1
         return retcode
 
-    # TODO: When we add additional SBCs to Artie, this initialization scheme will need to change;
-    #       I.e., we need a way of propagating this information onto all the SBCs (ideally using
-    #       the same mechanism we use for propagating the wifi credentials to all the other SBCs - presumably
-    #       some low-level daemon in the Yocto image that listens to the CAN bus.)
-    # Create a config file and copy it over to /etc/rancher/k3s/config.yaml on Artie at args.username@args.artie_ip
-    #   node-name: Artie's name
-    #   token: token value
-    #   server: admin node's URL
-    common.info("Creating a configuration file for Artie...")
-    node_name = f"controller-node-{artie_name}"
-    config_file_contents = "\n".join([
-        f'node-name: "{node_name}"',
-        f'token: "{k3s_token}"',
-        f'server: "https://{args.admin_ip}:6443"',
-    ])
-    config_file = os.path.join(common.get_scratch_location(), "config.yaml")
-    with open(config_file, 'w') as f:
-        f.write(config_file_contents)
-    common.scp_to(artie_ip, artie_username, artie_password, target=config_file, dest="/etc/rancher/k3s/config.yaml")
-    os.remove(config_file)
-
-    # Restart Artie's k3s agent
-    common.info("Joining Artie to the cluster...")
-    common.ssh("systemctl daemon-reload", artie_ip, artie_username, artie_password)
-    common.ssh("systemctl restart k3s-agent.service", artie_ip, artie_username, artie_password)
-
-    # Give it a moment to let the node come online in the Kubernetes cluster
-    common.info("Waiting a moment for node to come online...")
-    timeout_s = 120
-    now = datetime.datetime.now().timestamp()
-    while not kube.node_is_online(args, node_name):
-        time.sleep(1)
-        if datetime.datetime.now().timestamp() - now > timeout_s:
-            common.error("Timed out waiting for the controller node to come online.")
+    # Initialize all SBCs from the configuration file
+    common.info(f"Initializing {len(artie_config.sbcs)} single board computer(s)...")
+    initialized_nodes = []
+    
+    for sbc_config in artie_config.sbcs:
+        # Initialize this SBC
+        # TODO: When multiple SBCs have different IPs, update _initialize_sbc to handle that.
+        #       The controller node will send the information along over CAN
+        success, node_name = _initialize_sbc(args, sbc_config, artie_name, artie_ip, artie_username, artie_password, k3s_token, args.admin_ip)
+        if not success:
+            common.error(f"Failed to initialize SBC: {sbc_config.name}")
             retcode = 1
             return retcode
-
-    # Assign whatever labels to the various nodes
-    # TODO: Need to assign these to ALL physical Artie nodes (SBCs) - not just controller node
-    node_labels = {
-        kube.ArtieK8sKeys.NODE_ROLE: str(kube.ArtieK8sValues.CONTROLLER_NODE_ID),
-        kube.ArtieK8sKeys.ARTIE_ID: artie_name,
-    }
-    common.info("Configuring nodes (step 1)...")
-    kube.assign_node_labels(args, node_name, node_labels)
-
-    # Assign node taints
-    # TODO: Need to assign these to ALL physical Artie nodes (SBCs) - not just controller node
-    node_taints = {
-        kube.ArtieK8sKeys.PHYSICAL_BOT_NODE_TAINT: ("true", "NoSchedule"),
-        kube.ArtieK8sKeys.CONTROLLER_NODE_TAINT: ("true", "NoSchedule"),
-    }
-    common.info("Configuring nodes (step 2)...")
-    kube.assign_node_taints(args, node_name, node_taints)
+        
+        # Wait for node to come online
+        common.info(f"Waiting for {node_name} to come online...")
+        timeout_s = 120
+        start_time = datetime.datetime.now().timestamp()
+        while not kube.node_is_online(args, node_name):
+            time.sleep(1)
+            if datetime.datetime.now().timestamp() - start_time > timeout_s:
+                common.error(f"Timed out waiting for {node_name} to come online.")
+                retcode = 1
+                return retcode
+        
+        common.info(f"Node {node_name} is online.")
+        initialized_nodes.append((node_name, sbc_config))
+    
+    # Assign labels and taints to all nodes
+    common.info("Configuring node labels and taints...")
+    for node_name, sbc_config in initialized_nodes:
+        # Assign node labels
+        node_labels = {
+            kube.ArtieK8sKeys.ARTIE_ID: artie_name,
+            kube.ArtieK8sKeys.NODE_ROLE: sbc_config.name,  # Use the SBC name as the node role
+        }
+        kube.assign_node_labels(args, node_name, node_labels)
+        
+        # Assign node taints - all physical bot nodes get the physical bot taint
+        node_taints = {
+            kube.ArtieK8sKeys.PHYSICAL_BOT_NODE_TAINT: ("true", "NoSchedule"),
+        }
+        
+        # Controller node gets an additional taint
+        if sbc_config.name == "controller-node":
+            node_taints[kube.ArtieK8sKeys.CONTROLLER_NODE_TAINT] = ("true", "NoSchedule")
+        
+        kube.assign_node_taints(args, node_name, node_taints)
+        common.info(f"Configured {node_name}")
+    
+    # Create ConfigMap with hardware metadata
+    _create_artie_metadata_configmap(args, artie_name, artie_config)
 
     return retcode
 
@@ -176,6 +267,7 @@ def fill_subparser(parser_install: argparse.ArgumentParser, parent: argparse.Arg
     parser_install.add_argument("-u", "--username", required=True, type=str, help="Username for the Artie we are installing.")
     parser_install.add_argument("--artie-ip", required=True, type=common.validate_input_ip, help="IP address for the Artie we are installing.")
     parser_install.add_argument("--admin-ip", required=True, type=common.validate_input_ip, help="IP address for the admin server.")
+    parser_install.add_argument("--artie-type-file", required=True, type=common.argparse_file_path_type, help="Path to the YAML file defining this Artie's hardware configuration (e.g., artie00/artie00.yml).")
     parser_install.add_argument("-p", "--password", type=str, default=None, help="The password for the Artie we are adding. It is more secure to pass this in over stdin when prompted, if possible.")
     parser_install.add_argument("-t", "--token", type=str, default=None, help="Token that you were given after installing Artie Admind. If you have lost it, you can find it on the admin server at /var/lib/rancher/k3s/server/node-token. It is more secure to pass this in over stdin when prompted, if possible.")
     parser_install.add_argument("--token-file", type=common.argparse_file_path_type, default=None, help="A file that contains the Artie Admind token as its only contents.")
