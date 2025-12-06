@@ -62,11 +62,11 @@ if __name__ == "__main__":
     ## It's gross, but seems to be how argparse works with subcommands and global options.
     option_parser = argparse.ArgumentParser(description=__doc__, add_help=False)
     group = option_parser.add_argument_group("Global", "Global Options")
-    group.add_argument("-l", "--loglevel", type=str, default="info", choices=["debug", "info", "warning", "error"], help="The log level.")
+    group.add_argument("-l", "--loglevel", type=str, default="info", choices=["debug", "info", "warning", "error"], help="The log level. Default: %(default)s")
     group.add_argument("-e", "--enable-error-tracing", action='store_true', help="If given, error messages will include stack traces when possible.")
     group.add_argument("-o", "--output", type=str, default=None, help="If given, should be a path to a file we will create and log to.")
     group.add_argument("--artie-name", default=None, type=str, help="[Deployment and HW testing] If not given, we automatically detect an Artie on the cluster. If you have more than one Artie, you should give the name of the Artie you want to deploy to.")
-    group.add_argument("--artifact-folder", default=common.default_build_location())
+    group.add_argument("--artifact-folder", default=common.default_build_location(), help="Where to store the output artifacts. Default: %(default)s")
     group.add_argument("--fail-fast", action='store_true', help="If given, we will stop the procedure on the first failure.")
     group.add_argument("--force-build", action='store_true', help="If given, build tasks will run even if they already have their artifacts built.")
     group.add_argument("--docker-logs", action='store_true', help="If given, we print Docker logs as we receive them (normally they are hidden).")
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     group.add_argument("--docker-username", default=None, type=str, help="The username for docker login. If not given, we do not attempt to login before pushing images.")
     group.add_argument("--insecure-docker-repo", action='store_true', help="(Experimental) If you are pushing a multiarch image to an insecure repo, you will need this flag.")
     group.add_argument("--kube-config", default=None, type=common.argparse_file_path_type, help="Path to a Kube Config file if you do not store yours in the default location. If you do not know what this is, you can safely ignore it.")
-    group.add_argument("--kube-timeout-s", default=180, type=int, help="Timeout (s) for commands that deal with the K8S cluster.")
-    group.add_argument("--nprocs", default=multiprocessing.cpu_count(), type=int, help="If given, we will use at most this many processes to parallelize the command.")
+    group.add_argument("--kube-timeout-s", default=180, type=int, help="Timeout (s) for commands that deal with the K8S cluster. Default: %(default)s")
+    group.add_argument("--nprocs", default=multiprocessing.cpu_count(), type=int, help="If given, we will use at most this many processes to parallelize the command. Default: %(default)s")
 
     # Parser for build command
     parser_build = subparsers.add_parser("build", parents=[option_parser])

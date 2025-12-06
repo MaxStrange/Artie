@@ -1,0 +1,48 @@
+single-board-computers:
+  - name: controller-node
+    architecture: linux/arm64
+    buses:
+      - can0
+      - power-input0
+      - uart0
+  - name: vision-node
+    architecture: linux/arm64
+    buses:
+      - can0
+      - csi0
+      - csi1
+  - name: ear-node
+    architecture: linux/arm64
+    buses:
+      - can0
+  - name: muscle-node
+    architecture: linux/arm64
+    buses:
+      - can0
+      - power-input1
+
+microcontrollers:
+  - name: eyebrow-left
+    buses:
+      - can0
+      - lcd0
+  - name: eyebrow-right
+    buses:
+      - can0
+      - lcd1
+
+sensors:
+  - name: eye-left
+    type: camera
+    bus: csi0
+  - name: eye-right
+    type: camera
+    bus: csi1
+
+actuators:
+  - name: eyebrow-left
+    type: lcd
+    bus: lcd0
+  - name: eyebrow-right
+    type: lcd
+    bus: lcd1
