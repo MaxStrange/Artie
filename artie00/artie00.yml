@@ -1,5 +1,7 @@
+artie-type-name: artie00
+
 single-board-computers:
-  - name: controller-node
+  - name: controller-node  # This node name is required in every Artie
     architecture: linux/arm64
     buses:
       - can0

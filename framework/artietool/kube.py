@@ -233,6 +233,54 @@ def get_artie_names(args) -> List[str]:
             ret.append(node_name.removeprefix("controller-node-"))
     return ret
 
+def get_artie_type(args) -> Dict:
+    """
+    Returns a dictionary of the follow
+
+    Access the Artie cluster to retrieve the hardware configuration for an Artie.
+    Returns a dictionary containing the hardware configuration with keys:
+    - 'artie-name': The Artie's name
+    - 'single-board-computers': YAML string of SBC configurations
+    - 'microcontrollers': YAML string of MCU configurations
+    - 'sensors': YAML string of sensor configurations
+    - 'actuators': YAML string of actuator configurations
+    
+    If artie_name is not provided, attempts to auto-detect if only one Artie exists.
+    """
+    _configure(args)
+    v1 = k8s.client.CoreV1Api()
+    
+    # Determine which Artie to query
+    if artie_name is None:
+        artie_names = get_artie_names(args)
+        if len(artie_names) == 0:
+            raise ValueError("No Artie found on the cluster.")
+        elif len(artie_names) > 1:
+            raise ValueError(f"Multiple Arties found on cluster: {artie_names}. Please specify which one with artie_name parameter.")
+        artie_name = artie_names[0]
+    
+    # Retrieve the ConfigMap
+    configmap_name = f'artie-hw-config-{artie_name}'
+    try:
+        configmap = v1.read_namespaced_config_map(
+            name=configmap_name,
+            namespace=ArtieK8sValues.NAMESPACE
+        )
+        return configmap.data
+    except k8s.client.exceptions.ApiException as e:
+        if e.status == 404:
+            raise ValueError(f"Hardware configuration ConfigMap '{configmap_name}' not found for Artie '{artie_name}'. Was this Artie installed with the updated installation mechanism?")
+        else:
+            raise
+
+    return {
+        'artie-name': raw_data.get('artie-name', ''),
+        'single-board-computers': yaml.safe_load(raw_data.get('single-board-computers', '[]')),
+        'microcontrollers': yaml.safe_load(raw_data.get('microcontrollers', '[]')),
+        'sensors': yaml.safe_load(raw_data.get('sensors', '[]')),
+        'actuators': yaml.safe_load(raw_data.get('actuators', '[]')),
+    }
+
 def get_node_names(args) -> List[str]:
     """
     Returns a list of node names - one for each one found in the cluster.
@@ -253,12 +301,54 @@ def get_node_labels(args, node_name: str) -> Dict[str, str]:
     node = _get_node_from_name(v1, node_name)
     return node.metadata.labels
 
+def _update_helm_dependencies(args, chart: str):
+    """
+    Update Helm chart dependencies if the chart has any.
+    Silently succeeds if there are no dependencies or if the chart doesn't exist.
+    """
+    import pathlib
+    
+    # Check if chart path is a directory
+    chart_path = pathlib.Path(chart)
+    if not chart_path.is_dir():
+        return
+    
+    # Check if Chart.yaml exists and has dependencies
+    chart_yaml = chart_path / "Chart.yaml"
+    if not chart_yaml.exists():
+        return
+    
+    # Read Chart.yaml to check for dependencies
+    try:
+        import yaml
+        with open(chart_yaml, 'r') as f:
+            chart_data = yaml.safe_load(f)
+        
+        if not chart_data or 'dependencies' not in chart_data:
+            return
+        
+        # Chart has dependencies, update them
+        common.info(f"Updating Helm chart dependencies for {chart_path.name}...")
+        cmd = ["helm", "dependency", "update", str(chart_path)]
+        
+        success, retcode, stderr, stdout = _handle_transient_network_errors(cmd)
+        if not success:
+            common.warning(f"Failed to update chart dependencies: {stderr}")
+        else:
+            common.info(f"Successfully updated dependencies for {chart_path.name}")
+    
+    except Exception as e:
+        common.warning(f"Could not check/update chart dependencies: {e}")
+
 def install_helm_chart(args, name: str, chart: str, sets=None, namespace=ArtieK8sValues.NAMESPACE):
     """
     Install the given Helm chart, overriding any keys given in the `sets` dict with the corresponding values.
     """
     if sets is None:
         sets = {}
+
+    # Update chart dependencies if the chart has any
+    _update_helm_dependencies(args, chart)
 
     # Base command
     cmd = ["helm", "install", "--kubeconfig", args.kube_config, "--namespace", namespace, "--create-namespace", "--wait", "--timeout", str(args.kube_timeout_s) + 's']

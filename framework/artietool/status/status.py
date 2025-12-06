@@ -3,6 +3,7 @@ All the machinery for the status command.
 """
 from .. import common
 from .. import docker
+from .. import kube
 from ..infrastructure import run
 from ..infrastructure import task
 from ..infrastructure import task_importer
@@ -22,6 +23,9 @@ def status(args):
     Top-level status function.
     """
     retcode = 0
+
+    # First access the Artie cluster to determine what type of Artie we have
+    artie_hw_config = kube.get_artie_hardware_config(args)
 
     match args.module:
         case "nodes":

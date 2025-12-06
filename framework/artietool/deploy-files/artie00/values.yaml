@@ -1,0 +1,27 @@
+# Values for artie00 - overrides and extends artie-base values
+
+# Override the artie-base values with artie00-specific configuration
+artie-base:
+  # Artie00-specific ID
+  artieId: artie00
+
+  # Image tag for this deployment
+  imageTag: 3d23200b
+
+  # Repository for images
+  repository: maxfieldstrange
+
+  # You can override any artie-base values here
+  # For example, if artie00 needs different ports or settings:
+  # ports:
+  #   resetDriver: 18861
+  #   mouthDriver: 18862
+
+  # Add any artie00-specific environment variables
+  # baseEnvironment:
+  #   - name: ARTIE00_SPECIFIC_VAR
+  #     value: "some-value"
+
+# Add artie00-specific values that don't exist in artie-base
+# artie00SpecificConfig:
+#   someFeature: enabled
