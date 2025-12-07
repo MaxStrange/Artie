@@ -5,6 +5,9 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from . import common
+from . import hw_config
+import argparse
+import io
 import dataclasses
 import enum
 import io
@@ -73,12 +76,40 @@ class HelmChart:
     # The chart reference, typically a path to one on the file system, but could be a URL.
     chart: str
 
-def _configure(args):
+def _configure(args: argparse.Namespace, need_artie_name: bool = False):
     """
-    Load the Kube config from the environment.
+    Load the Kube config from the environment. If `need_artie_name` is `True`, we
+    also configure `args` with 'artie_name` based on the only Artie we find in the cluster.
+    If no 'artie_name' is given, `need_artie_name` is `True`, and there is more than one or less
+    than one Artie on the cluster, we raise a ValueError (for zero Arties) or a KeyError (for more than one Artie).
     """
     config_file = args.kube_config
     k8s.config.load_kube_config(config_file=config_file)
+
+    if need_artie_name:
+        _determine_artie_name(args)
+
+def _determine_artie_name(args: argparse.Namespace) -> argparse.Namespace:
+    """
+    Determine what Artie name we want to use. If the user has not specified one and we can't
+    determine it from the cluster, we throw an exception.
+
+    This function adds the appropriate argument ('artie_name') to `args`
+    if `args` does not already have it, and it fills in the value if the value
+    is not already filled in by the user.
+    """
+    if 'artie_name' in args and args.artie_name is not None:
+        return args
+
+    args.artie_name = None
+    names = get_artie_names(args)
+    if len(names) == 0:
+        raise ValueError(f"Cannot find any deployed Arties.")
+    elif len(names) > 1:
+        raise KeyError(f"Cannot determine a unique Artie ID from the cluster. More than one found. Please specify a single one with --artie-name. Names found: {names}")
+    else:
+        args.artie_name = names[0]
+        return args
 
 def _get_node_from_name(v1: k8s.client.CoreV1Api, name: str):
     """
@@ -233,53 +264,26 @@ def get_artie_names(args) -> List[str]:
             ret.append(node_name.removeprefix("controller-node-"))
     return ret
 
-def get_artie_type(args) -> Dict:
+def get_artie_hw_config(args) -> hw_config.HWConfig:
     """
-    Returns a dictionary of the follow
-
     Access the Artie cluster to retrieve the hardware configuration for an Artie.
-    Returns a dictionary containing the hardware configuration with keys:
-    - 'artie-name': The Artie's name
-    - 'single-board-computers': YAML string of SBC configurations
-    - 'microcontrollers': YAML string of MCU configurations
-    - 'sensors': YAML string of sensor configurations
-    - 'actuators': YAML string of actuator configurations
-    
-    If artie_name is not provided, attempts to auto-detect if only one Artie exists.
     """
-    _configure(args)
+    _configure(args, need_artie_name=True)
     v1 = k8s.client.CoreV1Api()
     
-    # Determine which Artie to query
-    if artie_name is None:
-        artie_names = get_artie_names(args)
-        if len(artie_names) == 0:
-            raise ValueError("No Artie found on the cluster.")
-        elif len(artie_names) > 1:
-            raise ValueError(f"Multiple Arties found on cluster: {artie_names}. Please specify which one with artie_name parameter.")
-        artie_name = artie_names[0]
-    
     # Retrieve the ConfigMap
-    configmap_name = f'artie-hw-config-{artie_name}'
+    configmap_name = f'artie-hw-config-{args.artie_name}'
     try:
-        configmap = v1.read_namespaced_config_map(
-            name=configmap_name,
-            namespace=ArtieK8sValues.NAMESPACE
-        )
-        return configmap.data
+        configmap = v1.read_namespaced_config_map(configmap_name, ArtieK8sValues.NAMESPACE)
     except k8s.client.exceptions.ApiException as e:
         if e.status == 404:
-            raise ValueError(f"Hardware configuration ConfigMap '{configmap_name}' not found for Artie '{artie_name}'. Was this Artie installed with the updated installation mechanism?")
+            raise ValueError(f"Hardware configuration ConfigMap '{configmap_name}' not found for Artie '{args.artie_name}'. Artie must be installed through Workbench or Artie Tool.")
         else:
             raise
 
-    return {
-        'artie-name': raw_data.get('artie-name', ''),
-        'single-board-computers': yaml.safe_load(raw_data.get('single-board-computers', '[]')),
-        'microcontrollers': yaml.safe_load(raw_data.get('microcontrollers', '[]')),
-        'sensors': yaml.safe_load(raw_data.get('sensors', '[]')),
-        'actuators': yaml.safe_load(raw_data.get('actuators', '[]')),
-    }
+    buf = io.BytesIO(configmap.data.encode())
+    conf = hw_config.HWConfig.from_config(buf)
+    return conf
 
 def get_node_names(args) -> List[str]:
     """

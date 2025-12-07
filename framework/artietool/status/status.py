@@ -24,8 +24,17 @@ def status(args):
     """
     retcode = 0
 
-    # First access the Artie cluster to determine what type of Artie we have
-    artie_hw_config = kube.get_artie_hardware_config(args)
+    # First, access the Artie cluster to determine what type of Artie we have
+    try:
+        artie_hw_config = kube.get_artie_hw_config(args)
+    except ValueError as e:
+        common.error(f"Cannot get Artie's HW configuration: {str(e)}")
+        retcode = 1
+        return retcode
+    except KeyError as e:
+        common.error(f"Cannot get Artie's HW configuration: {str(e)}")
+        retcode = 1
+        return retcode
 
     match args.module:
         case "nodes":

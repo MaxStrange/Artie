@@ -1,3 +1,5 @@
+api-version: v1  # Update this if you make changes to this YAML specification that requires changes to hw_config.py
+
 artie-type-name: artie00
 
 single-board-computers:
