@@ -267,6 +267,8 @@ def get_artie_names(args) -> List[str]:
 def get_artie_hw_config(args) -> hw_config.HWConfig:
     """
     Access the Artie cluster to retrieve the hardware configuration for an Artie.
+
+    After this call, we guarantee `args` has `artie_name` in it.
     """
     _configure(args, need_artie_name=True)
     v1 = k8s.client.CoreV1Api()
@@ -431,6 +433,15 @@ def get_pods_from_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -
 
     v1 = k8s.client.CoreV1Api()
     podlist = v1.list_namespaced_pod(namespace, label_selector=f"job-name={job_name}")
+    return podlist.items
+
+def get_all_pods(args, namespace=ArtieK8sValues.NAMESPACE) -> List[k8s.client.V1Pod]:
+    """
+    Get all pods for the given namespace.
+    """
+    _configure(args)
+    v1 = k8s.client.CoreV1Api()
+    podlist = v1.list_namespaced_pod(namespace)
     return podlist.items
 
 def log_job_results(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE):
