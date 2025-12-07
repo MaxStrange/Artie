@@ -70,13 +70,24 @@ class HWConfig:
     """The list of actuators this type of Artie has."""
 
     @staticmethod
-    def from_config(fpath: str) -> "HWConfig":
+    def from_config(fpath: str|bytes) -> "HWConfig":
         """
         Parse a `HWConfig` instance from a YAML file found at `fpath`.
         """
-        with open(fpath, 'r') as f:
-            raw = yaml.safe_load(f)
+        if hasattr(fpath, 'read'):
+            raw = yaml.safe_load(fpath)
+        else:
+            with open(fpath, 'r') as f:
+                raw = yaml.safe_load(f)
 
+        api_version = raw.get('api-version', 'v1')
+        if api_version == 'v1':
+            return HWConfig._from_config_v1(raw)
+        else:
+            raise NotImplementedError(f"api-version found in HW configuration is not one we know how to handle. Version found: {api_version}")
+
+    @staticmethod
+    def _from_config_v1(raw):
         if "artie-type-name" not in raw:
             raise KeyError(f"Cannot find 'artie-type-name' in Artie type file: {fpath}")
 

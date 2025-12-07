@@ -5,7 +5,7 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from .. import common
-from ..infrastructure import hw_config
+from .. import hw_config
 from .. import kube
 import argparse
 import datetime
