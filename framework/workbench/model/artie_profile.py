@@ -79,6 +79,28 @@ class ArtieProfile:
         artie_secrets.store_secret(f"artie_{self.artie_name}_password", self.password)
         artie_secrets.store_secret(f"artie_{self.artie_name}_token", self.token)
 
+    def delete(self, path=None):
+        """
+        Delete the Artie profile from disk and remove associated secrets.
+
+        `path` should be a directory; the filename will be derived from the Artie name.
+        """
+        if path is None:
+            name = self.artie_name or "unnamed_artie"
+            path = DEFAULT_SAVE_PATH / f"{name}.json"
+        else:
+            path = pathlib.Path(path) / f"{self.artie_name}.json"
+
+        path = pathlib.Path(path)
+        
+        # Delete the JSON file
+        if path.exists():
+            path.unlink()
+        
+        # Delete the associated secrets
+        artie_secrets.delete_secret(f"artie_{self.artie_name}_password")
+        artie_secrets.delete_secret(f"artie_{self.artie_name}_token")
+
 def list_profiles(path=None) -> list[ArtieProfile]:
     """
     List all saved Artie profiles in the given path.
