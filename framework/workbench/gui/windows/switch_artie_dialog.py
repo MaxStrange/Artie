@@ -3,7 +3,7 @@ This module contains the Switch Artie Dialog.
 """
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QListWidget, 
-    QPushButton, QLabel, QListWidgetItem
+    QPushButton, QLabel, QListWidgetItem, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from typing import Optional
@@ -58,6 +58,12 @@ class SwitchArtieDialog(QDialog):
         
         # Button layout
         button_layout = QHBoxLayout()
+        
+        self.delete_button = QPushButton("Delete Artie")
+        self.delete_button.clicked.connect(self.on_delete_clicked)
+        self.delete_button.setEnabled(False)
+        button_layout.addWidget(self.delete_button)
+        
         button_layout.addStretch()
         
         self.ok_button = QPushButton("OK")
@@ -105,15 +111,53 @@ class SwitchArtieDialog(QDialog):
             # Enable OK button only if different from current profile
             is_current = current.data(Qt.UserRole) == "current"
             self.ok_button.setEnabled(not is_current)
+            
+            # Enable delete button for any selected profile
+            self.delete_button.setEnabled(True)
         else:
             self.selected_profile = None
             self.ok_button.setEnabled(False)
+            self.delete_button.setEnabled(False)
             
     def on_profile_double_clicked(self, item: QListWidgetItem):
         """Handle double-click on a profile."""
         if item.data(Qt.UserRole) != "current":
             self.accept()
             
+    def on_delete_clicked(self):
+        """Handle delete button click."""
+        if not self.selected_profile:
+            return
+        
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self,
+            "Delete Artie Profile",
+            f"Are you sure you want to delete the profile '{self.selected_profile.artie_name}'?\n\nThis action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            # Delete the profile
+            self.selected_profile.delete(path=self.settings.workbench_save_path)
+            
+            # Remove from profiles list
+            self.profiles = [p for p in self.profiles if p.artie_name != self.selected_profile.artie_name]
+            
+            # If we deleted the current profile, clear it
+            if self.current_profile and self.current_profile.artie_name == self.selected_profile.artie_name:
+                self.current_profile = None
+            
+            # Clear selection
+            self.selected_profile = None
+            
+            # Refresh the list
+            self.populate_profiles()
+            
+            # Show success message
+            QMessageBox.information(self, "Profile Deleted", "The Artie profile has been successfully deleted.")
+    
     def accept(self):
         """Handle OK button click."""
         if self.selected_profile and self.selected_profile != self.current_profile:

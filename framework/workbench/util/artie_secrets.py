@@ -13,3 +13,10 @@ def store_secret(key: str, value: str):
     # TODO: macOS: use Keychain(?)
     # TODO: Linux: use Secret Service API (libsecret)?
     pass
+
+def delete_secret(key: str):
+    """Delete a secret value associated with the given key."""
+    # TODO: Windows: use Windows Credential Manager
+    # TODO: macOS: use Keychain(?)
+    # TODO: Linux: use Secret Service API (libsecret)?
+    pass
