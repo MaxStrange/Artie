@@ -99,7 +99,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_fetcher.error_occurred_signal.connect(self.software_tab.on_error)
         self.status_fetcher.error_occurred_signal.connect(self.sensors_tab.on_error)
         ## Connect refresh signals
-        self.software_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_nodes_status)
+        self.software_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_pods_status)
         self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_mcus_status)
         self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_actuators_status)
         self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_nodes_status)
