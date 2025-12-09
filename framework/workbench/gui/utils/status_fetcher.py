@@ -57,6 +57,9 @@ class StatusFetcher(QtCore.QObject):
     sensors_updated_signal = QtCore.pyqtSignal(list)  # list[SensorStatus]
     error_occurred_signal = QtCore.pyqtSignal(str, str)
     hw_config_updated_signal = QtCore.pyqtSignal(hw_config.HWConfig)
+
+    # Signal to alert main window (and whoever else) that we are closing
+    closed_signal = QtCore.pyqtSignal()
     
     def __init__(self, parent, profile: artie_profile.ArtieProfile, current_settings: settings.WorkbenchSettings):
         super().__init__(parent)
@@ -100,25 +103,32 @@ class StatusFetcher(QtCore.QObject):
             self.actuators_q,
             self.sensors_q,
         ]
+        self.received_stopped_signals = []
 
         # Connect thread signals
         self.hw_config_thread.finished_signal.connect(self._on_hw_config_fetched)
         self.hw_config_thread.error_signal.connect(lambda err: self.error_occurred_signal.emit("hw_config", err))
+        self.hw_config_thread.stopped_signal.connect(self.handle_thread_exited)
         
         self.nodes_thread.finished_signal.connect(lambda statuses: self.nodes_updated_signal.emit(statuses))
         self.nodes_thread.error_signal.connect(lambda err: self.error_occurred_signal.emit("nodes", err))
+        self.nodes_thread.stopped_signal.connect(self.handle_thread_exited)
         
         self.pods_thread.finished_signal.connect(lambda data: self.pods_updated_signal.emit(data))
         self.pods_thread.error_signal.connect(lambda err: self.error_occurred_signal.emit("pods", err))
-        
+        self.pods_thread.stopped_signal.connect(self.handle_thread_exited)
+
         self.mcus_thread.finished_signal.connect(lambda statuses: self.mcus_updated_signal.emit(statuses))
         self.mcus_thread.error_signal.connect(lambda err: self.error_occurred_signal.emit("mcus", err))
+        self.mcus_thread.stopped_signal.connect(self.handle_thread_exited)
         
         self.actuators_thread.finished_signal.connect(lambda statuses: self.actuators_updated_signal.emit(statuses))
         self.actuators_thread.error_signal.connect(lambda err: self.error_occurred_signal.emit("actuators", err))
-        
+        self.actuators_thread.stopped_signal.connect(self.handle_thread_exited)
+
         self.sensors_thread.finished_signal.connect(lambda statuses: self.sensors_updated_signal.emit(statuses))
         self.sensors_thread.error_signal.connect(lambda err: self.error_occurred_signal.emit("sensors", err))
+        self.sensors_thread.stopped_signal.connect(self.handle_thread_exited)
         
         # Start all threads
         for t in self.threads:
@@ -129,8 +139,16 @@ class StatusFetcher(QtCore.QObject):
         for t in self.threads:
             t.stop()
 
-        for t in self.threads:
-            t.wait()
+    def handle_thread_exited(self, name):
+        """Handle thread exiting."""
+        self.received_stopped_signals.append(name)
+        if len(set(self.received_stopped_signals)) == len(self.threads):
+            # Everyone has stopped. Join all the threads.
+            for t in self.threads:
+                t.wait()
+
+            # Alert main window that we are closing
+            self.closed_signal.emit()
 
     def fetch_nodes_status(self):
         """Manually initiate a node status fetch instead of waiting for the next one."""
@@ -179,6 +197,10 @@ class StatusFetcher(QtCore.QObject):
 class _StatusThread(QtCore.QThread):
     """Base class for all the status thread workers."""
     error_signal = QtCore.pyqtSignal(str)
+    """Emitted when there is an error fetching status."""
+
+    stopped_signal = QtCore.pyqtSignal(str)
+    """Emitted when the thread is stopped."""
 
     def __init__(self, parent: StatusFetcher, q: queue.Queue, tool_invoker: tool.ArtieToolInvoker|None):
         super().__init__(parent)
@@ -208,6 +230,9 @@ class _StatusThread(QtCore.QThread):
             qutil.get(self.job_queue, timeout_s=self._refresh_rate)
             if self.tool_invoker is not None:
                 self._fetch_status()
+
+        # Tell anyone who cares that the thread has exited
+        self.stopped_signal.emit(type(self).__name__)
 
     def _fetch_status(self):
         raise NotImplementedError()
