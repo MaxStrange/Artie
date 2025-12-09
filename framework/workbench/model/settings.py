@@ -13,6 +13,7 @@ class GuiViewOption(enum.StrEnum):
     """Enumeration of GUI view options for settings fields."""
     FILE_PICKER = "file_picker"
     DIRECTORY_PICKER = "directory_picker"
+    FLOATING_POINT_INPUT = "floating_point_input"
 
 @dataclasses.dataclass
 class WorkbenchSettings:
@@ -24,6 +25,9 @@ class WorkbenchSettings:
 
     workbench_save_path: str = dataclasses.field(default=str(DEFAULT_SAVE_PATH.parent), metadata={'view': GuiViewOption.DIRECTORY_PICKER})
     """The path where Workbench saves its stuff."""
+
+    status_refresh_rate_s: float = dataclasses.field(default=5.0, metadata={'view': GuiViewOption.FLOATING_POINT_INPUT, 'bottom': 0.0, 'top': None, 'decimals': 2})
+    """The refresh rate of all the status information in seconds."""
 
     @staticmethod
     def load(path=None) -> 'WorkbenchSettings':
@@ -40,6 +44,8 @@ class WorkbenchSettings:
         with open(path, 'r') as f:
             data = json.load(f)
 
+        # Create a WorkbenchSettings object, keeping anything that is not found in the
+        # settings file to its default value.
         return WorkbenchSettings(**data)
 
     def save(self, path=None):

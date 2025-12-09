@@ -2,12 +2,12 @@
 All the machinery for the status command.
 """
 from .. import common
-from .. import hw_config
 from .. import kube
 import argparse
 import datetime
 import enum
 import json
+from artie_tooling import hw_config
 
 class LogOptions(enum.Enum):
     """Options for fetching logs along with status"""

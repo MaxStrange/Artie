@@ -10,6 +10,7 @@ from artietool import docker
 from artietool.build import build
 from artietool.deploy import deploy
 from artietool.flash import flash
+from artietool.get import get
 from artietool.install import install
 from artietool.install import uninstall
 from artietool.release import release
@@ -111,6 +112,10 @@ if __name__ == "__main__":
     # Parser for the status command
     parser_status = subparsers.add_parser("status", parents=[option_parser])
     status.fill_subparser(parser_status, option_parser)
+
+    # Parser for the get command
+    parser_get = subparsers.add_parser("get", parents=[option_parser])
+    get.fill_subparser(parser_get, option_parser)
 
     # Parser for clean command
     parser_clean = subparsers.add_parser("clean", parents=[option_parser])

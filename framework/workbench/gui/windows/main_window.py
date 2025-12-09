@@ -3,6 +3,7 @@ Main window for Artie Workbench
 """
 from PyQt6 import QtWidgets, QtCore, QtGui
 
+from ..utils import status_fetcher
 from ..widgets.menubar import ArtieMenuBar
 from ..widgets.hardware_tab import HardwareTab
 from ..widgets.software_tab import SoftwareTab
@@ -26,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # Signal for settings change
     settings_changed_signal = QtCore.pyqtSignal(settings.WorkbenchSettings)
-    
+
     def __init__(self, workbench_settings: settings.WorkbenchSettings = None):
         super().__init__()
         self.settings = workbench_settings
@@ -70,12 +71,43 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.tab_widget)
         
         # Add tabs using custom widgets
-        self.tab_widget.addTab(HardwareTab(self, self.settings, self.current_profile), "Hardware")
-        self.tab_widget.addTab(SoftwareTab(self, self.settings, self.current_profile), "Software")
-        self.tab_widget.addTab(TeleopTab(self, self.settings, self.current_profile), "Teleop")
-        self.tab_widget.addTab(LoggingTab(self, self.settings, self.current_profile), "Logging")
-        self.tab_widget.addTab(SensorsTab(self, self.settings, self.current_profile), "Sensors")
-        self.tab_widget.addTab(ExperimentTab(self, self.settings, self.current_profile), "Experiment")
+        self.hardware_tab = HardwareTab(self, self.settings, self.current_profile)
+        self.software_tab = SoftwareTab(self, self.settings, self.current_profile)
+        self.teleop_tab = TeleopTab(self, self.settings, self.current_profile)
+        self.logging_tab = LoggingTab(self, self.settings, self.current_profile)
+        self.sensors_tab = SensorsTab(self, self.settings, self.current_profile)
+        self.experiment_tab = ExperimentTab(self, self.settings, self.current_profile)
+        self.tab_widget.addTab(self.hardware_tab, "Hardware")
+        self.tab_widget.addTab(self.software_tab, "Software")
+        self.tab_widget.addTab(self.teleop_tab, "Teleop")
+        self.tab_widget.addTab(self.logging_tab, "Logging")
+        self.tab_widget.addTab(self.sensors_tab, "Sensors")
+        self.tab_widget.addTab(self.experiment_tab, "Experiment")
+
+        # Add status fetcher to get status periodically
+        ## HW Tab
+        self.status_fetcher = status_fetcher.StatusFetcher(self, self.current_profile, self.settings)
+        self.status_fetcher.nodes_updated_signal.connect(self.hardware_tab.on_nodes_updated)
+        self.status_fetcher.mcus_updated_signal.connect(self.hardware_tab.on_mcus_updated)
+        self.status_fetcher.actuators_updated_signal.connect(self.hardware_tab.on_actuators_updated)
+        ## SW Tab
+        self.status_fetcher.pods_updated_signal.connect(self.software_tab.on_pods_updated)
+        ## Sensors Tab
+        self.status_fetcher.sensors_updated_signal.connect(self.sensors_tab.on_sensors_updated)
+        ## Error signal
+        self.status_fetcher.error_occurred_signal.connect(self.hardware_tab.on_error)
+        self.status_fetcher.error_occurred_signal.connect(self.software_tab.on_error)
+        self.status_fetcher.error_occurred_signal.connect(self.sensors_tab.on_error)
+        ## Connect refresh signals
+        self.software_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_nodes_status)
+        self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_mcus_status)
+        self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_actuators_status)
+        self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_nodes_status)
+        self.sensors_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_sensors_status)
+
+    def closeEvent(self, a0):
+        self.status_fetcher.close()
+        super().closeEvent(a0)
 
     def _setup_statusbar(self):
         """Create the status bar"""

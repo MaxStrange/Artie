@@ -1,8 +1,10 @@
 """
 This module contains code for doing ArtieTool stuff.
 """
+import json
 import subprocess
 from model import artie_profile
+from artie_tooling import hw_config
 
 class ArtieToolInvoker:
     """
@@ -28,6 +30,26 @@ class ArtieToolInvoker:
             configuration
         ]
         return self._run_cmd(cmd)
+
+    def get_hw_config(self) -> tuple[Exception|None, hw_config.HWConfig|None]:
+        """Get hardware configuration, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "get",
+            "hw-config",
+            "--json"
+        ]
+        err, data, stderr = self._run_cmd_blocking(cmd, json_output=True)
+        if err:
+            return (err, None)
+
+        try:
+            artie_hw_config = hw_config.HWConfig.from_json(data)
+        except json.JSONDecodeError as e:
+            return (e, None)
+
+        return artie_hw_config
 
     def install(self) -> Exception|None:
         """Run the install command, returning an error if something goes wrong."""
@@ -97,6 +119,86 @@ class ArtieToolInvoker:
 
         self._retcode = self._process.returncode
 
+    def status_actuators(self, actuator: str = "all") -> tuple[Exception|None, dict|None]:
+        """Get actuator status as JSON dict, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "status",
+            "actuators",
+            "--actuator", actuator,
+            "--json"
+        ]
+        err, stdout, stderr = self._run_cmd_blocking(cmd, json_output=True)
+        if err:
+            return (err, None)
+        
+        return (None, stdout)
+
+    def status_mcus(self, mcu: str = "all") -> tuple[Exception|None, dict|None]:
+        """Get MCU status as JSON dict, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "status",
+            "mcus",
+            "--mcu", mcu,
+            "--json"
+        ]
+        err, stdout, stderr = self._run_cmd_blocking(cmd)
+        if err:
+            return (err, None)
+        
+        return (None, stdout)
+
+    def status_nodes(self, node: str = "all") -> tuple[Exception|None, dict|None]:
+        """Get node status as JSON dict, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "status",
+            "nodes",
+            "--node", node,
+            "--json"
+        ]
+        err, stdout, stderr = self._run_cmd_blocking(cmd)
+        if err:
+            return (err, None)
+        
+        return (None, stdout)
+
+    def status_pods(self, pod: str = "all") -> tuple[Exception|None, dict|None]:
+        """Get pod status as JSON dict, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "status",
+            "pods",
+            "--pod", pod,
+            "--json"
+        ]
+        err, stdout, stderr = self._run_cmd_blocking(cmd)
+        if err:
+            return (err, None)
+        
+        return (None, stdout)
+
+    def status_sensors(self, sensor: str = "all") -> tuple[Exception|None, dict|None]:
+        """Get sensor status as JSON dict, returning an error if something goes wrong."""
+        cmd = [
+            "python",
+            "artie-tool.py",
+            "status",
+            "sensors",
+            "--sensor", sensor,
+            "--json"
+        ]
+        err, stdout, stderr = self._run_cmd_blocking(cmd)
+        if err:
+            return (err, None)
+        
+        return (None, stdout)
+
     def test(self, test_type: str) -> Exception|None:
         """Run the test command asynchronously, returning an error if something goes wrong."""
         cmd = [
@@ -114,7 +216,7 @@ class ArtieToolInvoker:
         except OSError as err:
             return err
 
-    def _run_cmd_blocking(self, cmd: list[str]) -> tuple[Exception|None, str, str]:
+    def _run_cmd_blocking(self, cmd: list[str], json_output: bool = False) -> tuple[Exception|None, str, str]:
         """Run the command in a subprocess, blocking until it completes. Return an exception or None, stdout, and stderr."""
         try:
             completed_process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
@@ -122,7 +224,7 @@ class ArtieToolInvoker:
             stderr = completed_process.stderr.decode('utf-8', errors='replace')
             self._process = completed_process
             self._retcode = completed_process.returncode
-            return (None, stdout, stderr)
+            return (None, json.loads(stdout) if json_output else stdout, stderr)
         except OSError as err:
             return (err, "", "")
         except subprocess.CalledProcessError as err:
@@ -131,3 +233,5 @@ class ArtieToolInvoker:
             self._process = None
             self._retcode = err.returncode
             return (err, stdout, stderr)
+        except json.JSONDecodeError as e:
+            return (e, stdout, stderr)
