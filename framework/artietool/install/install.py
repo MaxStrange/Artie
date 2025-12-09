@@ -5,8 +5,8 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from .. import common
-from .. import hw_config
 from .. import kube
+from artie_tooling import hw_config
 import argparse
 import datetime
 import getpass

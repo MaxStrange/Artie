@@ -2,7 +2,7 @@
 This module contains the code for the settings dialog.
 """
 import dataclasses
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 from model import settings
 
 class _SettingsWidgetWrapper:
@@ -74,6 +74,8 @@ class SettingsDialog(QtWidgets.QDialog):
                 return None
             case settings.GuiViewOption.DIRECTORY_PICKER:
                 return self._create_directory_picker(field)
+            case settings.GuiViewOption.FLOATING_POINT_INPUT:
+                return self._create_floating_point_input_widget(field)
             case _:
                 return self._create_default_field_widget(field)
 
@@ -111,6 +113,29 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.addWidget(browse_button)
 
         return _SettingsWidgetWrapper(field.name, lambda: line_edit.text(), container)
+
+    def _create_floating_point_input_widget(self, field: dataclasses.Field):
+        """Create a widget for inputting a floating point value."""
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(container)
+
+        label = QtWidgets.QLabel(field.name.replace('_', ' ').capitalize())
+        line_edit = QtWidgets.QLineEdit(str(getattr(self.current_settings, field.name)))
+
+        if 'bottom' in field.metadata or 'top' in field.metadata or 'decimals' in field.metadata:
+            validator = QtGui.QDoubleValidator()
+            if 'bottom' in field.metadata and field.metadata['bottom'] is not None:
+                validator.setBottom(field.metadata['bottom'])
+            if 'top' in field.metadata and field.metadata['top'] is not None:
+                validator.setTop(field.metadata['top'])
+            if 'decimals' in field.metadata and field.metadata['decimals'] is not None:
+                validator.setDecimals(field.metadata['decimals'])
+            line_edit.setValidator(validator)
+
+        layout.addWidget(label)
+        layout.addWidget(line_edit)
+
+        return _SettingsWidgetWrapper(field.name, lambda: float(line_edit.text()), container)
 
     def get_updated_settings(self) -> settings.WorkbenchSettings:
         """Retrieve the updated settings from the dialog"""
