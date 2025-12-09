@@ -30,8 +30,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, workbench_settings: settings.WorkbenchSettings = None):
         super().__init__()
+
+        # Settings and profile
         self.settings = workbench_settings
         self.current_profile = self.settings.last_opened_profile
+
+        # State
+        self.status_fetcher_closed = False
 
         self.setWindowTitle("Artie Workbench")
         self.setMinimumSize(1000, 700)
@@ -104,9 +109,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_actuators_status)
         self.hardware_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_nodes_status)
         self.sensors_tab.refresh_status_request_signal.connect(self.status_fetcher.fetch_sensors_status)
+        ## Status fetcher's close signal
+        self.status_fetcher.closed_signal.connect(self.handle_status_fetcher_closed)
+
+    def handle_status_fetcher_closed(self):
+        """Handle the status fetcher closing."""
+        self.status_fetcher_closed = True
 
     def closeEvent(self, a0):
+        # Show a progress dialog while closing
+        progress = QtWidgets.QProgressDialog("Closing application...", None, 0, 0, self)
+        progress.setWindowTitle("Closing")
+        progress.setWindowModality(QtCore.Qt.WindowModality.WindowModal)
+        progress.setCancelButton(None)  # No cancel button
+        progress.setMinimumDuration(0)  # Show immediately
+        progress.show()
+        
+        # Close the status fetcher (may take time to stop threads)
         self.status_fetcher.close()
+        while not self.status_fetcher_closed:
+            # Update the GUI so it doesn't seem like it's frozen while we wait for threads to close
+            QtWidgets.QApplication.processEvents()
+        
+        # Close the progress dialog
+        progress.close()
+        
         super().closeEvent(a0)
 
     def _setup_statusbar(self):
