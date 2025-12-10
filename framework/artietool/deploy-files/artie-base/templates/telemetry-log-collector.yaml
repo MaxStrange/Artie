@@ -26,10 +26,17 @@ spec:
     spec:
       priorityClassName: {{ .Values.telemetryPriorityClass }}
       restartPolicy: {{ .Values.telemetryRestartPolicy }}
+      volumes:
+        - name: log-storage
+          persistentVolumeClaim:
+            claimName: log-collector-pvc
       containers:
         - name: log-collector
           image: "{{ .Values.repository }}/artie-log-collector:{{ .Values.imageTag }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          volumeMounts:
+            - name: log-storage
+              mountPath: /data
           env:
             {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
 
@@ -86,3 +93,23 @@ spec:
         target:
           type: Utilization
           averageUtilization: 75
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: log-collector-pvc
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: log-collector
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.logStorage | default "10Gi" }}
+  {{- if .Values.storageClassName }}
+  storageClassName: {{ .Values.storageClassName }}
+  {{- end }}
+

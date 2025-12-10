@@ -3,6 +3,8 @@ from artie_util import util
 from drivers import reset_api
 from drivers import mouth_api
 from drivers import eyebrows_api
+from telemetry import logs_api
+from telemetry import metrics_api
 import argparse
 import flask
 
@@ -23,3 +25,5 @@ app = flask.Flask(__name__)
 app.register_blueprint(reset_api.reset_api)
 app.register_blueprint(mouth_api.mouth_api)
 app.register_blueprint(eyebrows_api.eyebrows_api)
+app.register_blueprint(logs_api.logs_api)
+app.register_blueprint(metrics_api.metrics_api)
