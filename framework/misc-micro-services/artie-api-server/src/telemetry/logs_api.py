@@ -1,5 +1,11 @@
 """
 Logs API for querying Artie logs from Fluent Bit
+
+# TODO: There needs to be a database (probably PostgreSQL).
+#       Fluentbit pushes logs into the database.
+#       A dedicated database server allows this file to query logs from the database.
+#       In the future, we will be using Kafka to pub/sub. The database server will subscribe and ingest sensor data
+#       and serve that data via a similar API to the one we use for the logs.
 """
 from artie_util import artie_logging as alog
 import flask
