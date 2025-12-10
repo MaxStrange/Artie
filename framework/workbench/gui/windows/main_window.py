@@ -9,6 +9,7 @@ from ..widgets.hardware_tab import HardwareTab
 from ..widgets.software_tab import SoftwareTab
 from ..widgets.teleop_tab import TeleopTab
 from ..widgets.logging_tab import LoggingTab
+from ..widgets.metrics_tab import MetricsTab
 from ..widgets.sensors_tab import SensorsTab
 from ..widgets.experiment_tab import ExperimentTab
 from . import new_artie_wizard
@@ -80,12 +81,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.software_tab = SoftwareTab(self, self.settings, self.current_profile)
         self.teleop_tab = TeleopTab(self, self.settings, self.current_profile)
         self.logging_tab = LoggingTab(self, self.settings, self.current_profile)
+        self.metrics_tab = MetricsTab(self, self.settings, self.current_profile)
         self.sensors_tab = SensorsTab(self, self.settings, self.current_profile)
         self.experiment_tab = ExperimentTab(self, self.settings, self.current_profile)
         self.tab_widget.addTab(self.hardware_tab, "Hardware")
         self.tab_widget.addTab(self.software_tab, "Software")
         self.tab_widget.addTab(self.teleop_tab, "Teleop")
         self.tab_widget.addTab(self.logging_tab, "Logging")
+        self.tab_widget.addTab(self.metrics_tab, "Metrics")
         self.tab_widget.addTab(self.sensors_tab, "Sensors")
         self.tab_widget.addTab(self.experiment_tab, "Experiment")
 

@@ -26,10 +26,17 @@ spec:
     spec:
       priorityClassName: {{ .Values.telemetryPriorityClass }}
       restartPolicy: {{ .Values.telemetryRestartPolicy }}
+      volumes:
+        - name: metrics-storage
+          persistentVolumeClaim:
+            claimName: metrics-collector-pvc
       containers:
         - name: metrics-collector
           image: "{{ .Values.repository }}/artie-metrics-collector:{{ .Values.imageTag }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
+          volumeMounts:
+            - name: metrics-storage
+              mountPath: /data
           env:
             {{- tpl (toYaml .Values.baseEnvironment) . | nindent 12 }}
 
@@ -85,3 +92,23 @@ spec:
         target:
           type: Utilization
           averageUtilization: 75
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: metrics-collector-pvc
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: metrics-collector
+    {{- tpl (toYaml .Values.labels) . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.metricsStorage | default "20Gi" }}
+  {{- if .Values.storageClassName }}
+  storageClassName: {{ .Values.storageClassName }}
+  {{- end }}
+
