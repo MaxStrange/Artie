@@ -33,6 +33,18 @@ class ArtieProfile:
     username: str = None
     """The username for this Artie."""
 
+    api_server_host: str = None
+    """The hostname or IP address of the API server."""
+
+    api_server_port: int = 8782
+    """The port for the API server."""
+
+    api_server_cert_path: str = None
+    """The controller node's root certificate. This is the CA bundle we use for authenticating the API server is who it says it is."""
+
+    api_server_bearer_token: str = None
+    """An optional bearer token for the API server."""
+
     @staticmethod
     def load(artie_name: str, path=None) -> 'ArtieProfile':
         """Load an Artie profile from disk."""
@@ -47,9 +59,11 @@ class ArtieProfile:
 
         profile = ArtieProfile(**data)
 
-        # Load the password and token
+        # Load the secrets
         profile.password = artie_secrets.get_secret(f"artie_{profile.artie_name}_password")
         profile.token = artie_secrets.get_secret(f"artie_{profile.artie_name}_token")
+        profile.api_server_bearer_token = artie_secrets.get_secret(f"artie_{profile.artie_name}_bearer_token")
+        profile.api_server_cert_path = artie_secrets.retrieve_api_server_cert()
 
         return profile
 
@@ -72,12 +86,16 @@ class ArtieProfile:
         data = dataclasses.asdict(self)
         data.pop("password", None)
         data.pop("token", None)
+        data.pop("api_server_cert_path", None)
+        
         with open(path, 'w') as f:
             json.dump(data, f, indent=4)
 
         # Save the password and token in an OS-dependent manner
         artie_secrets.store_secret(f"artie_{self.artie_name}_password", self.password)
         artie_secrets.store_secret(f"artie_{self.artie_name}_token", self.token)
+        artie_secrets.store_secret(f"artie_{self.artie_name}_api_server_bearer_token", self.api_server_bearer_token)
+        artie_secrets.store_api_server_cert(self.api_server_cert_path)
 
     def delete(self, path=None):
         """

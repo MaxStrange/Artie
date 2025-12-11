@@ -83,7 +83,9 @@ if [[ "$NO_DOCKER" != 1 ]]; then
 fi
 
 # Install K3S (version is limited by Yocto compatibility. See: https://layers.openembedded.org/layerindex/branch/master/layer/meta-virtualization/)
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.32.0+k3s1" K3S_URL=$URL K3S_TOKEN=$TOKEN INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -s - --docker
+# By passing K3S_URL, we set this node to be a K3S agent, as opposed to a server.
+# INSTALL_K3S_NAME tells the installer what to call the systemd service file.
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.32.0+k3s1" K3S_URL=$URL INSTALL_K3S_NAME="k3s-agent" K3S_TOKEN=$TOKEN INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -s - --docker
 
 # Pin Docker to the current version to avoid unwanted automatic upgrades
 sudo apt-mark hold docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-ce-rootless-extras docker-buildx-plugin docker-model-plugin
@@ -92,11 +94,11 @@ sudo apt-mark hold docker-ce docker-ce-cli containerd.io docker-compose-plugin d
 sudo ufw allow 6443/tcp
 
 # Update K3S to require Artie Computed
-sudo sed -i '/After=network-online.target/a PartOf=artie-computed.service' /etc/systemd/system/k3s.service
+sudo sed -i '/After=network-online.target/a PartOf=artie-computed.service' /etc/systemd/system/k3s-agent.service
 
 # Install the daemon
 sudo cp ./artie-computed.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl restart k3s.service
+sudo systemctl restart k3s-agent.service
 sudo systemctl start artie-computed.service
 sudo systemctl enable artie-computed.service

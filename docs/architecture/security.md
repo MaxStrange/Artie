@@ -59,7 +59,7 @@ This is where we take our stand, so to speak. Specifically:
       the Kubernetes cluster, and to do so, we require some form of authentication.
     * All traffic *inside* the Kubernetes cluster is encrypted, to prevent
       simple network sniffers from picking up on data transferred over Wifi.
-* We do not trust network traffic that originates outside the Kubernetes cluster.
+* We *do not* trust network traffic that originates outside the Kubernetes cluster.
     * As such, we require authentication for incoming traffic.
     * The Kubernetes control plane is secured using best practices.
     * All traffic in/out of the cluster must also be encrypted.
@@ -67,3 +67,11 @@ This is where we take our stand, so to speak. Specifically:
 * We do not allow SSH (in release mode) into any of the Yocto images by default (after setup).
   In fact, the only ports that are open in the Yocto images are the ones required
   by Kubernetes Services that need to communicate off-board.
+
+## TODO
+
+1. Determine if we are creating a CA bundle and CA-signed cert correctly by reading the documentation
+   and updating the v3.ext file contents.
+1. Deploy the certificate to API server as a K8S secret during installation.
+1. Update anyone who uses the API server to require verification of the server's cert
+   against the only CA that makes sense for that server - the controller node.

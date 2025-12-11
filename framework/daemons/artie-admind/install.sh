@@ -63,6 +63,17 @@ sudo ufw allow 6443/tcp
 # Update K3S to require Artie Admind
 sudo sed -i '/After=network-online.target/a PartOf=artie-admind.service' /etc/systemd/system/k3s.service
 
+# Update the K3S configuration file for security best practices
+sudo cp ./config.yaml /etc/rancher/k3s/
+sudo cp ./psa.yaml /var/lib/rancher/k3s/server/
+sudo cp ./audit.yaml /var/lib/rancher/k3s/server/
+sudo cp ./k3s-network-policy.yaml /var/lib/rancher/k3s/server/manifests/
+sudo mkdir -p -m 700 /var/lib/rancher/k3s/server/logs
+
+# Update kernel parameters to ensure security compliance
+sudo cp ./90-kubelet.conf /etc/sysctl.d/90-kubelet.conf
+sudo sysctl -p /etc/sysctl.d/90-kubelet.conf
+
 # Install the daemon
 sudo cp ./artie-admind.service /etc/systemd/system/
 sudo systemctl daemon-reload

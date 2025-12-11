@@ -136,6 +136,45 @@ def _handle_transient_network_errors(cmd: List[str], n=5):
         i += 1
     return p.returncode == 0, p.returncode, p.stderr, p.stdout
 
+def _update_helm_dependencies(args, chart: str):
+    """
+    Update Helm chart dependencies if the chart has any.
+    Silently succeeds if there are no dependencies or if the chart doesn't exist.
+    """
+    import pathlib
+    
+    # Check if chart path is a directory
+    chart_path = pathlib.Path(chart)
+    if not chart_path.is_dir():
+        return
+    
+    # Check if Chart.yaml exists and has dependencies
+    chart_yaml = chart_path / "Chart.yaml"
+    if not chart_yaml.exists():
+        return
+    
+    # Read Chart.yaml to check for dependencies
+    try:
+        import yaml
+        with open(chart_yaml, 'r') as f:
+            chart_data = yaml.safe_load(f)
+        
+        if not chart_data or 'dependencies' not in chart_data:
+            return
+        
+        # Chart has dependencies, update them
+        common.info(f"Updating Helm chart dependencies for {chart_path.name}...")
+        cmd = ["helm", "dependency", "update", str(chart_path)]
+        
+        success, retcode, stderr, stdout = _handle_transient_network_errors(cmd)
+        if not success:
+            common.warning(f"Failed to update chart dependencies: {stderr}")
+        else:
+            common.info(f"Successfully updated dependencies for {chart_path.name}")
+    
+    except Exception as e:
+        common.warning(f"Could not check/update chart dependencies: {e}")
+
 def add_helm_repo(name: str, url: str):
     """
     Add a Helm repo.
@@ -211,6 +250,83 @@ def check_helm_chart_status(args, chart_name: str, namespace=ArtieK8sValues.NAME
     else:
         return HelmChartStatuses(json_object[0]['status'])
 
+def check_job_status(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -> JobStatuses:
+    """
+    Check and return the status of the given job.
+    """
+    _configure(args)
+    v1 = k8s.client.BatchV1Api()
+
+    try:
+        job = v1.read_namespaced_job_status(job_name, namespace)
+        status = job.status
+
+        if status.active is not None and status.active > 0:
+            # At least one pod is still pending or running
+            return JobStatuses.INCOMPLETE
+        elif status.failed is not None and status.failed > 0:
+            # At least one pod failed
+            return JobStatuses.FAILED
+        elif status.succeeded is not None and status.succeeded > 0:
+            # No active or failed pods AND at least one pod is successful. Looks good.
+            return JobStatuses.SUCCEEDED
+        else:
+            # Can't understand this state. No active, failed, or succeeded pods.
+            common.error(f"Kubernetes job {namespace}:{job_name} has unknown status - no active, failed, or succeeded pods.")
+            return JobStatuses.UNKNOWN
+    except urllib3.exceptions.MaxRetryError:
+        common.warning(f"Could not get the status for k8s job {namespace}:{job_name}; transient networking error")
+        return JobStatuses.UNKNOWN
+
+def create_from_yaml(args, yaml_contents: str, namespace=ArtieK8sValues.NAMESPACE):
+    """
+    Create a K8s resource from the given `yaml_contents`, which should be a YAML definition
+    like you would put in the K8s YAMl file.
+
+    Returns the list of items that were created from the YAML file, or the single object
+    that was created in the case that the list would only contain one object.
+    """
+    _configure(args)
+    client = k8s.client.ApiClient()
+
+    # Convert from raw YAML into Python
+    yaml_object = yaml.safe_load(io.StringIO(yaml_contents))
+    result = k8s.utils.create_from_yaml(client, yaml_objects=[yaml_object], namespace=namespace)
+
+    # For whatever reason, the create_from_yaml function creates randomly nested lists.
+    while hasattr(result, '__len__') and len(result) == 1 and not issubclass(type(result), dict):
+        result = result[0]
+
+    return result
+
+def delete_helm_release(args, chart_name: str, namespace=ArtieK8sValues.NAMESPACE):
+    """
+    Delete the given Helm chart.
+    """
+    status = check_helm_chart_status(args, chart_name, namespace)
+    if not status:
+        common.info(f"Helm release {chart_name} not present. Cannot delete it.")
+        return
+
+    cmd = ["helm", "delete", "--kubeconfig", args.kube_config, "--namespace", namespace, "--wait", chart_name, "--timeout", str(args.kube_timeout_s) + 's']
+    success, retcode, stderr, stdout = _handle_transient_network_errors(cmd)
+    if not success:
+        raise OSError(f"Helm failed: {stderr}; {stdout}")
+
+def delete_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_errors=False):
+    """
+    Delete a K8s job.
+    """
+    _configure(args)
+    v1 = k8s.client.BatchV1Api()
+    try:
+        v1.delete_namespaced_job(job_name, namespace, grace_period_seconds=0, propagation_policy='Foreground')
+    except Exception as e:
+        if not ignore_errors:
+            raise e
+        else:
+            common.warning(f"Error deleting job {namespace}:{job_name}: {e}")
+
 def delete_pod(args, pod_name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_errors=False):
     """
     Delete a K8s Pod.
@@ -252,6 +368,15 @@ def delete_node(args, node_name: str, ignore_errors=False):
             raise e
         else:
             common.warning(f"Error deleting node {node_name}: {e}")
+
+def get_all_pods(args, namespace=ArtieK8sValues.NAMESPACE) -> List[k8s.client.V1Pod]:
+    """
+    Get all pods for the given namespace.
+    """
+    _configure(args)
+    v1 = k8s.client.CoreV1Api()
+    podlist = v1.list_namespaced_pod(namespace)
+    return podlist.items
 
 def get_artie_names(args) -> List[str]:
     """
@@ -307,44 +432,18 @@ def get_node_labels(args, node_name: str) -> Dict[str, str]:
     node = _get_node_from_name(v1, node_name)
     return node.metadata.labels
 
-def _update_helm_dependencies(args, chart: str):
+def get_pods_from_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -> List[k8s.client.V1Pod]:
     """
-    Update Helm chart dependencies if the chart has any.
-    Silently succeeds if there are no dependencies or if the chart doesn't exist.
+    Get all the pods for a given job and return them as a List of K8s Job objects.
     """
-    import pathlib
-    
-    # Check if chart path is a directory
-    chart_path = pathlib.Path(chart)
-    if not chart_path.is_dir():
-        return
-    
-    # Check if Chart.yaml exists and has dependencies
-    chart_yaml = chart_path / "Chart.yaml"
-    if not chart_yaml.exists():
-        return
-    
-    # Read Chart.yaml to check for dependencies
-    try:
-        import yaml
-        with open(chart_yaml, 'r') as f:
-            chart_data = yaml.safe_load(f)
-        
-        if not chart_data or 'dependencies' not in chart_data:
-            return
-        
-        # Chart has dependencies, update them
-        common.info(f"Updating Helm chart dependencies for {chart_path.name}...")
-        cmd = ["helm", "dependency", "update", str(chart_path)]
-        
-        success, retcode, stderr, stdout = _handle_transient_network_errors(cmd)
-        if not success:
-            common.warning(f"Failed to update chart dependencies: {stderr}")
-        else:
-            common.info(f"Successfully updated dependencies for {chart_path.name}")
-    
-    except Exception as e:
-        common.warning(f"Could not check/update chart dependencies: {e}")
+    _configure(args)
+    v1 = k8s.client.BatchV1Api()
+
+    #job = v1.read_namespaced_job(job_name, namespace)
+
+    v1 = k8s.client.CoreV1Api()
+    podlist = v1.list_namespaced_pod(namespace, label_selector=f"job-name={job_name}")
+    return podlist.items
 
 def install_helm_chart(args, name: str, chart: str, sets=None, namespace=ArtieK8sValues.NAMESPACE):
     """
@@ -380,70 +479,6 @@ def install_helm_chart(args, name: str, chart: str, sets=None, namespace=ArtieK8
             raise e
         raise OSError(f"Helm failed: {stderr}; {stdout}")
 
-def delete_helm_release(args, chart_name: str, namespace=ArtieK8sValues.NAMESPACE):
-    """
-    Delete the given Helm chart.
-    """
-    status = check_helm_chart_status(args, chart_name, namespace)
-    if not status:
-        common.info(f"Helm release {chart_name} not present. Cannot delete it.")
-        return
-
-    cmd = ["helm", "delete", "--kubeconfig", args.kube_config, "--namespace", namespace, "--wait", chart_name, "--timeout", str(args.kube_timeout_s) + 's']
-    success, retcode, stderr, stdout = _handle_transient_network_errors(cmd)
-    if not success:
-        raise OSError(f"Helm failed: {stderr}; {stdout}")
-
-def check_job_status(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -> JobStatuses:
-    """
-    Check and return the status of the given job.
-    """
-    _configure(args)
-    v1 = k8s.client.BatchV1Api()
-
-    try:
-        job = v1.read_namespaced_job_status(job_name, namespace)
-        status = job.status
-
-        if status.active is not None and status.active > 0:
-            # At least one pod is still pending or running
-            return JobStatuses.INCOMPLETE
-        elif status.failed is not None and status.failed > 0:
-            # At least one pod failed
-            return JobStatuses.FAILED
-        elif status.succeeded is not None and status.succeeded > 0:
-            # No active or failed pods AND at least one pod is successful. Looks good.
-            return JobStatuses.SUCCEEDED
-        else:
-            # Can't understand this state. No active, failed, or succeeded pods.
-            common.error(f"Kubernetes job {namespace}:{job_name} has unknown status - no active, failed, or succeeded pods.")
-            return JobStatuses.UNKNOWN
-    except urllib3.exceptions.MaxRetryError:
-        common.warning(f"Could not get the status for k8s job {namespace}:{job_name}; transient networking error")
-        return JobStatuses.UNKNOWN
-
-def get_pods_from_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE) -> List[k8s.client.V1Pod]:
-    """
-    Get all the pods for a given job and return them as a List of K8s Job objects.
-    """
-    _configure(args)
-    v1 = k8s.client.BatchV1Api()
-
-    #job = v1.read_namespaced_job(job_name, namespace)
-
-    v1 = k8s.client.CoreV1Api()
-    podlist = v1.list_namespaced_pod(namespace, label_selector=f"job-name={job_name}")
-    return podlist.items
-
-def get_all_pods(args, namespace=ArtieK8sValues.NAMESPACE) -> List[k8s.client.V1Pod]:
-    """
-    Get all pods for the given namespace.
-    """
-    _configure(args)
-    v1 = k8s.client.CoreV1Api()
-    podlist = v1.list_namespaced_pod(namespace)
-    return podlist.items
-
 def log_job_results(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE):
     """
     Log all lines from all pods in the given job.
@@ -457,41 +492,6 @@ def log_job_results(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE):
         common.info(f"Reading logs from pod {namespace}:{pod.metadata.name}:")
         for line in logs.splitlines():
             common.info(line.rstrip())
-
-def delete_job(args, job_name: str, namespace=ArtieK8sValues.NAMESPACE, ignore_errors=False):
-    """
-    Delete a K8s job.
-    """
-    _configure(args)
-    v1 = k8s.client.BatchV1Api()
-    try:
-        v1.delete_namespaced_job(job_name, namespace, grace_period_seconds=0, propagation_policy='Foreground')
-    except Exception as e:
-        if not ignore_errors:
-            raise e
-        else:
-            common.warning(f"Error deleting job {namespace}:{job_name}: {e}")
-
-def create_from_yaml(args, yaml_contents: str, namespace=ArtieK8sValues.NAMESPACE):
-    """
-    Create a K8s resource from the given `yaml_contents`, which should be a YAML definition
-    like you would put in the K8s YAMl file.
-
-    Returns the list of items that were created from the YAML file, or the single object
-    that was created in the case that the list would only contain one object.
-    """
-    _configure(args)
-    client = k8s.client.ApiClient()
-
-    # Convert from raw YAML into Python
-    yaml_object = yaml.safe_load(io.StringIO(yaml_contents))
-    result = k8s.utils.create_from_yaml(client, yaml_objects=[yaml_object], namespace=namespace)
-
-    # For whatever reason, the create_from_yaml function creates randomly nested lists.
-    while hasattr(result, '__len__') and len(result) == 1 and not issubclass(type(result), dict):
-        result = result[0]
-
-    return result
 
 def node_is_online(args, node_name: str) -> bool:
     """
