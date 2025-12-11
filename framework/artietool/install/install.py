@@ -101,6 +101,11 @@ def _initialize_controller_node(args, sbc_config: hw_config.SBC, artie_name: str
     common.ssh("systemctl restart k3s-agent.service", artie_ip, artie_username, artie_password)
 
     # Generate the CA bundle, generate the API server certificate, and sign the certificate
+    # By the way, a .csr file is a Certificate Signing Request file. Typically, certificate signing
+    # is done by CAs, and the way that works is that the CAs present an API that requires
+    # a csr file which contains the request and associated metadata. The CA then returns
+    # the requested .crt file, signed by the CA.
+    common.ssh(f"mkdir -p /artie/controller-node-CA", )
     with open(os.path.join(common.get_scratch_location(), "extfile"), 'w') as f:
         f.write(
 """authorityKeyIdentifier=keyid,issuer
@@ -108,19 +113,21 @@ basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 subjectAltName = @alt_names
 [alt_names]
-DNS.1 = myserver.local
-DNS.2 = myserver1.local
-IP.1 = 192.168.1.1
-IP.2 = 192.168.2.1""")
-    common.scp_to(artie_ip, artie_username, artie_password, target=os.path.join(common.get_scratch_location(), "extfile"), dest="/etc/rancher/k3s/api-server.v3.ext")
-    common.ssh(f"openssl genrsa -aes256 -out controller-node.key 4096", artie_ip, artie_username, artie_password)
-    common.ssh(f"openssl req -x509 -new -nodes -key controller-node.key -sha256 -out controller-node.crt -subj '/CN={artie_name}-controller-node/O=Artie'", artie_ip, artie_username, artie_password)
-    common.ssh(f"openssl req -new -nodes -out api-server.csr -newkey rsa:4096 -keyout api-server.key -subj '/CN={artie_name}-api-server/O=Artie'", artie_ip, artie_username, artie_password)
-    common.ssh(f"openssl x509 -req -in api-server.csr -CA controller-node.crt -CAkey controller-node.key -CAcreateserial -out api-server.crt -days 730 -sha256 -extfile api-server.v3.ext", artie_ip, artie_username, artie_password)
+DNS.1 = artie-api-server.local
+""")
+    common.scp_to(artie_ip, artie_username, artie_password, target=os.path.join(common.get_scratch_location(), "extfile"), dest="/artie/controller-node-CA/api-server.v3.ext")
+    ## Create the RSA key
+    common.ssh(f"openssl genrsa -aes256 -out /artie/controller-node-CA/controller-node.key 4096", artie_ip, artie_username, artie_password)
+    ## Generate a CA root (that's what the -x509 arg does)
+    common.ssh(f"openssl req -x509 -new -nodes -key /artie/controller-node-CA/controller-node.key -sha256 -out /artie/controller-node-CA/controller-node.crt -subj '/CN={artie_name}-controller-node/O=Artie'", artie_ip, artie_username, artie_password)
+    ## Generate the CSR (the signing request) that we will use to get a cert for our Artie API server
+    common.ssh(f"openssl req -new -nodes -out /artie/controller-node-CA/api-server.csr -newkey rsa:4096 -keyout /artie/controller-node-CA/api-server.key -subj '/CN={artie_name}-api-server/O=Artie'", artie_ip, artie_username, artie_password)
+    ## Use the CSR to create a controller-node-signed cert for the Artie API server
+    common.ssh(f"openssl x509 -req -in /artie/controller-node-CA/api-server.csr -CA /artie/controller-node-CA/controller-node.crt -CAkey /artie/controller-node-CA/controller-node.key -CAcreateserial -out /artie/controller-node-CA/api-server.crt -days 3650 -sha256 -extfile /artie/controller-node-CA/api-server.v3.ext", artie_ip, artie_username, artie_password)
 
     # Copy the CA bundle and API server cert from the controller node to this machine
-    ca_bundle = common.scp_from(artie_ip, artie_username, artie_password, target="/etc/rancher/k3s/controller-node.crt", dest=None)
-    api_server_cert = common.scp_from(artie_ip, artie_username, artie_password, target="/etc/rancher/k3s/api-server.crt", dest=None)
+    ca_bundle = common.scp_from(artie_ip, artie_username, artie_password, target="/artie/controller-node-CA/controller-node.crt", dest=None)
+    api_server_cert = common.scp_from(artie_ip, artie_username, artie_password, target="/artie/controller-node-CA/api-server.crt", dest=None)
 
     # Decode the bundle and cert from bytes into str
     ca_bundle = ca_bundle.decode('utf-8')
