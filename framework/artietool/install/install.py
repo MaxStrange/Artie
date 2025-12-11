@@ -11,6 +11,7 @@ import argparse
 import datetime
 import getpass
 import os
+import pathlib
 import re
 import subprocess
 import time
@@ -177,6 +178,23 @@ def _create_artie_metadata_configmap(args, artie_name: str, artie_config: hw_con
     kube.create_from_yaml(args, configmap_yaml_str)
     common.info(f"Created hardware metadata ConfigMap: artie-hw-config-{artie_name}")
 
+def _create_artie_api_server_secret(args, artie_name: str, api_server_cert: str):
+    """
+    Create a Kubernetes Secret containing the API server certificate for this Artie.
+    """
+    # Delete existing secret if it exists
+    kube.delete_secret(args, f'artie-api-server-cert-{artie_name}', ignore_errors=True)
+
+    # TODO: Decide if we want to create from YAML or if we want to create like this
+    #       If we want to create using a high-level API like this, we should also update
+    #       _create_artie_metadata_configmap to use a high-level API as well.
+
+    # Create the secret
+    common.info("Creating Artie API server certificate Secret...")
+    secret_name = f'artie-api-server-cert-{artie_name}'
+    kube.create_secret(args, secret_name, api_server_cert, namespace=kube.ArtieK8sValues.NAMESPACE)
+    common.info(f"Created API server certificate Secret: {secret_name}")
+
 def install(args):
     """
     Top-level install function.
@@ -249,11 +267,16 @@ def install(args):
         retcode = 1
         return retcode
 
-    success, ca_bundle = _initialize_controller_node(args, controller_node, artie_name, artie_ip, artie_username, artie_password, k3s_token, args.admin_ip)
+    success, ca_bundle, api_server_cert = _initialize_controller_node(args, controller_node, artie_name, artie_ip, artie_username, artie_password, k3s_token, args.admin_ip)
     if not success:
         common.error(f"Failed to initialize SBC: {controller_node_name}")
         retcode = 1
         return retcode
+
+    # Save the CA bundle to disk
+    os.makedirs(args.ca_savedir, exist_ok=True)
+    with open(pathlib.Path(args.ca_savedir / "controller-node-ca.crt"), "w") as f:
+        f.write(ca_bundle)
 
     initialized_nodes.append((controller_node_name, controller_node))
 
@@ -299,6 +322,9 @@ def install(args):
     # Create ConfigMap with hardware metadata
     _create_artie_metadata_configmap(args, artie_name, artie_config)
 
+    # Create Secret for API server certificate
+    _create_artie_api_server_secret(args, artie_name, api_server_cert)
+
     return retcode
 
 def fill_subparser(parser_install: argparse.ArgumentParser, parent: argparse.ArgumentParser):
@@ -306,7 +332,7 @@ def fill_subparser(parser_install: argparse.ArgumentParser, parent: argparse.Arg
     parser_install.add_argument("--artie-ip", required=True, type=common.validate_input_ip, help="IP address for the Artie we are installing.")
     parser_install.add_argument("--admin-ip", required=True, type=common.validate_input_ip, help="IP address for the admin server.")
     parser_install.add_argument("--artie-type-file", required=True, type=common.argparse_file_path_type, help="Path to the YAML file defining this Artie's hardware configuration (e.g., artie00/artie00.yml).")
+    parser_install.add_argument("--ca-savedir", type=str, default=str(pathlib.Path.home() / ".artie" / "controller-node-CA"), help="Directory to save the CA certificate of the controller node.")
     parser_install.add_argument("-p", "--password", type=str, default=None, help="The password for the Artie we are adding. It is more secure to pass this in over stdin when prompted, if possible.")
     parser_install.add_argument("-t", "--token", type=str, default=None, help="Token that you were given after installing Artie Admind. If you have lost it, you can find it on the admin server at /var/lib/rancher/k3s/server/node-token. It is more secure to pass this in over stdin when prompted, if possible.")
     parser_install.add_argument("--token-file", type=common.argparse_file_path_type, default=None, help="A file that contains the Artie Admind token as its only contents.")
-    parser_install.set_defaults(cmd=install, module="install-artie")
