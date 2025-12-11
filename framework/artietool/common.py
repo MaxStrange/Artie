@@ -287,6 +287,17 @@ def set_up_logging(args):
     logger = logging.getLogger(LOGGER_NAME)
     logger.setLevel(level)
 
+def scp_from(ip: str, uname: str, password: str, target: str, dest: str|None) -> None|bytes:
+    """
+    Copy the file from `target` on the remote machine to the `dest` on the local machine.
+    If `dest` is `None`, we return the file's contents (as bytes).
+    """
+    c = fabric.Connection(ip, uname, forward_agent=True, connect_timeout=30, connect_kwargs={'password': password})
+    if dest is None:
+        return c.run(f"cat {target}", hide=True).stdout
+    else:
+        c.get(target, local=dest)
+
 def scp_to(ip: str, uname: str, password: str, target: str, dest: str):
     """
     Copy the file from `target` on the local machine to the `dest` on the remote machine.

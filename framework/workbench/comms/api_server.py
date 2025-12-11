@@ -17,25 +17,28 @@ class ArtieApiClient:
         Args:
             profile: The Artie profile containing connection information
         """
-        # TODO: The controller_node_ip isn't what we use for ArtieApiClient. We need to use the IP of the node that
-        #       is running the API server, which may be the controller node, but may not be, particularly in the future.
-        #       Not sure how we do that with Kubernetes. Presumably there is some way of doing DNS.
-        # TODO: Get rid of the hard-coded port on the self.base_url below. It should be stored in the ArtieProfile.
-        #       Additionally, we should update the settings dialog to allow users to change the API server port if needed,
-        #       which means adding a tab for settings that are specific to particular Artie installations.
-        # TODO: During Artie installation, we already ask for a username and password for the controller node.
-        #       We save those credentials in the Artie profile (using Windows Credential Manager / macOS Keychain / Linux
-        #       Secret Service or whatever).
-        #       We should use those credentials here to authenticate with the API server.
-        #       We should also support token-based authentication for programmatic access to the cluster,
-        #       such as if we ever want to set up CI/CD pipelines that interact with a self-hosted Artie.
-        # TODO: We need to handle certificate verification properly. During the installation procedure,
-        #       we need to retrieve the self-signed certificate from the API server and store it securely.
-        #       We need to make sure we use it here and that we make sure (presumably using the requests library) it is the only one that we trust.
         self.profile = profile
-        self.base_url = f"https://{profile.controller_node_ip}:8782"
+        
+        # Use the cached server host field if present. If not, update the cache.
+        host = profile.api_server_host  # TODO: If this is None, we need to look up the host using artie-tool's get API server host command or whatever
+        port = profile.api_server_port  #       Not sure if the port is required when using a Kubernetes service doodad
+        
+        self.base_url = f"https://{host}:{port}"
         self.session = requests.Session()
-        self.session.verify = False
+        
+        # Set up authentication if credentials are available
+        if profile.username and profile.password:
+            self.session.auth = (profile.username, profile.password)
+        elif profile.api_server_bearer_token:
+            # Token-based authentication for programmatic access
+            self.session.headers.update({'Authorization': f'Bearer {profile.api_server_bearer_token}'})
+
+        # Set up certificate verification
+        if profile.api_server_cert_path:
+            # Use the provided certificate for verification. This is the preferred mechanism for production,
+            # as we should only be communicating with an API server whose certificate has been signed by that particular
+            # Artie's controller node.
+            self.session.verify = profile.api_server_cert_path
         
     def _make_request(self, method: str, endpoint: str, **kwargs) -> tuple[Optional[Exception], Optional[Dict]]:
         """

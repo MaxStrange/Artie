@@ -20,3 +20,13 @@ def delete_secret(key: str):
     # TODO: macOS: use Keychain(?)
     # TODO: Linux: use Secret Service API (libsecret)?
     pass
+
+def retrieve_api_server_cert() -> str:
+    """Retrieve a path to the API server certificate bundle."""
+    # TODO
+    return ""
+
+def store_api_server_cert(cert_path: str):
+    """Store the API server certificate."""
+    # TODO
+    pass

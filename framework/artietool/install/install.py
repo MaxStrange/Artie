@@ -71,12 +71,11 @@ def _get_token(args) -> Tuple[bool, str|None]:
     else:
         return _get_token_from_user(args)
 
-def _initialize_sbc(args, sbc_config: hw_config.SBC, artie_name: str, artie_ip: str, artie_username: str, 
-                    artie_password: str, k3s_token: str, admin_ip: str) -> Tuple[bool, str]:
+def _initialize_controller_node(args, sbc_config: hw_config.SBC, artie_name: str, artie_ip: str, artie_username: str, artie_password: str, k3s_token: str, admin_ip: str) -> Tuple[bool, str, str]:
     """
-    Initialize a single board computer by creating its K3S config and joining it to the cluster.
+    Initialize the controller node by creating its K3S config and joining it to the cluster.
     
-    Returns: (success, node_name)
+    Returns: (success, controller node CA bundle, API server certificate)
     """
     node_name = f"{sbc_config.name}-{artie_name}"
 
@@ -100,8 +99,34 @@ def _initialize_sbc(args, sbc_config: hw_config.SBC, artie_name: str, artie_ip: 
     # Restart k3s agent
     common.ssh("systemctl daemon-reload", artie_ip, artie_username, artie_password)
     common.ssh("systemctl restart k3s-agent.service", artie_ip, artie_username, artie_password)
-    
-    return True, node_name
+
+    # Generate the CA bundle, generate the API server certificate, and sign the certificate
+    with open(os.path.join(common.get_scratch_location(), "extfile"), 'w') as f:
+        f.write(
+"""authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = myserver.local
+DNS.2 = myserver1.local
+IP.1 = 192.168.1.1
+IP.2 = 192.168.2.1""")
+    common.scp_to(artie_ip, artie_username, artie_password, target=os.path.join(common.get_scratch_location(), "extfile"), dest="/etc/rancher/k3s/api-server.v3.ext")
+    common.ssh(f"openssl genrsa -aes256 -out controller-node.key 4096", artie_ip, artie_username, artie_password)
+    common.ssh(f"openssl req -x509 -new -nodes -key controller-node.key -sha256 -out controller-node.crt -subj '/CN={artie_name}-controller-node/O=Artie'", artie_ip, artie_username, artie_password)
+    common.ssh(f"openssl req -new -nodes -out api-server.csr -newkey rsa:4096 -keyout api-server.key -subj '/CN={artie_name}-api-server/O=Artie'", artie_ip, artie_username, artie_password)
+    common.ssh(f"openssl x509 -req -in api-server.csr -CA controller-node.crt -CAkey controller-node.key -CAcreateserial -out api-server.crt -days 730 -sha256 -extfile api-server.v3.ext", artie_ip, artie_username, artie_password)
+
+    # Copy the CA bundle and API server cert from the controller node to this machine
+    ca_bundle = common.scp_from(artie_ip, artie_username, artie_password, target="/etc/rancher/k3s/controller-node.crt", dest=None)
+    api_server_cert = common.scp_from(artie_ip, artie_username, artie_password, target="/etc/rancher/k3s/api-server.crt", dest=None)
+
+    # Decode the bundle and cert from bytes into str
+    ca_bundle = ca_bundle.decode('utf-8')
+    api_server_cert = api_server_cert.decode('utf-8')
+
+    return True, ca_bundle, api_server_cert
 
 def _create_artie_metadata_configmap(args, artie_name: str, artie_config: hw_config.HWConfig):
     """
@@ -178,7 +203,7 @@ def install(args):
 
     # Assert that there is at least a controller node
     if artie_config.controller_node is None:
-        common.error(f"No controller-node found in this Artie configuration. Cannot proceed with installation.")
+        common.error(f"No {kube.ArtieK8sValues.CONTROLLER_NODE_ID} found in this Artie configuration. Cannot proceed with installation.")
         retcode = 1
         return retcode
 
@@ -208,20 +233,26 @@ def install(args):
         retcode = 1
         return retcode
 
-    # Initialize all SBCs from the configuration file
-    common.info(f"Initializing {len(artie_config.sbcs)} single board computer(s)...")
+    # Initialize the controller node first
     initialized_nodes = []
-    
+    controller_node = next((sbc for sbc in artie_config.sbcs if sbc.name == kube.ArtieK8sValues.CONTROLLER_NODE_ID), None)
+    controller_node_name = f"{kube.ArtieK8sValues.CONTROLLER_NODE_ID}-{artie_name}"
+    if controller_node is None:
+        common.error(f"No {controller_node_name} found in this Artie configuration. Cannot proceed with installation.")
+        retcode = 1
+        return retcode
+
+    success, ca_bundle = _initialize_controller_node(args, controller_node, artie_name, artie_ip, artie_username, artie_password, k3s_token, args.admin_ip)
+    if not success:
+        common.error(f"Failed to initialize SBC: {controller_node_name}")
+        retcode = 1
+        return retcode
+
+    initialized_nodes.append((controller_node_name, controller_node))
+
+    # Initialize all other SBCs from the configuration file
+    common.info(f"Initializing {len(artie_config.sbcs)} single board computer(s)...")
     for sbc_config in artie_config.sbcs:
-        # Initialize this SBC
-        # TODO: When multiple SBCs have different IPs, update _initialize_sbc to handle that.
-        #       The controller node will send the information along over CAN
-        success, node_name = _initialize_sbc(args, sbc_config, artie_name, artie_ip, artie_username, artie_password, k3s_token, args.admin_ip)
-        if not success:
-            common.error(f"Failed to initialize SBC: {sbc_config.name}")
-            retcode = 1
-            return retcode
-        
         # Wait for node to come online
         common.info(f"Waiting for {node_name} to come online...")
         timeout_s = 120
@@ -252,7 +283,7 @@ def install(args):
         }
         
         # Controller node gets an additional taint
-        if sbc_config.name == "controller-node":
+        if node_name == controller_node_name:
             node_taints[kube.ArtieK8sKeys.CONTROLLER_NODE_TAINT] = ("true", "NoSchedule")
         
         kube.assign_node_taints(args, node_name, node_taints)
