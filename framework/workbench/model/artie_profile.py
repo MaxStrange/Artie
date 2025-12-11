@@ -39,7 +39,7 @@ class ArtieProfile:
     api_server_port: int = 8782
     """The port for the API server."""
 
-    api_server_cert_path: str = None
+    api_server_cert_path: str = str(pathlib.Path.home() / ".artie" / "controller-node-CA" / "controller-node-ca.crt")
     """The controller node's root certificate. This is the CA bundle we use for authenticating the API server is who it says it is."""
 
     api_server_bearer_token: str = None
