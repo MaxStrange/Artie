@@ -46,7 +46,7 @@ class ArtieProfile:
     """An optional bearer token for the API server."""
 
     @staticmethod
-    def load(artie_name: str, path=None) -> 'ArtieProfile':
+    def load(artie_name="unnamed_artie", path=None) -> 'ArtieProfile':
         """Load an Artie profile from disk."""
         if path is None:
             path = DEFAULT_SAVE_PATH / f"{artie_name}.json"

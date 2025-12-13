@@ -1,5 +1,5 @@
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
-from model import artie_profile
 
 class CompletePage(QtWidgets.QWizardPage):
     """Final completion page"""

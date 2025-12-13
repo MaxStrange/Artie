@@ -3,7 +3,7 @@ This module contains code for doing ArtieTool stuff.
 """
 import json
 import subprocess
-from model import artie_profile
+from artie_tooling import artie_profile
 from artie_tooling import hw_config
 
 class ArtieToolInvoker:

@@ -1,11 +1,10 @@
 """
 Hardware tab widget for Artie Workbench
 """
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
-from model import artie_profile
 from model import settings
 from . import status_icon
-from ..utils import status_fetcher
 
 
 class HardwareTab(QtWidgets.QWidget):

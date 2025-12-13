@@ -1,5 +1,5 @@
-from .. import apiclient
 from .. import common
+from artie_tooling.api_clients import mouth_client
 import argparse
 
 MOUTH_DRAWING_CHOICES = [
@@ -12,84 +12,13 @@ MOUTH_DRAWING_CHOICES = [
     "zig-zag",
 ]
 
-class MouthClient(apiclient.APIClient):
-    def __init__(self, args) -> None:
-        super().__init__(args)
-
-    def led_on(self):
-        response = self.post(f"/mouth/led", params={'artie-id': self.artie_id, 'state': 'on'})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting LED value: {response.content.decode('utf-8')}", module='mouth', submodule='LED', artie_id=self.artie_id)
-
-    def led_off(self):
-        response = self.post(f"/mouth/led", params={'artie-id': self.artie_id, 'state': 'off'})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting LED value: {response.content.decode('utf-8')}", module='mouth', submodule='LED', artie_id=self.artie_id)
-
-    def led_heartbeat(self):
-        response = self.post(f"/mouth/led", params={'artie-id': self.artie_id, 'state': 'heartbeat'})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting LED value: {response.content.decode('utf-8')}", module='mouth', submodule='LED', artie_id=self.artie_id)
-
-    def led_get(self):
-        response = self.get(f"/mouth/led", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error getting LED value: {response.content.decode('utf-8')}", module='mouth', submodule='LED', artie_id=self.artie_id)
-        else:
-            common.format_print_result(f"LED value: {response.json().get('state')}", module='mouth', submodule='LED', artie_id=self.artie_id)
-
-    def lcd_test(self):
-        response = self.post(f"/mouth/lcd/test", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error testing the LCD: {response.content.decode('utf-8')}", module='mouth', submodule='LCD', artie_id=self.artie_id)
-
-    def lcd_off(self):
-        response = self.post(f"/mouth/lcd/off", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error clearing the LCD: {response.content.decode('utf-8')}", module='mouth', submodule='LCD', artie_id=self.artie_id)
-
-    def lcd_get(self):
-        response = self.get(f"/mouth/lcd", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error getting mouth LCD value: {response.content.decode('utf-8')}", module='mouth', submodule='LCD', artie_id=self.artie_id)
-        else:
-            common.format_print_result(f"Display value: {response.json().get('display')}", module='mouth', submodule='LCD', artie_id=response.json().get('artie-id'))
-
-    def lcd_draw(self, draw_val: str):
-        response = self.post(f"/mouth/lcd", params={'artie-id': self.artie_id, 'display': draw_val})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting mouth LCD: {response.content.decode('utf-8')}", module='mouth', submodule='LCD', artie_id=self.artie_id)
-
-    def lcd_talk(self):
-        response = self.post(f"/mouth/lcd", params={'artie-id': self.artie_id, 'display': "talking"})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting mouth LCD: {response.content.decode('utf-8')}", module='mouth', submodule='LCD', artie_id=self.artie_id)
-
-    def firmware_load(self):
-        response = self.post(f"/mouth/fw", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error reloading mouth FW: {response.content.decode('utf-8')}", module='mouth', submodule='FW', artie_id=self.artie_id)
-
-    def status(self):
-        response = self.get("/mouth/status", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_status_result(f"Error getting mouth status: {response.content.decode('utf-8')}", module='mouth', artie_id=self.artie_id)
-        else:
-            common.format_print_status_result(response.json(), module='mouth', artie_id=self.artie_id)
-
-    def self_check(self):
-        response = self.post("/mouth/self-test", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error running mouth self-check: {response.content.decode('utf-8')}", module='mouth', submodule='status', artie_id=self.artie_id)
-
-
-def _connect_client(args) -> common._ConnectionWrapper | MouthClient:
+def _connect_client(args) -> common._ConnectionWrapper | mouth_client.MouthClient:
     if common.in_test_mode(args):
         ip = "localhost"
         port = 18862
         connection = common.connect(ip, port, ipv6=args.ipv6)
     else:
-        connection = MouthClient(args)
+        connection = mouth_client.MouthClient(profile=args.artie_profile, integration_test=args.integration_test, unit_test=args.unit_test)
     return connection
 
 #########################################################################################
@@ -98,19 +27,19 @@ def _connect_client(args) -> common._ConnectionWrapper | MouthClient:
 
 def _cmd_led_on(args):
     client = _connect_client(args)
-    client.led_on()
+    common.format_print_result(client.led_on(), "mouth", "LED", args.artie_id)
 
 def _cmd_led_off(args):
     client = _connect_client(args)
-    client.led_off()
+    common.format_print_result(client.led_off(), "mouth", "LED", args.artie_id)
 
 def _cmd_led_heartbeat(args):
     client = _connect_client(args)
-    client.led_heartbeat()
+    common.format_print_result(client.led_heartbeat(), "mouth", "LED", args.artie_id)
 
 def _cmd_led_get(args):
     client = _connect_client(args)
-    client.led_get()
+    common.format_print_result(client.led_get(), "mouth", "LED", args.artie_id)
 
 #########################################################################################
 ################################# LCD Subsystem #########################################
@@ -118,23 +47,23 @@ def _cmd_led_get(args):
 
 def _cmd_lcd_get(args):
     client = _connect_client(args)
-    client.lcd_get()
+    common.format_print_result(client.lcd_get(), "mouth", "LCD", args.artie_id)
 
 def _cmd_lcd_draw(args):
     client = _connect_client(args)
-    client.lcd_draw(args.draw_val)
+    common.format_print_result(client.lcd_draw(args.draw_val), "mouth", "LCD", args.artie_id)
 
 def _cmd_lcd_test(args):
     client = _connect_client(args)
-    client.lcd_test()
+    common.format_print_result(client.lcd_test(), "mouth", "LCD", args.artie_id)
 
 def _cmd_lcd_off(args):
     client = _connect_client(args)
-    client.lcd_off()
+    common.format_print_result(client.lcd_off(), "mouth", "LCD", args.artie_id)
 
 def _cmd_lcd_talk(args):
     client = _connect_client(args)
-    client.lcd_talk()
+    common.format_print_result(client.lcd_talk(), "mouth", "LCD", args.artie_id)
 
 #########################################################################################
 ################################# FW Subsystem ##########################################
@@ -142,19 +71,19 @@ def _cmd_lcd_talk(args):
 
 def _cmd_firmware_load(args):
     client = _connect_client(args)
-    client.firmware_load()
+    common.format_print_result(client.firmware_load(), "mouth", "FW", args.artie_id)
 
 #########################################################################################
 ################################# Status Commands #######################################
 #########################################################################################
 def _cmd_status_self_check(args):
     client = _connect_client(args)
-    client.self_check()
-    client.status()
+    common.format_print_result(client.self_check(), "mouth", "status", args.artie_id)
+    common.format_print_status_result(client.status(), "mouth", args.artie_id)
 
 def _cmd_status_get(args):
     client = _connect_client(args)
-    client.status()
+    common.format_print_status_result(client.status(), "mouth", args.artie_id)
 
 #########################################################################################
 ################################## PARSERS ##############################################

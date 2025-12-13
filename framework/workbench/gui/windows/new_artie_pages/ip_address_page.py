@@ -1,5 +1,5 @@
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets
-from model import artie_profile
 import re
 
 class IPAddressPage(QtWidgets.QWizardPage):

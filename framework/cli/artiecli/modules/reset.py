@@ -1,68 +1,31 @@
-from .. import apiclient
 from .. import common
+from artie_tooling import reset_client
 import argparse
-import errno
 
-class ResetClient(apiclient.APIClient):
-    def __init__(self, args) -> None:
-        super().__init__(args)
-
-    def _convert_address_to_mcu(self, address: int) -> str:
-        match address:
-            case 0x00:
-                return 'eyebrows'
-            case 0x01:
-                return 'mouth'
-            case 0x02:
-                return 'sensors-head'
-            case 0x03:
-                return 'pump-control'
-            case 0xFF:
-                return 'all'
-            case _:
-                print(f"Invalid argument given for MCU address: {address}")
-                exit(errno.EINVAL)
-
-    def reset_target(self, address: int):
-        mcu = self._convert_address_to_mcu(address)
-        self.post(f"/reset/mcu", params={'artie-id': self.artie_id, 'id': mcu})
-
-    def status(self):
-        response = self.get("/reset/status", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_status_result(f"Error getting reset status: {response.content.decode('utf-8')}", module='reset', artie_id=self.artie_id)
-        else:
-            common.format_print_status_result(response.json(), module='reset', artie_id=self.artie_id)
-
-    def self_check(self):
-        response = self.post("/reset/self-test", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error running reset self-check: {response.content.decode('utf-8')}", module='reset', submodule='status', artie_id=self.artie_id)
-
-def _connect_client(args) -> common._ConnectionWrapper | ResetClient:
+def _connect_client(args) -> common._ConnectionWrapper | reset_client.ResetClient:
     if common.in_test_mode(args):
         ip = "localhost"
         port = 18861
         connection = common.connect(ip, port, ipv6=args.ipv6)
     else:
-        connection = ResetClient(args)
+        connection = reset_client.ResetClient(profile=args.artie_profile, integration_test=args.integration_test, unit_test=args.unit_test)
     return connection
 
 def _cmd_reset_target_mcu(args):
     connection = _connect_client(args)
-    connection.reset_target(args.address)
+    common.format_print_result(connection.reset_target(args.address), "reset", "MCU", args.artie_id)
 
 def _cmd_reset_target_sbc(args):
     raise NotImplementedError("This functionality is not yet implemented.")
 
 def _cmd_status_self_check(args):
     client = _connect_client(args)
-    client.self_check()
-    client.status()
+    common.format_print_result(client.self_check(), "reset", "status", args.artie_id)
+    common.format_print_status_result(client.status(), "reset", args.artie_id)
 
 def _cmd_status_get(args):
     client = _connect_client(args)
-    client.status()
+    common.format_print_status_result(client.status(), "reset", args.artie_id)
 
 #########################################################################################
 ################################## PARSERS ##############################################

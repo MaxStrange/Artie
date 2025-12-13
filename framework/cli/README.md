@@ -32,4 +32,4 @@ dependencies, which means it can only interact with the hardware directly and ca
 access the cluster.
 
 You can also use Artie CLI from your development machine, but it will require authentication
-into the Kubernetes cluster.
+into the Kubernetes cluster (using your Artie Profile if possible).

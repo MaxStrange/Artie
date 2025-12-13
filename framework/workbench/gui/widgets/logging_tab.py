@@ -5,11 +5,10 @@ This tab provides live log streaming and historical log querying functionality
 by communicating with the Artie API Server, which in turn queries the Fluent Bit
 log collector service.
 """
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
-from model import artie_profile
 from model import settings
 from comms import api_server
-from datetime import datetime, timedelta
 
 
 class LoggingTab(QtWidgets.QWidget):

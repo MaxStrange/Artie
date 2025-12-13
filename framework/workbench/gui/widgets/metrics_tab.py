@@ -4,8 +4,8 @@ Metrics tab widget for Artie Workbench
 This tab provides Prometheus metrics querying and visualization functionality
 by communicating with the Artie API Server, which in turn queries Prometheus.
 """
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
-from model import artie_profile
 from model import settings
 from comms import api_server
 from datetime import datetime, timedelta
