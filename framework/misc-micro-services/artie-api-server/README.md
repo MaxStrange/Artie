@@ -5,6 +5,9 @@ planned to make use of this server are the Artie CLI and the Artie workbench.
 
 For anything running *inside* the cluster, Artie Service Client should be used directly instead.
 
+Note that this is the complete set of Artie APIs for the server. Not all Artie models support
+all of the below APIs. Where there are model-specific API differences, these are noted.
+
 ## Contents
 
 - [Eyebrows](./docs/api-eyebrows.md) - also includes the servos for the eyes
@@ -34,7 +37,7 @@ SBC (single board computer) IDs:
 
 These are possible values for the submodule status reports:
 
-* `working`: The module or submodule is in a health state.
+* `working`: The module or submodule is in a healthy state.
 * `degraded`: The module or submodule is operating in a limited capacity.
 * `not working`: The module or submodule is known to be non-functional at this time.
 * `unknown`: The module or submodule's status is not currently known.

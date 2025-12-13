@@ -12,7 +12,6 @@ setup(
     extras_require={
         "remote": [
             "rpyc==5.3.1",
-            "kubernetes==28.*"
         ],
     },
     packages=["artiecli", "artiecli.modules"],

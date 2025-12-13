@@ -15,7 +15,6 @@ dependencies = [
 [project.optional-dependencies]
 remote = [
     "rpyc==5.3.1",
-    "kubernetes==28.*"
 ]
 
 [project.scripts]

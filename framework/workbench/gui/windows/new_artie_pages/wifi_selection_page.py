@@ -1,6 +1,5 @@
 from PyQt6 import QtWidgets, QtCore
 from comms import artie_serial
-from model import artie_profile
 import threading
 
 class WiFiSelectionPage(QtWidgets.QWizardPage):

@@ -1,10 +1,10 @@
 """
 Artie API Server client for communicating with the Artie API Server
 """
+from artie_tooling import artie_profile
 import requests
 import json
 from typing import Optional, Dict, Any, List
-from model import artie_profile
 
 
 class ArtieApiClient:

@@ -1,7 +1,6 @@
 """
 New Artie Wizard for setting up a new Artie robot
 """
-from PyQt6 import QtWidgets
 from .new_artie_pages import complete_page
 from .new_artie_pages import credentials_page
 from .new_artie_pages import deploy_page
@@ -13,7 +12,8 @@ from .new_artie_pages import serial_connection_page
 from .new_artie_pages import test_page
 from .new_artie_pages import wifi_check_connection_page
 from .new_artie_pages import wifi_selection_page
-from model import artie_profile
+from artie_tooling import artie_profile
+from PyQt6 import QtWidgets
 import enum
 
 class PageID(enum.IntEnum):

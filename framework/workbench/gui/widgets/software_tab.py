@@ -1,11 +1,10 @@
 """
 Software tab widget for Artie Workbench
 """
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
-from model import artie_profile
 from model import settings
 from .status_icon import StatusGrid
-from ..utils.status_fetcher import StatusFetcher
 
 
 class SoftwareTab(QtWidgets.QWidget):

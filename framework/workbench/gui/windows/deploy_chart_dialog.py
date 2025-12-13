@@ -1,9 +1,9 @@
 """
 This module contains the code for the 'deploy Helm Chart' dialog.
 """
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
 from comms import tool
-from model import artie_profile
 from model import settings
 import subprocess
 import threading

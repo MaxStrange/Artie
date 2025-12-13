@@ -1,5 +1,5 @@
+from artie_tooling import artie_profile
 from PyQt6 import QtWidgets
-from model import artie_profile
 
 class NamePage(QtWidgets.QWizardPage):
     """Page for naming the Artie"""

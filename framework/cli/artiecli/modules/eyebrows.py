@@ -1,95 +1,15 @@
-from .. import apiclient
 from .. import common
-from typing import List
+from artie_tooling.api_clients import eyebrow_client
+from artie_tooling import errors
 import argparse
 
-class EyebrowClient(apiclient.APIClient):
-    def __init__(self, args) -> None:
-        super().__init__(args)
-
-    def led_on(self, side: str):
-        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'on'})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
-
-    def led_off(self, side: str):
-        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'off'})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
-
-    def led_heartbeat(self, side: str):
-        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'heartbeat'})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
-
-    def led_get(self, side: str):
-        response = self.get(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error getting {side} LED value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LED', artie_id=self.artie_id)
-        else:
-            common.format_print_result(f"{side} LED value: {response.json().get('state')}", module='eyebrows', submodule='LED', artie_id=response.json().get('artie-id'))
-
-    def lcd_test(self, side: str):
-        response = self.post(f"/eyebrows/lcd/{side}/test", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error testing {side} LCD: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
-
-    def lcd_off(self, side: str):
-        response = self.post(f"/eyebrows/lcd/{side}/off", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error clearing {side} LCD: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
-
-    def lcd_draw(self, side: str, draw_val: List[str]):
-        body = {
-            "vertices": [arg[0] for arg in draw_val]
-        }
-        response = self.post(f"/eyebrows/lcd/{side}", body=body, params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} LCD: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
-
-    def lcd_get(self, side: str):
-        response = self.get(f"/eyebrows/lcd/{side}", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error getting {side} LCD value: {response.content.decode('utf-8')}", module='eyebrows', submodule='LCD', artie_id=self.artie_id)
-        else:
-            common.format_print_result(f"Display value: {response.json().get('vertices')}", module='eyebrows', submodule='LCD', artie_id=response.json().get('artie-id'))
-
-    def servo_go(self, side: str, go_val: float):
-        response = self.post(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id, 'degrees': f"{go_val:0.2f}"})
-        if response.status_code != 200:
-            common.format_print_result(f"Error setting {side} Servo: {response.content.decode('utf-8')}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
-
-    def servo_get(self, side: str):
-        response = self.get(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error getting {side} Servo: {response.content.decode('utf-8')}", module='eyebrows', submodule='servo', artie_id=self.artie_id)
-        else:
-            common.format_print_result(f"{side} servo position in degrees: {response.json().get('degrees')}", module='eyebrows', submodule='servo', artie_id=response.json().get('artie-id'))
-
-    def firmware_load(self):
-        response = self.post(f"/eyebrows/fw", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error reloading eyebrow FW: {response.content.decode('utf-8')}", module='eyebrows', submodule='FW', artie_id=self.artie_id)
-
-    def status(self):
-        response = self.get("/eyebrows/status", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_status_result(f"Error getting eyebrow status: {response.content.decode('utf-8')}", module='eyebrows', artie_id=self.artie_id)
-        else:
-            common.format_print_status_result(response.json(), module='eyebrows', artie_id=self.artie_id)
-
-    def self_check(self):
-        response = self.post("/eyebrows/self-test", params={'artie-id': self.artie_id})
-        if response.status_code != 200:
-            common.format_print_result(f"Error running eyebrow self-check: {response.content.decode('utf-8')}", module='eyebrows', submodule='status', artie_id=self.artie_id)
-
-def _connect_client(args) -> common._ConnectionWrapper | EyebrowClient:
+def _connect_client(args) -> common._ConnectionWrapper | eyebrow_client.EyebrowClient:
     if common.in_test_mode(args):
         ip = "localhost"
         port = 18863
         connection = common.connect(ip, port, ipv6=args.ipv6)
     else:
-        connection = EyebrowClient(args)
+        connection = eyebrow_client.EyebrowClient(profile=args.artie_profile, integration_test=args.integration_test, unit_test=args.unit_test)
     return connection
 
 #########################################################################################
@@ -99,34 +19,49 @@ def _connect_client(args) -> common._ConnectionWrapper | EyebrowClient:
 def _cmd_led_on(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.led_on("left")
-        client.led_on("right")
+        common.format_print_result(client.led_on("left"), "eyebrows", "LED", args.artie_id)
+        common.format_print_result(client.led_on("right"), "eyebrows", "LED", args.artie_id)
     else:
-        client.led_on(args.side)
+        common.format_print_result(client.led_on(args.side), "eyebrows", "LED", args.artie_id)
 
 def _cmd_led_off(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.led_off("left")
-        client.led_off("right")
+        common.format_print_result(client.led_off("left"), "eyebrows", "LED", args.artie_id)
+        common.format_print_result(client.led_off("right"), "eyebrows", "LED", args.artie_id)
     else:
-        client.led_off(args.side)
+        common.format_print_result(client.led_off(args.side), "eyebrows", "LED", args.artie_id)
 
 def _cmd_led_heartbeat(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.led_heartbeat("left")
-        client.led_heartbeat("right")
+        common.format_print_result(client.led_heartbeat("left"), "eyebrows", "LED", args.artie_id)
+        common.format_print_result(client.led_heartbeat("right"), "eyebrows", "LED", args.artie_id)
     else:
-        client.led_heartbeat(args.side)
+        common.format_print_result(client.led_heartbeat(args.side), "eyebrows", "LED", args.artie_id)
 
 def _cmd_led_get(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.led_get("left")
-        client.led_get("right")
+        # Left
+        result = client.led_get("left")
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "LED", args.artie_id)
+        else:
+            common.format_print_result(f"left LED value: {result.state}", "eyebrows", "LED", args.artie_id)
+
+        # Right
+        result = client.led_get("right")
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "LED", args.artie_id)
+        else:
+            common.format_print_result(f"right LED value: {result.state}", "eyebrows", "LED", args.artie_id)
     else:
-        client.led_get(args.side)
+        result = client.led_get(args.side)
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "LED", args.artie_id)
+        else:
+            common.format_print_result(f"{args.side} LED value: {result.state}", "eyebrows", "LED", args.artie_id)
 
 #########################################################################################
 ################################# LCD Subsystem #########################################
@@ -134,34 +69,49 @@ def _cmd_led_get(args):
 def _cmd_lcd_get(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.lcd_get("left")
-        client.lcd_get("right")
+        # Left
+        result = client.lcd_get("left")
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "LCD", args.artie_id)
+        else:
+            common.format_print_result(f"left Display value: {result.vertices}", "eyebrows", "LCD", args.artie_id)
+
+        # Right
+        result = client.lcd_get("right")
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "LCD", args.artie_id)
+        else:
+            common.format_print_result(f"right Display value: {result.vertices}", "eyebrows", "LCD", args.artie_id)
     else:
-        client.lcd_get(args.side)
+        result = client.lcd_get(args.side)
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "LCD", args.artie_id)
+        else:
+            common.format_print_result(f"{args.side} Display value: {result.vertices}", "eyebrows", "LCD", args.artie_id)
 
 def _cmd_lcd_test(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.lcd_test("left")
-        client.lcd_test("right")
+        common.format_print_result(client.lcd_test("left"), "eyebrows", "LCD", args.artie_id)
+        common.format_print_result(client.lcd_test("right"), "eyebrows", "LCD", args.artie_id)
     else:
-        client.lcd_test(args.side)
+        common.format_print_result(client.lcd_test(args.side), "eyebrows", "LCD", args.artie_id)
 
 def _cmd_lcd_off(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.lcd_off("left")
-        client.lcd_off("right")
+        common.format_print_result(client.lcd_off("left"), "eyebrows", "LCD", args.artie_id)
+        common.format_print_result(client.lcd_off("right"), "eyebrows", "LCD", args.artie_id)
     else:
-        client.lcd_off(args.side)
+        common.format_print_result(client.lcd_off(args.side), "eyebrows", "LCD", args.artie_id)
 
 def _cmd_lcd_draw(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.lcd_draw("left", args.draw_val)
-        client.lcd_draw("right", args.draw_val)
+        common.format_print_result(client.lcd_draw("left", args.draw_val), "eyebrows", "LCD", args.artie_id)
+        common.format_print_result(client.lcd_draw("right", args.draw_val), "eyebrows", "LCD", args.artie_id)
     else:
-        client.lcd_draw(args.side, args.draw_val)
+        common.format_print_result(client.lcd_draw(args.side, args.draw_val), "eyebrows", "LCD", args.artie_id)
 
 
 #########################################################################################
@@ -170,18 +120,33 @@ def _cmd_lcd_draw(args):
 def _cmd_servo_get(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.servo_get("left")
-        client.servo_get("right")
+        # Left
+        result = client.servo_get("left")
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "servo", args.artie_id)
+        else:
+            common.format_print_result(f"left servo position in degrees: {result.degrees}", "eyebrows", "servo", args.artie_id)
+
+        # Right
+        result = client.servo_get("right")
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "servo", args.artie_id)
+        else:
+            common.format_print_result(f"right servo position in degrees: {result.degrees}", "eyebrows", "servo", args.artie_id)
     else:
-        client.servo_get(args.side)
+        result = client.servo_get(args.side)
+        if issubclass(type(result), errors.HTTPError):
+            common.format_print_result(result, "eyebrows", "servo", args.artie_id)
+        else:
+            common.format_print_result(f"{args.side} servo position in degrees: {result.degrees}", "eyebrows", "servo", args.artie_id)
 
 def _cmd_servo_go(args):
     client = _connect_client(args)
     if args.side == "both":
-        client.servo_go("left", args.go_val)
-        client.servo_go("right", args.go_val)
+        common.format_print_result(client.servo_go("left", args.go_val), "eyebrows", "servo", args.artie_id)
+        common.format_print_result(client.servo_go("right", args.go_val), "eyebrows", "servo", args.artie_id)
     else:
-        client.servo_go(args.side, args.go_val)
+        common.format_print_result(client.servo_go(args.side, args.go_val), "eyebrows", "servo", args.artie_id)
 
 def _check_servo_range(arg):
     try:
@@ -199,19 +164,19 @@ def _check_servo_range(arg):
 #########################################################################################
 def _cmd_firmware_load(args):
     client = _connect_client(args)
-    client.firmware_load()
+    common.format_print_result(client.firmware_load(), "eyebrows", "FW", args.artie_id)
 
 #########################################################################################
 ################################# Status Commands #######################################
 #########################################################################################
 def _cmd_status_self_check(args):
     client = _connect_client(args)
-    client.self_check()
-    client.status()
+    common.format_print_result(client.self_check(), "eyebrows", "status", args.artie_id)
+    common.format_print_status_result(client.status(), "eyebrows", args.artie_id)
 
 def _cmd_status_get(args):
     client = _connect_client(args)
-    client.status()
+    common.format_print_status_result(client.status(), "eyebrows", args.artie_id)
 
 #########################################################################################
 ################################## PARSERS ##############################################

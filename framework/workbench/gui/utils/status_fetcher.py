@@ -1,10 +1,10 @@
 """
 Status fetcher for querying Artie Tool status command
 """
+from artie_tooling import artie_profile
 from artie_tooling import hw_config
 from util import qutil
 from PyQt6 import QtCore
-from model import artie_profile
 from model import settings
 from comms import tool
 import queue

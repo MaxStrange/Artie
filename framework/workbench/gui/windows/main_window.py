@@ -1,8 +1,6 @@
 """
 Main window for Artie Workbench
 """
-from PyQt6 import QtWidgets, QtCore, QtGui
-
 from ..utils import status_fetcher
 from ..widgets.menubar import ArtieMenuBar
 from ..widgets.hardware_tab import HardwareTab
@@ -16,8 +14,9 @@ from . import new_artie_wizard
 from . import settings_dialog
 from . import switch_artie_dialog
 from . import deploy_chart_dialog
-from model import artie_profile
+from artie_tooling import artie_profile
 from model import settings
+from PyQt6 import QtWidgets, QtCore, QtGui
 
 
 class MainWindow(QtWidgets.QMainWindow):

@@ -1,6 +1,7 @@
 """
 Common code for all the modules.
 """
+from artie_tooling import errors as tooling_errors
 from typing import Dict
 
 try:
@@ -90,13 +91,21 @@ def int_or_hex_type(val):
     else:
         return int(val)
 
-def format_print_result(msg: str, module: str, submodule: str, artie_id: str):
+def format_print_result(result: tooling_errors.HTTPError|str, module: str, submodule: str, artie_id: str):
     """
     Prints ({artie_id}) {module} {submodule}: {msg}
+
+    If `result` is an instance of `tooling_errors.HTTPError`, 'msg' is
+    read from `result.message`. Otherwise, 'msg' is just `result`.
     """
+    if issubclass(type(result), tooling_errors.HTTPError):
+        msg = result.message
+    else:
+        msg = result
+
     print(f"({artie_id}) {module} {submodule}: {msg}")
 
-def format_print_status_result(json_response: Dict[str, str] | str, module: str, artie_id: str):
+def format_print_status_result(result, module: str, artie_id: str):
     """
     Prints the result of a status check.
 
@@ -109,7 +118,7 @@ def format_print_status_result(json_response: Dict[str, str] | str, module: str,
         etc.
     ```
 
-    If a str instead of a JSON dict is given for `json_response`, we print a message of the
+    If an instance of `tooling_errors.HTTPError` is given for `result`, we print a message of the
     form:
 
     ```
@@ -118,10 +127,10 @@ def format_print_status_result(json_response: Dict[str, str] | str, module: str,
     ```
     """
     s = f"({artie_id}) {module}:\n"
-    if issubclass(type(json_response), str):
-        s += f"    Error: [{json_response}]"
+    if issubclass(type(result), tooling_errors.HTTPError):
+        s += f"    Error: [{result.message}]"
     else:
-        ordered_response = [(k, v) for k, v in json_response.get('submodule-statuses', {}).items()]
+        ordered_response = [(k, v) for k, v in result.get('submodule-statuses', {}).items()]
         ordered_response = sorted(ordered_response, key=lambda x: x[0])
         for k, v in ordered_response:
             s += f"    {k}: [{v}]\n"

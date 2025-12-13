@@ -1,5 +1,8 @@
+"""
+Module defining the credentials page for the new Artie wizard.
+"""
+from artie_tooling import artie_profile
 from comms import artie_serial
-from model import artie_profile
 from PyQt6 import QtWidgets
 
 class CredentialsPage(QtWidgets.QWizardPage):
