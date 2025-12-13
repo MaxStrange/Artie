@@ -1,5 +1,6 @@
 from .. import common
 from artie_tooling.api_clients import mouth_client
+from artie_tooling import errors
 import argparse
 
 MOUTH_DRAWING_CHOICES = [
@@ -39,7 +40,11 @@ def _cmd_led_heartbeat(args):
 
 def _cmd_led_get(args):
     client = _connect_client(args)
-    common.format_print_result(client.led_get(), "mouth", "LED", args.artie_id)
+    result = client.led_get()
+    if issubclass(type(result), errors.HTTPError):
+        common.format_print_result(result, "mouth", "LED", args.artie_id)
+    else:
+        common.format_print_result(f"LED value: {result.state}", "mouth", "LED", args.artie_id)
 
 #########################################################################################
 ################################# LCD Subsystem #########################################
@@ -47,7 +52,11 @@ def _cmd_led_get(args):
 
 def _cmd_lcd_get(args):
     client = _connect_client(args)
-    common.format_print_result(client.lcd_get(), "mouth", "LCD", args.artie_id)
+    result = client.lcd_get()
+    if issubclass(type(result), errors.HTTPError):
+        common.format_print_result(result, "mouth", "LCD", args.artie_id)
+    else:
+        common.format_print_result(f"Display value: {result.display}", "mouth", "LCD", args.artie_id)
 
 def _cmd_lcd_draw(args):
     client = _connect_client(args)

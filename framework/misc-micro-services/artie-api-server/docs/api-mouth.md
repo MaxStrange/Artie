@@ -10,6 +10,9 @@ Available mouth displays:
 * `open-smile`
 * `zig-zag`
 * `talking`: Sets the mouth to talking mode, where it opens and closes until the display is told to do something else.
+* `clear`
+* `error`
+* `test`
 
 ## Change Mouth Display
 

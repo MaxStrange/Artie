@@ -2,7 +2,7 @@
 Common code for all the modules.
 """
 from artie_tooling import errors as tooling_errors
-from typing import Dict
+from typing import Any, Dict
 
 try:
     import rpyc
@@ -91,7 +91,7 @@ def int_or_hex_type(val):
     else:
         return int(val)
 
-def format_print_result(result: tooling_errors.HTTPError|str, module: str, submodule: str, artie_id: str):
+def format_print_result(result: tooling_errors.HTTPError|Any, module: str, submodule: str, artie_id: str):
     """
     Prints ({artie_id}) {module} {submodule}: {msg}
 
@@ -101,7 +101,7 @@ def format_print_result(result: tooling_errors.HTTPError|str, module: str, submo
     if issubclass(type(result), tooling_errors.HTTPError):
         msg = result.message
     else:
-        msg = result
+        msg = str(result)
 
     print(f"({artie_id}) {module} {submodule}: {msg}")
 
