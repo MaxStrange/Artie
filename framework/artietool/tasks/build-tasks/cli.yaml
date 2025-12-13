@@ -20,6 +20,11 @@ steps:
     dockerfile-dpath: "${REPO_ROOT}/framework/cli/test"
     dockerfile: Dockerfile
     build-context: ".."
+    build-args:
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image-amd64
+            producing-task: artie-base-image
   - job: docker-build
     artifacts:
       - docker-image-arm64
@@ -29,6 +34,11 @@ steps:
     dockerfile-dpath: "${REPO_ROOT}/framework/cli/test"
     dockerfile: Dockerfile
     build-context: ".."
+    build-args:
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image-arm64
+            producing-task: artie-base-image
   - job: docker-manifest
     artifacts:
       - docker-image

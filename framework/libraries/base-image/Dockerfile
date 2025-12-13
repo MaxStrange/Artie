@@ -17,6 +17,12 @@ WORKDIR /tmp/artie-util
 RUN pip install .
 RUN rm -rf /tmp/artie-util
 
+# Build artie-tooling lib
+COPY ./tmp/artie-tooling /tmp/artie-tooling/
+WORKDIR /tmp/artie-tooling
+RUN pip install .
+RUN rm -rf /tmp/artie-tooling
+
 # Build artie-i2c lib
 COPY ./tmp/artie-i2c /tmp/artie-i2c/
 WORKDIR /tmp/artie-i2c

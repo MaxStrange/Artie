@@ -1,6 +1,8 @@
 # Build context is one folder up (..)
-FROM python:3.11.2-bullseye
+ARG ARTIE_BASE_IMG=thisarg/isrequired:latest
+FROM ${ARTIE_BASE_IMG}
 
+# Create working directory
 RUN mkdir -p /cli
 WORKDIR /cli
 
