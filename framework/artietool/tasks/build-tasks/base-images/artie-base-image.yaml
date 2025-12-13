@@ -26,6 +26,7 @@ steps:
       - "${REPO_ROOT}/framework/libraries/artie-i2c"
       - "${REPO_ROOT}/framework/libraries/artie-gpio"
       - "${REPO_ROOT}/framework/libraries/artie-service-client"
+      - "${REPO_ROOT}/framework/libraries/artie-tooling"
   - job: docker-build
     artifacts:
       - docker-image-arm64
@@ -40,6 +41,7 @@ steps:
       - "${REPO_ROOT}/framework/libraries/artie-i2c"
       - "${REPO_ROOT}/framework/libraries/artie-gpio"
       - "${REPO_ROOT}/framework/libraries/artie-service-client"
+      - "${REPO_ROOT}/framework/libraries/artie-tooling"
   - job: docker-manifest
     artifacts:
       - docker-image
