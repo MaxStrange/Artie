@@ -1,5 +1,5 @@
 from .. import common
-from artie_tooling import reset_client
+from artie_tooling.api_clients import reset_client
 import argparse
 
 def _connect_client(args) -> common._ConnectionWrapper | reset_client.ResetClient:

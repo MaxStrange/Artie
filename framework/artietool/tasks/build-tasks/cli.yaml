@@ -1,7 +1,9 @@
 name: artie-cli
 labels:
   - docker-image
-dependencies: ""
+dependencies:
+  - artie-base-image: docker-image-arm64
+  - artie-base-image: docker-image-amd64
 artifacts:
   - name: docker-image-amd64
     type: docker-image
