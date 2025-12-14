@@ -48,20 +48,20 @@ def _cmd_led_get(args):
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "LED", args.artie_id)
         else:
-            common.format_print_result(f"left LED value: {result.state}", "eyebrows", "LED", args.artie_id)
+            common.format_print_result(f"left LED value: {result.state if hasattr(result, 'state') else str(result)}", "eyebrows", "LED", args.artie_id)
 
         # Right
         result = client.led_get("right")
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "LED", args.artie_id)
         else:
-            common.format_print_result(f"right LED value: {result.state}", "eyebrows", "LED", args.artie_id)
+            common.format_print_result(f"right LED value: {result.state if hasattr(result, 'state') else str(result)}", "eyebrows", "LED", args.artie_id)
     else:
         result = client.led_get(args.side)
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "LED", args.artie_id)
         else:
-            common.format_print_result(f"{args.side} LED value: {result.state}", "eyebrows", "LED", args.artie_id)
+            common.format_print_result(f"{args.side} LED value: {result.state if hasattr(result, 'state') else str(result)}", "eyebrows", "LED", args.artie_id)
 
 #########################################################################################
 ################################# LCD Subsystem #########################################
@@ -74,20 +74,20 @@ def _cmd_lcd_get(args):
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "LCD", args.artie_id)
         else:
-            common.format_print_result(f"left Display value: {result.vertices}", "eyebrows", "LCD", args.artie_id)
+            common.format_print_result(f"left Display value: {result.vertices if hasattr(result, 'vertices') else str(result)}", "eyebrows", "LCD", args.artie_id)
 
         # Right
         result = client.lcd_get("right")
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "LCD", args.artie_id)
         else:
-            common.format_print_result(f"right Display value: {result.vertices}", "eyebrows", "LCD", args.artie_id)
+            common.format_print_result(f"right Display value: {result.vertices if hasattr(result, 'vertices') else str(result)}", "eyebrows", "LCD", args.artie_id)
     else:
         result = client.lcd_get(args.side)
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "LCD", args.artie_id)
         else:
-            common.format_print_result(f"{args.side} Display value: {result.vertices}", "eyebrows", "LCD", args.artie_id)
+            common.format_print_result(f"{args.side} Display value: {result.vertices if hasattr(result, 'vertices') else str(result)}", "eyebrows", "LCD", args.artie_id)
 
 def _cmd_lcd_test(args):
     client = _connect_client(args)
@@ -125,20 +125,20 @@ def _cmd_servo_get(args):
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "servo", args.artie_id)
         else:
-            common.format_print_result(f"left servo position in degrees: {result.degrees}", "eyebrows", "servo", args.artie_id)
+            common.format_print_result(f"left servo position in degrees: {result.degrees if hasattr(result, 'degrees') else str(result)}", "eyebrows", "servo", args.artie_id)
 
         # Right
         result = client.servo_get("right")
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "servo", args.artie_id)
         else:
-            common.format_print_result(f"right servo position in degrees: {result.degrees}", "eyebrows", "servo", args.artie_id)
+            common.format_print_result(f"right servo position in degrees: {result.degrees if hasattr(result, 'degrees') else str(result)}", "eyebrows", "servo", args.artie_id)
     else:
         result = client.servo_get(args.side)
         if issubclass(type(result), errors.HTTPError):
             common.format_print_result(result, "eyebrows", "servo", args.artie_id)
         else:
-            common.format_print_result(f"{args.side} servo position in degrees: {result.degrees}", "eyebrows", "servo", args.artie_id)
+            common.format_print_result(f"{args.side} servo position in degrees: {result.degrees if hasattr(result, 'degrees') else str(result)}", "eyebrows", "servo", args.artie_id)
 
 def _cmd_servo_go(args):
     client = _connect_client(args)
@@ -176,7 +176,11 @@ def _cmd_status_self_check(args):
 
 def _cmd_status_get(args):
     client = _connect_client(args)
-    common.format_print_status_result(client.status(), "eyebrows", args.artie_id)
+    result = client.status()
+    if issubclass(type(result), dict) and 'submodule-statuses' in result:
+        common.format_print_status_result(result, "eyebrows", args.artie_id)
+    else:
+        common.format_print_result({'submodule-statuses': result}, "eyebrows", "status", args.artie_id)
 
 #########################################################################################
 ################################## PARSERS ##############################################

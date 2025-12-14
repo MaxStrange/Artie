@@ -44,7 +44,7 @@ def _cmd_led_get(args):
     if issubclass(type(result), errors.HTTPError):
         common.format_print_result(result, "mouth", "LED", args.artie_id)
     else:
-        common.format_print_result(f"LED value: {result.state}", "mouth", "LED", args.artie_id)
+        common.format_print_result(f"LED value: {result.state if hasattr(result, 'state') else str(result)}", "mouth", "LED", args.artie_id)
 
 #########################################################################################
 ################################# LCD Subsystem #########################################
@@ -56,7 +56,7 @@ def _cmd_lcd_get(args):
     if issubclass(type(result), errors.HTTPError):
         common.format_print_result(result, "mouth", "LCD", args.artie_id)
     else:
-        common.format_print_result(f"Display value: {result.display}", "mouth", "LCD", args.artie_id)
+        common.format_print_result(f"Display value: {result.display if hasattr(result, 'display') else str(result)}", "mouth", "LCD", args.artie_id)
 
 def _cmd_lcd_draw(args):
     client = _connect_client(args)
@@ -92,7 +92,11 @@ def _cmd_status_self_check(args):
 
 def _cmd_status_get(args):
     client = _connect_client(args)
-    common.format_print_status_result(client.status(), "mouth", args.artie_id)
+    result = client.status()
+    if issubclass(type(result), dict) and 'submodule-statuses' in result:
+        common.format_print_status_result(result, "mouth", args.artie_id)
+    else:
+        common.format_print_result({'submodule-statuses': result}, "mouth", "status", args.artie_id)
 
 #########################################################################################
 ################################## PARSERS ##############################################
