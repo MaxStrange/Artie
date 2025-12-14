@@ -102,25 +102,25 @@ class EyebrowClient(api_client.APIClient):
         super().__init__(*args, **kwargs)
 
     def led_on(self, side: str) -> errors.HTTPError|None:
-        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'on'})
+        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie.artie_name, 'state': 'on'})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error setting {side} LED value: {response.content.decode('utf-8')}")
         return None
 
     def led_off(self, side: str) -> errors.HTTPError|None:
-        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'off'})
+        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie.artie_name, 'state': 'off'})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error setting {side} LED value: {response.content.decode('utf-8')}")
         return None
 
     def led_heartbeat(self, side: str) -> errors.HTTPError|None:
-        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id, 'state': 'heartbeat'})
+        response = self.post(f"/eyebrows/led/{side}", params={'artie-id': self.artie.artie_name, 'state': 'heartbeat'})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error setting {side} LED value: {response.content.decode('utf-8')}")
         return None
 
     def led_get(self, side: str) -> errors.HTTPError|LEDResponse:
-        response = self.get(f"/eyebrows/led/{side}", params={'artie-id': self.artie_id})
+        response = self.get(f"/eyebrows/led/{side}", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error getting {side} LED value: {response.content.decode('utf-8')}")
         return LEDResponse(
@@ -130,13 +130,13 @@ class EyebrowClient(api_client.APIClient):
         )
 
     def lcd_test(self, side: str) -> errors.HTTPError|None:
-        response = self.post(f"/eyebrows/lcd/{side}/test", params={'artie-id': self.artie_id})
+        response = self.post(f"/eyebrows/lcd/{side}/test", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error testing {side} LCD: {response.content.decode('utf-8')}")
         return None
 
     def lcd_off(self, side: str) -> errors.HTTPError|None:
-        response = self.post(f"/eyebrows/lcd/{side}/off", params={'artie-id': self.artie_id})
+        response = self.post(f"/eyebrows/lcd/{side}/off", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error clearing {side} LCD: {response.content.decode('utf-8')}")
         return None
@@ -145,13 +145,13 @@ class EyebrowClient(api_client.APIClient):
         body = {
             "vertices": [arg[0] for arg in draw_val]
         }
-        response = self.post(f"/eyebrows/lcd/{side}", body=body, params={'artie-id': self.artie_id})
+        response = self.post(f"/eyebrows/lcd/{side}", body=body, params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error setting {side} LCD: {response.content.decode('utf-8')}")
         return None
 
     def lcd_get(self, side: str) -> errors.HTTPError|LCDResponse:
-        response = self.get(f"/eyebrows/lcd/{side}", params={'artie-id': self.artie_id})
+        response = self.get(f"/eyebrows/lcd/{side}", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error getting {side} LCD value: {response.content.decode('utf-8')}")
         return LCDResponse(
@@ -161,13 +161,13 @@ class EyebrowClient(api_client.APIClient):
         )
 
     def servo_go(self, side: str, go_val: float) -> errors.HTTPError|None:
-        response = self.post(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id, 'degrees': f"{go_val:0.2f}"})
+        response = self.post(f"/eyebrows/servo/{side}", params={'artie-id': self.artie.artie_name, 'degrees': f"{go_val:0.2f}"})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error setting {side} Servo: {response.content.decode('utf-8')}")
         return None
 
     def servo_get(self, side: str) -> errors.HTTPError|ServoResponse:
-        response = self.get(f"/eyebrows/servo/{side}", params={'artie-id': self.artie_id})
+        response = self.get(f"/eyebrows/servo/{side}", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error getting {side} Servo: {response.content.decode('utf-8')}")
         return ServoResponse(
@@ -177,13 +177,13 @@ class EyebrowClient(api_client.APIClient):
         )
 
     def firmware_load(self) -> errors.HTTPError|None:
-        response = self.post(f"/eyebrows/fw", params={'artie-id': self.artie_id})
+        response = self.post(f"/eyebrows/fw", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error reloading eyebrow FW: {response.content.decode('utf-8')}")
         return None
 
     def status(self) -> errors.HTTPError|StatusResponse:
-        response = self.get("/eyebrows/status", params={'artie-id': self.artie_id})
+        response = self.get("/eyebrows/status", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error getting eyebrow status: {response.content.decode('utf-8')}")
         return StatusResponse(
@@ -198,7 +198,7 @@ class EyebrowClient(api_client.APIClient):
         )
 
     def self_check(self):
-        response = self.post("/eyebrows/self-test", params={'artie-id': self.artie_id})
+        response = self.post("/eyebrows/self-test", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error running eyebrow self-check: {response.content.decode('utf-8')}")
         return None

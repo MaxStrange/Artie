@@ -40,13 +40,13 @@ class ResetClient(api_client.APIClient):
 
     def reset_target(self, address: int) -> errors.HTTPError|None:
         mcu = self._convert_address_to_mcu(address)
-        response = self.post(f"/reset/mcu", params={'artie-id': self.artie_id, 'id': mcu})
+        response = self.post(f"/reset/mcu", params={'artie-id': self.artie.artie_name, 'id': mcu})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error resetting target: {response.content.decode('utf-8')}")
         return None
 
     def status(self) -> StatusResponse|errors.HTTPError:
-        response = self.get("/reset/status", params={'artie-id': self.artie_id})
+        response = self.get("/reset/status", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error getting reset status: {response.content.decode('utf-8')}")
         return StatusResponse(
@@ -55,7 +55,7 @@ class ResetClient(api_client.APIClient):
         )
 
     def self_check(self) -> errors.HTTPError|None:
-        response = self.post("/reset/self-test", params={'artie-id': self.artie_id})
+        response = self.post("/reset/self-test", params={'artie-id': self.artie.artie_name})
         if response.status_code != 200:
             return errors.HTTPError(response.status_code, f"Error running reset self-check: {response.content.decode('utf-8')}")
         return None
