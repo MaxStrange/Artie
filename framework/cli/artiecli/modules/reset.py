@@ -25,7 +25,11 @@ def _cmd_status_self_check(args):
 
 def _cmd_status_get(args):
     client = _connect_client(args)
-    common.format_print_status_result(client.status(), "reset", args.artie_id)
+    result = client.status()
+    if issubclass(type(result), dict) and 'submodule-statuses' in result:
+        common.format_print_status_result(result, "reset", args.artie_id)
+    else:
+        common.format_print_result({'submodule-statuses': result}, "reset", "status", args.artie_id)
 
 #########################################################################################
 ################################## PARSERS ##############################################
