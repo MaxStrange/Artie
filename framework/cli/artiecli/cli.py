@@ -71,6 +71,25 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
+    if not hasattr(args, 'artie_profile'):
+        args.artie_profile = None
+
+    if not hasattr(args, 'artie_id'):
+        args.artie_id = None
+
+    if not hasattr(args, 'cmd'):
+        parser.print_usage()
+        exit(1)
+
+    # If help command, run and exit
+    if args.cmd == _help:
+        args.cmd(args)
+        exit(0)
+
+    # Ensure Artie profile directory exists
+    os.makedirs(artie_profile.DEFAULT_SAVE_PATH, exist_ok=True)
+
+    # Find the Artie profile to use
     if args.artie_profile is not None:
         # Use the given profile
         pass
@@ -99,10 +118,7 @@ def main():
     args.artie_id = args.artie_profile.artie_name
 
     # Run the chosen command
-    if not hasattr(args, 'cmd'):
-        parser.print_usage()
-    else:
-        args.cmd(args)
+    args.cmd(args)
 
 if __name__ == "__main__":
     main()

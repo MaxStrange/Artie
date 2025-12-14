@@ -1,7 +1,7 @@
 """
 This module contains the code for keeping track of an Artie Profile.
 """
-from util import artie_secrets
+from artie_tooling import artie_secrets
 import dataclasses
 import pathlib
 import json
@@ -46,23 +46,39 @@ class ArtieProfile:
     """An optional bearer token for the API server."""
 
     @staticmethod
-    def load(artie_name="unnamed_artie", path=None) -> 'ArtieProfile':
-        """Load an Artie profile from disk."""
-        if path is None:
-            path = DEFAULT_SAVE_PATH / f"{artie_name}.json"
-        else:
-            path = pathlib.Path(path) / f"{artie_name}.json"
+    def load(artie_name=None, path=None) -> 'ArtieProfile':
+        """
+        Load an Artie profile from disk.
 
-        path = pathlib.Path(path)
+        If both `artie_name` and `path` are given, we assume `path` is a directory
+        and try to load a file named `'<artie_name>.json'` from `path` directory.
+
+        If `artie_name` is given but `path` is not, we assume `path` is the default directory
+        and attempt to load a file named `'<artie_name>.json'` from that directory.
+
+        If `artie_name` is not given but `path` is, `path` should be a path to the *file*.
+
+        If neither `artie_name` nor `path` are given, we attempt to load `'unnamed_artie.json'`
+        from the default directory. This will likely fail, resulting in a FileNotFound exception.
+        """
+        if artie_name is not None and path is not None:
+            path = pathlib.Path(path) / f"{artie_name}.json"
+        elif artie_name is not None and path is None:
+            path = DEFAULT_SAVE_PATH / f"{artie_name}.json"
+        elif artie_name is None and path is not None:
+            path = pathlib.Path(path)
+        else:
+            path = DEFAULT_SAVE_PATH / "unnamed_artie.json"
+
         with open(path, 'r') as f:
             data = json.load(f)
 
         profile = ArtieProfile(**data)
 
         # Load the secrets
-        profile.password = artie_secrets.get_secret(f"artie_{profile.artie_name}_password")
-        profile.token = artie_secrets.get_secret(f"artie_{profile.artie_name}_token")
-        profile.api_server_bearer_token = artie_secrets.get_secret(f"artie_{profile.artie_name}_bearer_token")
+        profile.password = artie_secrets.retrieve_secret(f"artie_{profile.artie_name}_password")
+        profile.token = artie_secrets.retrieve_secret(f"artie_{profile.artie_name}_token")
+        profile.api_server_bearer_token = artie_secrets.retrieve_secret(f"artie_{profile.artie_name}_bearer_token")
         profile.api_server_cert_path = artie_secrets.retrieve_api_server_cert()
 
         return profile

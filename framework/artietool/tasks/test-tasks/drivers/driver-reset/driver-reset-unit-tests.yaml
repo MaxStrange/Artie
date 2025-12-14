@@ -26,17 +26,17 @@ steps:
           - what: "Mocking MCU FW load."
             where: ${DUT}
       - test-name: reset-single-mcu
-        cmd-to-run-in-cli: "artie-cli reset mcu 0x0 --unit-test"
+        cmd-to-run-in-cli: "artie-cli reset mcu 0x0 --unit-test --artie-profile /unit_test_profile.json"
         expected-outputs:
           - what: "Writing 0x0 to "
             where: ${DUT}
       - test-name: reset-all-mcus
-        cmd-to-run-in-cli: "artie-cli reset mcu 0xFF --unit-test"
+        cmd-to-run-in-cli: "artie-cli reset mcu 0xFF --unit-test --artie-profile /unit_test_profile.json"
         expected-outputs:
           - what: "Resetting ALL MCU-class devices"
             where: ${DUT}
       - test-name: self-check
-        cmd-to-run-in-cli: "artie-cli reset status self-check --unit-test"
+        cmd-to-run-in-cli: "artie-cli reset status self-check --unit-test --artie-profile /unit_test_profile.json"
         expected-outputs:
           - what: "Running self check..."
             where: ${DUT}
