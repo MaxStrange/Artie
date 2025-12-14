@@ -125,7 +125,7 @@ class EyebrowClient(api_client.APIClient):
             return errors.HTTPError(response.status_code, f"Error getting {side} LED value: {response.content.decode('utf-8')}")
         return LEDResponse(
             artie_id=response.json().get('artie-id'),
-            side=EyebrowSide(response.json().get('side')),
+            side=EyebrowSide(response.json().get('eyebrow-side')),
             state=LEDState(response.json().get('state'))
         )
 
@@ -156,7 +156,7 @@ class EyebrowClient(api_client.APIClient):
             return errors.HTTPError(response.status_code, f"Error getting {side} LCD value: {response.content.decode('utf-8')}")
         return LCDResponse(
             artie_id=response.json().get('artie-id'),
-            side=EyebrowSide(response.json().get('side')),
+            side=EyebrowSide(response.json().get('eyebrow-side')),
             vertices=response.json().get('vertices')
         )
 
@@ -172,7 +172,7 @@ class EyebrowClient(api_client.APIClient):
             return errors.HTTPError(response.status_code, f"Error getting {side} Servo: {response.content.decode('utf-8')}")
         return ServoResponse(
             artie_id=response.json().get('artie-id'),
-            side=EyebrowSide(response.json().get('side')),
+            side=EyebrowSide(response.json().get('eyebrow-side')),
             degrees=response.json().get('degrees')
         )
 
