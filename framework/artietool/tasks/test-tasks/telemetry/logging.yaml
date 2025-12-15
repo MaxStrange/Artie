@@ -42,7 +42,7 @@ steps:
           - what: "Mocking MCU FW load."
             where: logging-itest-log-collector
       - test-name: fw-load
-        cmd-to-run-in-cli: "artie-cli eyebrows fw load --integration-test"
+        cmd-to-run-in-cli: "artie-cli eyebrows fw load --integration-test --artie-profile /integration_test_profile.json"
         expected-outputs:
           - what: "Writing 0x0 to "
             where: logging-itest-log-collector

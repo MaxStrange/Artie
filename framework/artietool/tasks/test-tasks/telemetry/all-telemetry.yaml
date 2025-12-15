@@ -53,7 +53,7 @@ steps:
           - what: "Test Passed"
             where: telemetry-itest-metrics-collector
       - test-name: fw-load
-        cmd-to-run-in-cli: "artie-cli eyebrows fw load --integration-test"
+        cmd-to-run-in-cli: "artie-cli eyebrows fw load --integration-test --artie-profile /integration_test_profile.json"
         expected-outputs:
           - what: "Writing 0x0 to "
             where: telemetry-itest-reset-driver
