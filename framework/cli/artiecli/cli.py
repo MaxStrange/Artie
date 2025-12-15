@@ -56,6 +56,7 @@ def main():
     # TODO: For authenticating TO the Artie API server, we should make use of the Artie profile + username/password mechanism that workbench uses
     # TODO: For authenticating the Artie API server itself, we should make use of the CA bundle in the Artie profile
     # TODO: Refactor Artie CLI so that workbench and Artie CLI both use the same library for REST API calls into the API server
+    # TODO: Do a better job tearing down Docker compose after integration tests
 
     # Disable the urllib3 warnings
     urllib3.disable_warnings()
