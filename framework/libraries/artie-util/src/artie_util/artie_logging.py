@@ -31,12 +31,14 @@ GLOBAL_METER_NAME = "artie.global.meter"
 ARTIE_ID = os.environ.get(constants.ArtieEnvVariables.ARTIE_ID, 'UNSET')
 SERVICE_NAME = ""  # Set when initialized
 HISTOGRAM_SUFFIX_SECONDS = "duration-seconds"
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # A cache of metrics (name: meter)
 _metrics = {}
 
 # If we fail to configure metrics, we cannot use them at all
 METRICS_CONFIGURED = True
+
 
 @enum.unique
 class Units(enum.StrEnum):
@@ -100,17 +102,17 @@ class ArtieLogSocketHandler(loghandlers.SocketHandler):
         {
             'level': <level>,
             'message': <the log message>,
-            'processName': <the name of the process>,
-            'threadName': <the name of the thread>,
+            'processname': <the name of the process>,
+            'threadname': <the name of the thread>,
             'timestamp': <timestamp in asctime format from Python logging library>,
-            'serviceName': <the name of the service>,
+            'servicename': <the name of the service>,
             'artieID': <the ID of the Artie that is logging>
         }
         """
         msg_dict = {
             'level': record.levelname if hasattr(record, 'levelname') else 'UNKNOWN',
             'message': record.getMessage() if hasattr(record, 'getMessage') else '',
-            'processName': record.processName if hasattr(record, 'processName') else 'Unknown',
+            'processname': record.processName if hasattr(record, 'processName') else 'Unknown',
             'threadname': record.threadName if hasattr(record, 'threadName') else 'Unknown',
             'timestamp': record.asctime if hasattr(record, 'asctime') else datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'servicename': SERVICE_NAME,
@@ -163,7 +165,7 @@ def init(service_name, args=None):
     stream_handler = logging.StreamHandler()
     handlers = None if test_mode else [socket_handler, stream_handler]
     format = "%(asctime)s %(threadName)s %(levelname)s: %(message)s"
-    logging.basicConfig(format=format, level=getattr(logging, loglevel), force=True, handlers=handlers)
+    logging.basicConfig(format=format, level=getattr(logging, loglevel), force=True, handlers=handlers, datefmt=DATE_FORMAT)
 
     # Set up metrics
     prometheus_server_port = os.environ.get(constants.ArtieEnvVariables.METRICS_SERVER_PORT, None)
@@ -246,18 +248,19 @@ class MetricUnits(enum.StrEnum):
     GRAMS = "grams"
     CALLS = "calls"
 
-def _add_artie_id_attribute(obs):
+def _add_attributes(obs):
     if obs.attributes is None:
         obs.attributes = {}
     obs.attributes['artie.id'] = ARTIE_ID
+    obs.attributes['artie.service_name'] = SERVICE_NAME
 
 def _callback_wrapper(callback, *args, **kwargs):
     if inspect.isgeneratorfunction(callback):
         for obs in callback(*args, **kwargs):
-            _add_artie_id_attribute(obs)
+            _add_attributes(obs)
             yield obs
     else:
-        observations = [_add_artie_id_attribute(obs) for obs in callback(*args, **kwargs)]
+        observations = [_add_attributes(obs) for obs in callback(*args, **kwargs)]
         return observations
 
 def create_async_counter(callback, name: str, unit: MetricUnits, description: str):
@@ -353,6 +356,7 @@ def update_counter(increment: int | float, name: str, unit:MetricUnits=None, des
 
     attributes = {} if not attributes else attributes
     attributes['artie.id'] = ARTIE_ID
+    attributes['artie.service_name'] = SERVICE_NAME
     counter.add(increment, attributes=attributes)
 
 def update_histogram(amount: int | float, name: str, unit:MetricUnits=None, description:str=None, attributes: Dict[str, str]=None, bins=None):
@@ -373,6 +377,7 @@ def update_histogram(amount: int | float, name: str, unit:MetricUnits=None, desc
 
     attributes = {} if not attributes else attributes
     attributes['artie.id'] = ARTIE_ID
+    attributes['artie.service_name'] = SERVICE_NAME
     histogram.record(amount, attributes=attributes)
 
 def update_updown_counter(amount: int | float, name: str, unit:MetricUnits=None, description:str=None, attributes: Dict[str, str]=None):
@@ -393,6 +398,7 @@ def update_updown_counter(amount: int | float, name: str, unit:MetricUnits=None,
 
     attributes = {} if not attributes else attributes
     attributes['artie.id'] = ARTIE_ID
+    attributes['artie.service_name'] = SERVICE_NAME
     updown.add(amount, attributes=attributes)
 
 def function_counter(name: str, attributes=None):
