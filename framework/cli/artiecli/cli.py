@@ -53,8 +53,6 @@ def main():
     group.add_argument("--integration-test", action='store_true', help="If given, we do not access the Artie cluster. Used in integration tests.")
     group.add_argument("--ipv6", action='store_true', help="If given, we use IPv6 instead of IPv4.")
     group.add_argument("--unit-test", action='store_true', help="If given, we do not access the Artie cluster. Used in unit tests.")
-    # TODO: For authenticating TO the Artie API server, we should make use of the Artie profile + username/password mechanism that workbench uses
-    # TODO: For authenticating the Artie API server itself, we should make use of the CA bundle in the Artie profile
     # TODO: Refactor Artie CLI so that workbench and Artie CLI both use the same library for REST API calls into the API server
     # TODO: Do a better job tearing down Docker compose after integration test failure
 

@@ -1,3 +1,5 @@
 {
-    "artie_name": "integration-test-artie"
+    "artie_name": "integration-test-artie",
+    "api_server_host": "artie-api-server",
+    "api_server_port": 8782
 }
