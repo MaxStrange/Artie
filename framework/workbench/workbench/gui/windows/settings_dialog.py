@@ -76,6 +76,8 @@ class SettingsDialog(QtWidgets.QDialog):
                 return self._create_directory_picker(field)
             case settings.GuiViewOption.FLOATING_POINT_INPUT:
                 return self._create_floating_point_input_widget(field)
+            case settings.GuiViewOption.INTEGER_INPUT:
+                return self._create_integer_input_widget(field)
             case _:
                 return self._create_default_field_widget(field)
 
@@ -136,6 +138,27 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.addWidget(line_edit)
 
         return _SettingsWidgetWrapper(field.name, lambda: float(line_edit.text()), container)
+
+    def _create_integer_input_widget(self, field: dataclasses.Field):
+        """Create a widget for inputting an integer value."""
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(container)
+
+        label = QtWidgets.QLabel(field.name.replace('_', ' ').capitalize())
+        line_edit = QtWidgets.QLineEdit(str(getattr(self.current_settings, field.name)))
+
+        if 'bottom' in field.metadata or 'top' in field.metadata:
+            validator = QtGui.QIntValidator()
+            if 'bottom' in field.metadata and field.metadata['bottom'] is not None:
+                validator.setBottom(field.metadata['bottom'])
+            if 'top' in field.metadata and field.metadata['top'] is not None:
+                validator.setTop(field.metadata['top'])
+            line_edit.setValidator(validator)
+
+        layout.addWidget(label)
+        layout.addWidget(line_edit)
+
+        return _SettingsWidgetWrapper(field.name, lambda: int(line_edit.text()), container)
 
     def get_updated_settings(self) -> settings.WorkbenchSettings:
         """Retrieve the updated settings from the dialog"""

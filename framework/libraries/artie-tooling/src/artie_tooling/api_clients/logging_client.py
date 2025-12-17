@@ -92,6 +92,9 @@ class QueryLogsResponse:
     service: str|None
     """Service name filter applied."""
 
+    logs: list[LogEntry]
+    """List of log entries."""
+
 @dataclasses.dataclass
 class ListServicesResponse:
     """Response object for listing services API call."""

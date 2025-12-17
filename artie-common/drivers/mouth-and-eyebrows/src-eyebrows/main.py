@@ -8,7 +8,7 @@ This driver is responsible for:
 * Moving eyes
 
 This driver accepts ZeroRPC requests and controls the
-MCUs over the Controller Node's I2C bus. It is
+MCUs over the Controller Node's CAN bus. It is
 therefore meant to be run on the Controller Node,
 and it needs to be run inside a container that
 has access to CAN on the Controller Node.
@@ -22,6 +22,7 @@ from . import ebcommon
 from . import fw
 from . import lcd
 from . import led
+from . import metrics
 from . import servo
 import argparse
 import rpyc
@@ -45,7 +46,7 @@ class DriverServer(rpycserver.Service):
         self._lcd_submodule.initialize()
 
     @rpyc.exposed
-    @alog.function_counter("whoami")
+    @alog.function_counter("whoami", alog.MetricSWCodePathAPIOrder.CALLS)
     def whoami(self) -> str:
         """
         Return the name of this service and the version.
@@ -53,7 +54,7 @@ class DriverServer(rpycserver.Service):
         return f"artie-eyebrow-driver:{util.get_git_tag()}"
 
     @rpyc.exposed
-    @alog.function_counter("status")
+    @alog.function_counter("status", alog.MetricSWCodePathAPIOrder.CALLS)
     def status(self) -> Dict[str, str]:
         """
         Return the status of this service's submodules.
@@ -63,7 +64,7 @@ class DriverServer(rpycserver.Service):
         return {k: str(v) for k, v in status.items()}
 
     @rpyc.exposed
-    @alog.function_counter("self_check")
+    @alog.function_counter("self_check", genus=alog.MetricSWCodePathAPIOrder.CALLS)
     def self_check(self):
         """
         Run a self diagnostics check and set our submodule statuses appropriately.
@@ -75,7 +76,7 @@ class DriverServer(rpycserver.Service):
         self._servo_submodule.self_check()
 
     @rpyc.exposed
-    @alog.function_counter("led_on")
+    @alog.function_counter("led_on", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_on(self, side: str) -> bool:
         """
         RPC method to turn led on.
@@ -91,7 +92,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.on(side)
 
     @rpyc.exposed
-    @alog.function_counter("led_off")
+    @alog.function_counter("led_off", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_off(self, side: str) -> bool:
         """
         RPC method to turn led off.
@@ -107,7 +108,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.off(side)
 
     @rpyc.exposed
-    @alog.function_counter("led_heartbeat")
+    @alog.function_counter("led_heartbeat", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_heartbeat(self, side: str) -> bool:
         """
         RPC method to turn the led to heartbeat mode.
@@ -123,7 +124,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.heartbeat(side)
 
     @rpyc.exposed
-    @alog.function_counter("led_get")
+    @alog.function_counter("led_get", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_get(self, side: str) -> str:
         """
         RPC method to get the state of the given LED.
@@ -131,7 +132,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.get(side)
 
     @rpyc.exposed
-    @alog.function_counter("lcd_test")
+    @alog.function_counter("lcd_test", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_test(self, side: str) -> bool:
         """
         RPC method to test the LCD.
@@ -147,7 +148,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.test(side)
 
     @rpyc.exposed
-    @alog.function_counter("lcd_off")
+    @alog.function_counter("lcd_off", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_off(self, side: str) -> bool:
         """
         RPC method to turn the LCD off.
@@ -163,7 +164,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.off(side)
 
     @rpyc.exposed
-    @alog.function_counter("lcd_draw")
+    @alog.function_counter("lcd_draw", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_draw(self, side: str, eyebrow_state: List[str]) -> bool:
         """
         RPC method to draw a specified eyebrow state to the LCD.
@@ -180,7 +181,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.draw(side, eyebrow_state)
 
     @rpyc.exposed
-    @alog.function_counter("lcd_get")
+    @alog.function_counter("lcd_get", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_get(self, side: str) -> List[str]|str:
         """
         RPC method to get the LCD value that we think
@@ -190,7 +191,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.get(side)
 
     @rpyc.exposed
-    @alog.function_counter("firmware_load")
+    @alog.function_counter("firmware_load", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.FIRMWARE})
     def firmware_load(self) -> bool:
         """
         RPC method to (re)load the FW on both MCUs. This will also
@@ -210,7 +211,7 @@ class DriverServer(rpycserver.Service):
         return worked
 
     @rpyc.exposed
-    @alog.function_counter("servo_get")
+    @alog.function_counter("servo_get", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.SERVO})
     def servo_get(self, side: str) -> float:
         """
         RPC method to get the servo's degrees. This could be off
@@ -224,7 +225,7 @@ class DriverServer(rpycserver.Service):
         return self._servo_submodule.get(side)
 
     @rpyc.exposed
-    @alog.function_counter("servo_go")
+    @alog.function_counter("servo_go", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.SERVO})
     def servo_go(self, side: str, servo_degrees: float) -> bool:
         """
         RPC method to move the servo to the given location.

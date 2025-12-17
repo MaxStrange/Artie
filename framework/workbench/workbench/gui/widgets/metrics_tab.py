@@ -7,7 +7,6 @@ by communicating with the Artie API Server, which in turn queries Prometheus.
 from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
 from model import settings
-from comms import api_server
 from datetime import datetime, timedelta
 
 
@@ -18,7 +17,10 @@ class MetricsTab(QtWidgets.QWidget):
         super().__init__(parent)
         self.settings = current_settings
         self.profile = profile
-        self.api_client = api_server.ArtieApiClient(profile) if profile else None
+
+        # TODO: This GUI does not currently do anything. It is just a demo placeholder.
+        self.api_client = None
+
         self._setup_ui()
 
         # Connect to parent signals
@@ -28,7 +30,8 @@ class MetricsTab(QtWidgets.QWidget):
     def on_profile_switched(self, profile: artie_profile.ArtieProfile):
         """Handle profile switch events"""
         self.profile = profile
-        self.api_client = api_server.ArtieApiClient(profile) if profile else None
+        # TODO: This is a demo
+        self.api_client = None
         self.results_text.clear()
 
     def on_settings_changed(self, current_settings: settings.WorkbenchSettings):
@@ -150,114 +153,4 @@ class MetricsTab(QtWidgets.QWidget):
         if not self.api_client:
             self.results_text.append("<span style='color: red;'>Error: No API client available</span>")
             return
-        
-        query = self.query_input.text().strip()
-        if not query:
-            self.results_text.append("<span style='color: red;'>Error: Please enter a query</span>")
-            return
-        
-        if self.instant_radio.isChecked():
-            self._execute_instant_query(query)
-        else:
-            self._execute_range_query(query)
     
-    def _execute_instant_query(self, query: str):
-        """Execute an instant query"""
-        err, data = self.api_client.query_metrics(query)
-        
-        if err:
-            self.results_text.append(f"<span style='color: red;'>Error: {err}</span>")
-            return
-        
-        if not data.get('success'):
-            self.results_text.append(f"<span style='color: red;'>Error: {data.get('error')}</span>")
-            return
-        
-        # Parse Prometheus response
-        prometheus_data = data.get('data', {})
-        result_type = prometheus_data.get('data', {}).get('resultType', 'unknown')
-        results = prometheus_data.get('data', {}).get('result', [])
-        
-        self.results_text.clear()
-        self.results_text.append(f"<b>Query:</b> {query}<br>")
-        self.results_text.append(f"<b>Result Type:</b> {result_type}<br>")
-        self.results_text.append(f"<b>Results:</b> {len(results)}<br><br>")
-        
-        if result_type == 'vector':
-            for result in results:
-                metric = result.get('metric', {})
-                value = result.get('value', [])
-                
-                metric_str = ', '.join([f"{k}={v}" for k, v in metric.items()])
-                timestamp = datetime.fromtimestamp(value[0]).strftime('%Y-%m-%d %H:%M:%S') if len(value) > 0 else 'N/A'
-                val = value[1] if len(value) > 1 else 'N/A'
-                
-                self.results_text.append(f"<b>{{{metric_str}}}</b>: {val} @ {timestamp}<br>")
-        
-        elif result_type == 'scalar':
-            for result in results:
-                value = result.get('value', [])
-                timestamp = datetime.fromtimestamp(value[0]).strftime('%Y-%m-%d %H:%M:%S') if len(value) > 0 else 'N/A'
-                val = value[1] if len(value) > 1 else 'N/A'
-                self.results_text.append(f"<b>Value:</b> {val} @ {timestamp}<br>")
-        
-        else:
-            self.results_text.append(f"<pre>{prometheus_data}</pre>")
-    
-    def _execute_range_query(self, query: str):
-        """Execute a range query"""
-        # Calculate time range
-        duration_minutes = self.range_duration_spin.value()
-        end_time = datetime.now()
-        start_time = end_time - timedelta(minutes=duration_minutes)
-        
-        # Convert to Unix timestamps
-        start = str(int(start_time.timestamp()))
-        end = str(int(end_time.timestamp()))
-        step = self.range_step_input.text().strip() or '15s'
-        
-        err, data = self.api_client.query_range_metrics(query, start, end, step)
-        
-        if err:
-            self.results_text.append(f"<span style='color: red;'>Error: {err}</span>")
-            return
-        
-        if not data.get('success'):
-            self.results_text.append(f"<span style='color: red;'>Error: {data.get('error')}</span>")
-            return
-        
-        # Parse Prometheus response
-        prometheus_data = data.get('data', {})
-        result_type = prometheus_data.get('data', {}).get('resultType', 'unknown')
-        results = prometheus_data.get('data', {}).get('result', [])
-        
-        self.results_text.clear()
-        self.results_text.append(f"<b>Query:</b> {query}<br>")
-        self.results_text.append(f"<b>Time Range:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}<br>")
-        self.results_text.append(f"<b>Step:</b> {step}<br>")
-        self.results_text.append(f"<b>Result Type:</b> {result_type}<br>")
-        self.results_text.append(f"<b>Series:</b> {len(results)}<br><br>")
-        
-        if result_type == 'matrix':
-            for result in results:
-                metric = result.get('metric', {})
-                values = result.get('values', [])
-                
-                metric_str = ', '.join([f"{k}={v}" for k, v in metric.items()])
-                self.results_text.append(f"<b>{{{metric_str}}}</b> ({len(values)} data points)<br>")
-                
-                # Show first and last few values
-                if len(values) > 0:
-                    self.results_text.append("<ul>")
-                    for i, value in enumerate(values):
-                        if i < 3 or i >= len(values) - 3:
-                            timestamp = datetime.fromtimestamp(value[0]).strftime('%Y-%m-%d %H:%M:%S')
-                            val = value[1]
-                            self.results_text.append(f"<li>{timestamp}: {val}</li>")
-                        elif i == 3:
-                            self.results_text.append(f"<li>... ({len(values) - 6} more data points) ...</li>")
-                    self.results_text.append("</ul>")
-                
-                self.results_text.append("<br>")
-        else:
-            self.results_text.append(f"<pre>{prometheus_data}</pre>")

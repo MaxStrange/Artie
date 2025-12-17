@@ -55,6 +55,3 @@ class NewArtieWizard(QtWidgets.QWizard):
         self.setPage(PageID.COMPLETE, complete_page.CompletePage(self.artie_config))
 
         self.setStartId(PageID.POWER)
-
-        # Now we have an Artie profile. We need to save it.
-        self.artie_config.save(self.field('complete.savepath'))

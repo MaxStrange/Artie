@@ -9,7 +9,7 @@ import flask
 eyebrows_api = flask.Blueprint('eyebrows_api', __name__, url_prefix="/eyebrows")
 
 @eyebrows_api.route("/lcd/<which>", methods=["POST"])
-@alog.function_counter("set_eyebrows_display")
+@alog.function_counter("set_eyebrows_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def set_eyebrows_display(which: str):
     """
     Change the eyebrow display to show the given state.
@@ -92,7 +92,7 @@ def set_eyebrows_display(which: str):
         }
 
 @eyebrows_api.route("/lcd/<which>", methods=["GET"])
-@alog.function_counter("get_eyebrows_display")
+@alog.function_counter("get_eyebrows_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_eyebrows_display(which: str):
     """
     * *GET*: `/eyebrows/lcd/<which>` where `<which>` is `left` or `right`.
@@ -139,7 +139,7 @@ def get_eyebrows_display(which: str):
         }
 
 @eyebrows_api.route("/lcd/<which>/test", methods=["POST"])
-@alog.function_counter("test_mouth_display")
+@alog.function_counter("test_eyebrows_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def test_eyebrows_display(which: str):
     """
     Draw a test image on the eyebrow LCD.
@@ -179,7 +179,7 @@ def test_eyebrows_display(which: str):
         }
 
 @eyebrows_api.route("/lcd/<which>/off", methods=["POST"])
-@alog.function_counter("clear_eyebrows_display")
+@alog.function_counter("clear_eyebrows_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def clear_eyebrows_display(which: str):
     """
     Erase the contents on an eyebrow LCD.
@@ -219,7 +219,7 @@ def clear_eyebrows_display(which: str):
         }
 
 @eyebrows_api.route("/led/<which>", methods=["POST"])
-@alog.function_counter("set_eyebrows_led")
+@alog.function_counter("set_eyebrows_led", alog.MetricSWCodePathAPIOrder.CALLS)
 def set_eyebrows_led(which: str):
     """
     * *POST*: `/eyebrows/led/<which>` where `<which>` is `left` or `right`.
@@ -284,7 +284,7 @@ def set_eyebrows_led(which: str):
         }
 
 @eyebrows_api.route("/led/<which>", methods=["GET"])
-@alog.function_counter("get_eyebrows_led")
+@alog.function_counter("get_eyebrows_led", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_eyebrows_led(which: str):
     """
     * *GET*: `/eyebrows/led/<which>` where `<which>` is `left` or `right`.
@@ -331,7 +331,7 @@ def get_eyebrows_led(which: str):
         }
 
 @eyebrows_api.route("/servo/<which>", methods=["POST"])
-@alog.function_counter("set_eyebrows_servo")
+@alog.function_counter("set_eyebrows_servo", alog.MetricSWCodePathAPIOrder.CALLS)
 def set_eyebrows_servo(which: str):
     """
     * *POST*: `/eyebrows/servo/<which>` where `<which>` is `left` or `right`.
@@ -399,7 +399,7 @@ def set_eyebrows_servo(which: str):
         }
 
 @eyebrows_api.route("/servo/<which>", methods=["GET"])
-@alog.function_counter("get_eyebrows_servo")
+@alog.function_counter("get_eyebrows_servo", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_eyebrows_servo(which: str):
     """
     Note: there is no way to get a *true* servo position for the eyeballs
@@ -454,7 +454,7 @@ def get_eyebrows_servo(which: str):
         }
 
 @eyebrows_api.route("/fw", methods=["POST"])
-@alog.function_counter("reload_eyebrows_firmware")
+@alog.function_counter("reload_eyebrows_firmware", alog.MetricSWCodePathAPIOrder.CALLS)
 def reload_eyebrows_firmware():
     """
     Reload both eyebrow MCU firmwares (you cannot target them individually).
@@ -485,7 +485,7 @@ def reload_eyebrows_firmware():
         }
 
 @eyebrows_api.route("/status", methods=["GET"])
-@alog.function_counter("get_eyebrows_status")
+@alog.function_counter("get_eyebrows_status", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_eyebrows_status():
     """
     Get the eyebrows' submodules' statuses.
@@ -535,8 +535,8 @@ def get_eyebrows_status():
         }
 
 @eyebrows_api.route("/self-test", methods=["POST"])
-@alog.function_counter("eyebrows_self_test")
-def mouth_self_test():
+@alog.function_counter("eyebrows_self_test", alog.MetricSWCodePathAPIOrder.CALLS)
+def eyebrows_self_test():
     """
     Initiate a self-test.
 

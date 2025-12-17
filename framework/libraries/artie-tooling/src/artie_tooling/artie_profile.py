@@ -89,11 +89,14 @@ class ArtieProfile:
 
         `path` should be a directory; the filename will be derived from the Artie name.
         """
-        if path is None:
-            name = self.artie_name or "unnamed_artie"
-            path = DEFAULT_SAVE_PATH / f"{name}.json"
-        else:
+        if self.artie_name is not None and path is not None:
+            path = pathlib.Path(path) / f"{self.artie_name}.json"
+        elif self.artie_name is not None and path is None:
+            path = DEFAULT_SAVE_PATH / f"{self.artie_name}.json"
+        elif self.artie_name is None and path is not None:
             path = pathlib.Path(path)
+        else:
+            path = DEFAULT_SAVE_PATH / "unnamed_artie.json"
 
         # Ensure the parent directory exists
         path.parent.mkdir(parents=True, exist_ok=True)

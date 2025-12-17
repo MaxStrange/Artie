@@ -53,8 +53,9 @@ def main():
     group.add_argument("--integration-test", action='store_true', help="If given, we do not access the Artie cluster. Used in integration tests.")
     group.add_argument("--ipv6", action='store_true', help="If given, we use IPv6 instead of IPv4.")
     group.add_argument("--unit-test", action='store_true', help="If given, we do not access the Artie cluster. Used in unit tests.")
-    # TODO: Refactor Artie CLI so that workbench and Artie CLI both use the same library for REST API calls into the API server
     # TODO: Do a better job tearing down Docker compose after integration test failure
+    # TODO: Get tests working again
+    # TODO: Move on to Yocto
 
     # Disable the urllib3 warnings
     urllib3.disable_warnings()
