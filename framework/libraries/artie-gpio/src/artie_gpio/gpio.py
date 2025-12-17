@@ -1,6 +1,7 @@
 """
 The main entry to the Artie GPIO library.
 """
+from . import metrics
 from artie_util import util
 from artie_util import artie_logging as alog
 import os
@@ -57,7 +58,7 @@ def output(pin, level):
     """
     Set the given pin to the given level.
     """
-    alog.update_counter(1, "gpio-pin-output-counter", unit="calls", description="Number of times voltage has been output on pins", attributes={"gpio.pin": pin, "gpio.level": level})
+    alog.update_counter(1, "count", alog.MetricHWBusGPIOOrder.PIN_OUTPUT, unit=alog.MetricUnits.CALLS, description="Number of times voltage has been output on pins", attributes={metrics.Attributes.PIN: pin, metrics.Attributes.LEVEL: level})
     if MODE == 'testing':
         alog.info(f"Setting pin {pin} to level {level}")
     else:

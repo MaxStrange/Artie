@@ -10,4 +10,9 @@ setup(
         "artie-util",
         "RPi.GPIO",
     ],
+    extras_require={
+        "rpi": [
+            "RPi.GPIO",
+        ],
+    },
 )

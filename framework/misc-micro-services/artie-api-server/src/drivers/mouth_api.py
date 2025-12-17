@@ -9,7 +9,7 @@ import flask
 mouth_api = flask.Blueprint('mouth_api', __name__, url_prefix="/mouth")
 
 @mouth_api.route("/lcd", methods=["POST"])
-@alog.function_counter("set_mouth_display")
+@alog.function_counter("set_mouth_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def set_mouth_display():
     """
     Change the mouth display to show the given state.
@@ -77,7 +77,7 @@ def set_mouth_display():
         }
 
 @mouth_api.route("/lcd", methods=["GET"])
-@alog.function_counter("get_mouth_display")
+@alog.function_counter("get_mouth_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_mouth_display():
     """
     Get the mouth display state, as far as we know.
@@ -116,7 +116,7 @@ def get_mouth_display():
         }
 
 @mouth_api.route("/lcd/test", methods=["POST"])
-@alog.function_counter("test_mouth_display")
+@alog.function_counter("test_mouth_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def test_mouth_display():
     """
     Draw a test image on the mouth LCD.
@@ -147,7 +147,7 @@ def test_mouth_display():
         }
 
 @mouth_api.route("/lcd/off", methods=["POST"])
-@alog.function_counter("clear_mouth_display")
+@alog.function_counter("clear_mouth_display", alog.MetricSWCodePathAPIOrder.CALLS)
 def clear_mouth_display():
     """
     Erase the contents on the mouth LCD.
@@ -179,7 +179,7 @@ def clear_mouth_display():
         }
 
 @mouth_api.route("/led", methods=["POST"])
-@alog.function_counter("set_mouth_led")
+@alog.function_counter("set_mouth_led", alog.MetricSWCodePathAPIOrder.CALLS)
 def set_mouth_led():
     """
     * *POST*: `/mouth/led`
@@ -235,7 +235,7 @@ def set_mouth_led():
         }
 
 @mouth_api.route("/led", methods=["GET"])
-@alog.function_counter("get_mouth_led")
+@alog.function_counter("get_mouth_led", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_mouth_led():
     """
     * *GET*: `/mouth/led`
@@ -273,7 +273,7 @@ def get_mouth_led():
         }
 
 @mouth_api.route("/fw", methods=["POST"])
-@alog.function_counter("reload_mouth_firmware")
+@alog.function_counter("reload_mouth_firmware", alog.MetricSWCodePathAPIOrder.CALLS)
 def reload_mouth_firmware():
     """
     Reload MCU firmware.
@@ -305,7 +305,7 @@ def reload_mouth_firmware():
         }
 
 @mouth_api.route("/status", methods=["GET"])
-@alog.function_counter("get_mouth_status")
+@alog.function_counter("get_mouth_status", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_mouth_status():
     """
     Get the mouth submodules' statuses.
@@ -351,7 +351,7 @@ def get_mouth_status():
         }
 
 @mouth_api.route("/self-test", methods=["POST"])
-@alog.function_counter("mouth_self_test")
+@alog.function_counter("mouth_self_test", alog.MetricSWCodePathAPIOrder.CALLS)
 def mouth_self_test():
     """
     Initiate a self-test.

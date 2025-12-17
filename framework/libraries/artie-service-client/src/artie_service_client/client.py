@@ -57,7 +57,7 @@ class ServiceConnection:
                 return result
             except Exception as e:
                 alog.exception(f"Exception when trying to run a function on a service connection (service: {self.service}): ", e, stack_trace=True)
-                alog.update_counter(1, "asc-connection-errors", unit=alog.Units.TIMES, description="Number of times we encounter an error when trying to connect to an Artie service.")
+                alog.update_counter(1, "connection", alog.MetricSWCodePathAPICallFamily.FAILURE, unit=alog.MetricUnits.CALLS, description="Number of times we encounter an error when trying to connect to an Artie service.")
 
     def _initialize_connection(self, service: Service):
         match service:
@@ -79,7 +79,7 @@ class ServiceConnection:
                 return factory.ssl_connect(host, port, ipv6=self.ipv6)
             except Exception as e:
                 alog.exception(f"Exception when trying to connect to {host}:{port}: ", e, stack_trace=True)
-                alog.update_counter(1, "asc-connection-errors", unit=alog.Units.TIMES, description="Number of times we encounter an error when trying to connect to an Artie service.")
+                alog.update_counter(1, "connection", alog.MetricSWCodePathAPICallFamily.FAILURE, unit=alog.MetricUnits.CALLS, description="Number of times we encounter an error when trying to connect to an Artie service.")
 
 def _try_connect(host: str, port: int, ipv6=False) -> bool:
     """

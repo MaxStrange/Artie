@@ -1,14 +1,14 @@
 """
 Logging tab widget for Artie Workbench
 
-This tab provides live log streaming and historical log querying functionality
-by communicating with the Artie API Server, which in turn queries the Fluent Bit
-log collector service.
+This tab provides 'live' log streaming and historical log querying functionality
+by communicating with the Artie API Server.
 """
+from artie_tooling.api_clients import logging_client
 from artie_tooling import artie_profile
+from artie_tooling import errors
 from PyQt6 import QtWidgets, QtCore
 from model import settings
-from comms import api_server
 
 
 class LoggingTab(QtWidgets.QWidget):
@@ -18,7 +18,7 @@ class LoggingTab(QtWidgets.QWidget):
         super().__init__(parent)
         self.settings = current_settings
         self.profile = profile
-        self.api_client = api_server.ArtieApiClient(profile) if profile else None
+        self.api_client = logging_client.LoggingClient(profile, nretries=self.settings.api_retries) if profile else None
         self._setup_ui()
 
         # Connect to parent signals
@@ -33,7 +33,7 @@ class LoggingTab(QtWidgets.QWidget):
     def on_profile_switched(self, profile: artie_profile.ArtieProfile):
         """Handle profile switch events"""
         self.profile = profile
-        self.api_client = api_server.ArtieApiClient(profile) if profile else None
+        self.api_client = logging_client.LoggingClient(profile, nretries=self.settings.api_retries) if profile else None
         self.live_text.clear()
         self.history_text.clear()
 
@@ -58,7 +58,7 @@ class LoggingTab(QtWidgets.QWidget):
         live_controls.addWidget(self.live_service_combo)
         
         self.live_level_combo = QtWidgets.QComboBox()
-        self.live_level_combo.addItems(["All Levels", "debug", "info", "warning", "error"])
+        self.live_level_combo.addItems(["All Levels"] + [level.value for level in logging_client.LogLevel])
         live_controls.addWidget(QtWidgets.QLabel("Level:"))
         live_controls.addWidget(self.live_level_combo)
         
@@ -91,7 +91,7 @@ class LoggingTab(QtWidgets.QWidget):
         query_controls.addRow("Service:", self.query_service_combo)
         
         self.query_level_combo = QtWidgets.QComboBox()
-        self.query_level_combo.addItems(["All Levels", "debug", "info", "warning", "error"])
+        self.query_level_combo.addItems(["All Levels"] + [level.value for level in logging_client.LogLevel])
         query_controls.addRow("Level:", self.query_level_combo)
         
         self.query_message_input = QtWidgets.QLineEdit()
@@ -132,9 +132,12 @@ class LoggingTab(QtWidgets.QWidget):
         if not self.api_client:
             return
         
-        err, services = self.api_client.get_log_services()
-        if err:
+        services_or_err = self.api_client.list_services()
+        if issubclass(type(services_or_err), errors.HTTPError):
+            self.live_text.append(f"<span style='color: red;'>Error loading services: {services_or_err.message}</span>")
             return
+        else:
+            services = services_or_err.services
         
         # Update both combo boxes
         for combo in [self.live_service_combo, self.query_service_combo]:
@@ -157,24 +160,19 @@ class LoggingTab(QtWidgets.QWidget):
         # Get selected filters
         service = self.live_service_combo.currentData()
         level_text = self.live_level_combo.currentText()
-        level = None if level_text == "All Levels" else level_text
+        level = None if level_text == "All Levels" else logging_client.LogLevel(level_text)
         
         # Query last 60 seconds of logs
-        err, data = self.api_client.get_live_logs(seconds=60, level=level, service=service)
-        
-        if err:
-            self.live_text.append(f"<span style='color: red;'>Error: {err}</span>")
+        response = self.api_client.get_recent_logs(seconds=60, level=level, service=service)
+        if issubclass(type(response), errors.HTTPError):
+            self.live_text.append(f"<span style='color: red;'>Error fetching live logs: {response.message}</span>")
             return
-        
-        if not data.get('success'):
-            self.live_text.append(f"<span style='color: red;'>Error: {data.get('error')}</span>")
-            return
-        
-        logs = data.get('logs', [])
+
+        log_entries = response.logs
         
         # Clear and display logs
         self.live_text.clear()
-        for log in logs:
+        for log in log_entries:
             self._append_log_entry(self.live_text, log)
     
     def _query_logs(self):
@@ -188,41 +186,22 @@ class LoggingTab(QtWidgets.QWidget):
         level = None if level_text == "All Levels" else level_text
         message_contains = self.query_message_input.text() or None
         limit = self.query_limit_spin.value()
-        
-        # Query logs (no time filter for now - gets recent logs)
-        err, data = self.api_client.query_logs(
-            level=level,
-            service=service,
-            message_contains=message_contains,
-            limit=limit
-        )
-        
-        if err:
-            self.history_text.append(f"<span style='color: red;'>Error: {err}</span>")
+
+        # TODO: Update GUI to allow time range selection
+        response = self.api_client.query_logs(limit=limit, level=level, service=service, message_contains=message_contains)
+        if issubclass(type(response), errors.HTTPError):
+            self.history_text.append(f"<span style='color: red;'>Error querying logs: {response.message}</span>")
             return
-        
-        if not data.get('success'):
-            self.history_text.append(f"<span style='color: red;'>Error: {data.get('error')}</span>")
-            return
-        
-        logs = data.get('logs', [])
-        count = data.get('count', 0)
-        truncated = data.get('truncated', False)
-        
+
         # Display results
         self.history_text.clear()
-        self.history_text.append(f"<b>Found {count} log entries{' (truncated)' if truncated else ''}</b><br>")
+        self.history_text.append(f"<b>Found {len(response.logs)} log entries</b><br>")
         
-        for log in logs:
+        for log in response.logs:
             self._append_log_entry(self.history_text, log)
     
-    def _append_log_entry(self, text_widget: QtWidgets.QTextBrowser, log: dict):
+    def _append_log_entry(self, text_widget: QtWidgets.QTextBrowser, log: logging_client.LogEntry):
         """Append a formatted log entry to the text widget"""
-        timestamp = log.get('timestamp', log.get('date', ''))
-        level = log.get('level', 'info')
-        service = log.get('service', 'unknown')
-        message = log.get('message', '')
-        
         # Color code by level
         level_colors = {
             'debug': '#808080',
@@ -230,7 +209,7 @@ class LoggingTab(QtWidgets.QWidget):
             'warning': '#FFA500',
             'error': '#FF0000'
         }
-        color = level_colors.get(level.lower(), '#000000')
+        color = level_colors.get(log.level.value.lower(), '#000000')
         
-        html = f"<span style='color: {color};'>[{timestamp}] [{service}] [{level.upper()}] {message}</span><br>"
+        html = f"<span style='color: {color};'>[{log.timestamp}] [{log.service}] [{log.level.value.upper()}] {log.message}</span><br>"
         text_widget.append(html)

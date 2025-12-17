@@ -10,7 +10,7 @@ reset_api = flask.Blueprint('reset_api', __name__, url_prefix="/reset")
 
 
 @reset_api.route("/mcu", methods=["POST"])
-@alog.function_counter("reset_mcu")
+@alog.function_counter("reset_mcu", alog.MetricSWCodePathAPIOrder.CALLS)
 def reset_mcu():
     """
     Reset the given MCU. Please note that resetting an MCU may degrade Artie's abilities
@@ -75,7 +75,7 @@ def reset_mcu():
     }
 
 @reset_api.route("/sbc", methods=["POST"])
-@alog.function_counter("reset_sbc")
+@alog.function_counter("reset_sbc", alog.MetricSWCodePathAPIOrder.CALLS)
 def reset_sbc():
     """
     Reset the given SBC. Please note that SBCs may take several minutes to completely reboot,
@@ -94,7 +94,7 @@ def reset_sbc():
     }
 
 @reset_api.route("/status")
-@alog.function_counter("get_reset_status")
+@alog.function_counter("get_reset_status", alog.MetricSWCodePathAPIOrder.CALLS)
 def get_reset_status():
     """
     Get the reset service's submodules' statuses.
@@ -138,7 +138,7 @@ def get_reset_status():
         }
 
 @reset_api.route("/self-test")
-@alog.function_counter("reset_self_test")
+@alog.function_counter("reset_self_test", alog.MetricSWCodePathAPIOrder.CALLS)
 def reset_self_test():
     """
     Initiate a self-test.

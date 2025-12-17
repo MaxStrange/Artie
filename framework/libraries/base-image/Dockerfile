@@ -32,7 +32,7 @@ RUN rm -rf /tmp/artie-i2c
 # Build artie-gpio lib
 COPY ./tmp/artie-gpio /tmp/artie-gpio/
 WORKDIR /tmp/artie-gpio
-RUN pip install .
+RUN pip install .[rpi]
 RUN rm -rf /tmp/artie-gpio
 
 # Build artie-service-client

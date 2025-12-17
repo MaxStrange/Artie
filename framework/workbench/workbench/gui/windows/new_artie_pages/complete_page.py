@@ -42,3 +42,8 @@ class CompletePage(QtWidgets.QWizardPage):
         layout.addWidget(path_edit)
 
         layout.addStretch()
+
+    def validatePage(self) -> bool:
+        """Called when Finish is clicked"""
+        # Now we have an Artie profile. We need to save it.
+        self.artie_config.save(self.field('complete.savepath'))

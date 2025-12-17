@@ -14,6 +14,7 @@ class GuiViewOption(enum.StrEnum):
     FILE_PICKER = "file_picker"
     DIRECTORY_PICKER = "directory_picker"
     FLOATING_POINT_INPUT = "floating_point_input"
+    INTEGER_INPUT = "integer_input"
 
 @dataclasses.dataclass
 class WorkbenchSettings:
@@ -28,6 +29,9 @@ class WorkbenchSettings:
 
     status_refresh_rate_s: float = dataclasses.field(default=5.0, metadata={'view': GuiViewOption.FLOATING_POINT_INPUT, 'bottom': 0.0, 'top': None, 'decimals': 2})
     """The refresh rate of all the status information in seconds."""
+
+    api_retries: int = dataclasses.field(default=3, metadata={'view': GuiViewOption.INTEGER_INPUT, 'bottom': 0, 'top': 20, 'decimals': 0})
+    """The number of times to retry API calls to the Artie API server upon failure."""
 
     @staticmethod
     def load(path=None) -> 'WorkbenchSettings':

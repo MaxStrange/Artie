@@ -2,6 +2,7 @@
 This module handles interfacing with an I2C bus,
 or with simulating one for development purposes.
 """
+from . import metrics
 from artie_util import artie_logging as alog
 from artie_util import util
 import smbus2
@@ -107,7 +108,7 @@ class I2CBus:
         # Write to the given address on the i2c instance
         # If data is more than one byte, we need to use the first byte as the register
         # Otherwise, use the single byte write function
-        alog.update_counter(nbytes, "i2c-byte-counter", unit=alog.Units.BYTES, description="Number of bytes written to i2c bus", attributes={"i2c.address": hex(address)})
+        alog.update_counter(nbytes, "bytes-out", alog.MetricHWBusI2COrder.TRAFFIC, unit=alog.MetricUnits.BYTES, description="Number of bytes written to i2c bus", attributes={metrics.Attributes.I2C_ADDRESS: hex(address)})
         try:
             if nbytes > 1:
                 data_bytes = [int(b) for b in data.to_bytes(nbytes, 'big')]

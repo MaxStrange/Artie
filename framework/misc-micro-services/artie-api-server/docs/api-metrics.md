@@ -1,38 +1,7 @@
 # API for Metrics Module
 
-TODO: Determine the classes of things that get metrics associated with them and how to access them.
-      When updating the metric in the code, make sure to access the appropriate metric by means of some schema,
-      e.g., hw.can.reads
-      Note that each metric also has 'attributes' set on it, which should
-      include 'artie.id' and 'artie.service_name'.
-
-HW:
-    - System (polled by daemonsets with low-level access to HW):
-        * Uptime
-        * temperature
-        * CPU usage
-        * RAM usage
-        * Disk space
-        * Disk writes (wear usage for flash memory)
-    - Buses:
-        * CAN read/write latency/throughput
-        * SPI read/write latency/throughput
-        * GPIO read/write latency/throughput
-        * etc.
-    - Actuators:
-        * Uptime
-        * Number of commands issued
-        * Command latency/throughput
-    - Sensors:
-        * Uptime
-        * Number of readings taken
-        * Reading latency/throughput
-
-SW:
-    - API:
-        * Hits on a service's API function 1
-        * Hits on a service's API function 2
-        * Etc.
+TODO: It may make sense to just pass through to Prometheus rather than have the API server handle metrics queries itself.
+That way we can make use of Prometheus's visualization tools directly.
 
 ## HW
 
