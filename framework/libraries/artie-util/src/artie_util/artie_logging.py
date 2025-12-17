@@ -777,7 +777,7 @@ def function_counter(name: str, taxonomy, attributes=None):
             attributes = attributes if attributes is not None else {}
             attributes[KnownMetricAttributes.FUNCTION_NAME] = f.__name__ if hasattr(f, '__name__') else name
             fname = attributes[KnownMetricAttributes.FUNCTION_NAME]
-            update_counter(1, f"{SERVICE_NAME}.{taxonomy.value}.{name}", unit=MetricUnits.CALLS, description=f"Number of times {fname} is called.", attributes=attributes)
+            update_counter(1, name, taxonomy, unit=MetricUnits.CALLS, description=f"Number of times {fname} is called.", attributes=attributes)
             return f(*args, **kwargs)
         return wrapper
     return function_decorator
