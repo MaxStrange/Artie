@@ -212,6 +212,8 @@ class TestJob(job.Job):
     """
     All TestJobs run a setup(), then a bunch of steps, then a teardown().
     Each step should be a single test that returns a test result.
+
+    Each TestJob also runs clean() after all tasks have run.
     """
 
     def __init__(self, artifacts: List[artifact.Artifact], steps: List[callable]) -> None:
