@@ -25,6 +25,29 @@ class DockerComposeTestSuiteJob(test_job.TestJob):
                 compose_variables[k] = v
         self.compose_variables = compose_variables
 
+    def clean(self, args):
+        """
+        Clean up any Docker containers created by this job. This runs even if the job failed during setup or execution.
+        Honors args.skip_teardown.
+        """
+        super().clean(args)
+
+        if args.skip_teardown:
+            common.info(f"--skip-teardown detected. You will need to manually clean up the Docker containers.")
+            return
+
+        common.info(f"Cleaning up Docker compose containers for project {self.project_name}...")
+
+        try:
+            docker.compose_down(self.project_name, self.compose_dpath, self.compose_fname, envs=self.compose_variables)
+        except Exception as e:
+            common.error(f"Error during docker compose down. There may be leftover containers or networks: {e}")
+
+        try:
+            docker.remove_network(self.docker_network_name)
+        except Exception as e:
+            common.error(f"Error removing docker network {self.docker_network_name}; there may be leftover networks: {e}")
+
     def setup(self, args):
         """
         Set up the DUTs by using Docker compose.
