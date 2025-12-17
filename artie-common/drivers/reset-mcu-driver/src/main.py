@@ -137,7 +137,7 @@ class ResetMcuDriver(rpycserver.Service):
             alog.exception(f"Could not reset target {addr}", e, stack_trace=True)
             return False
         duration_s = datetime.datetime.now().timestamp() - ts
-        alog.update_histogram(duration_s, "adc-reset", alog.MetricSWCodePathAPIOrder.LATENCY, unit=alog.Units.SECONDS, description="Durations of reset calls over the network.", attributes={"target_addr": hex(addr), alog.KnownMetricAttributes.FUNCTION_NAME: "reset_target"})
+        alog.update_histogram(duration_s, "adc-reset", alog.MetricSWCodePathAPIOrder.LATENCY, unit=alog.MetricUnits.SECONDS, description="Durations of reset calls over the network.", attributes={"target_addr": hex(addr), alog.KnownMetricAttributes.FUNCTION_NAME: "reset_target"})
         return True
 
 if __name__ == "__main__":
