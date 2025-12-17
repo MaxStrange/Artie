@@ -710,7 +710,7 @@ def update_counter(increment: int | float, name: str, taxonomy, unit:MetricUnits
     if derived_name in _metrics:
         counter = _metrics[derived_name]
     else:
-        counter = meter.create_counter(name, taxonomy, unit, description)
+        counter = meter.create_counter(derived_name, unit, description)
         _metrics[derived_name] = counter
 
     attributes = {} if not attributes else attributes
@@ -732,7 +732,7 @@ def update_histogram(amount: int | float, name: str, taxonomy, unit:MetricUnits=
     if derived_name in _metrics:
         histogram = _metrics[derived_name]
     else:
-        histogram = meter.create_histogram(name, taxonomy, unit, description)
+        histogram = meter.create_histogram(derived_name, unit, description)
         _metrics[derived_name] = histogram
 
     attributes = {} if not attributes else attributes
@@ -754,7 +754,7 @@ def update_updown_counter(amount: int | float, name: str, taxonomy,unit:MetricUn
     if derived_name in _metrics:
         updown = _metrics[derived_name]
     else:
-        updown = meter.create_up_down_counter(name, taxonomy, unit, description)
+        updown = meter.create_up_down_counter(derived_name, unit, description)
         _metrics[derived_name] = updown
 
     attributes = {} if not attributes else attributes

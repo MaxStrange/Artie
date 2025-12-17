@@ -39,6 +39,7 @@ class DockerComposeTestSuiteJob(test_job.TestJob):
         common.info(f"Cleaning up Docker compose containers for project {self.project_name}...")
 
         try:
+            self._set_compose_variables(args)
             docker.compose_down(self.project_name, self.compose_dpath, self.compose_fname, envs=self.compose_variables)
         except Exception as e:
             common.error(f"Error during docker compose down. There may be leftover containers or networks: {e}")
