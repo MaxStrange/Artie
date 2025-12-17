@@ -94,7 +94,7 @@ class ResetMcuDriver(rpycserver.Service):
         pass
 
     @rpyc.exposed
-    @alog.function_counter("whoami", genus=alog.MetricSWCodePathAPIOrder.CALLS)
+    @alog.function_counter("whoami", alog.MetricSWCodePathAPIOrder.CALLS)
     def whoami(self) -> str:
         """
         Return the name of this service and the version.
@@ -102,7 +102,7 @@ class ResetMcuDriver(rpycserver.Service):
         return f"artie-reset-driver:{util.get_git_tag()}"
 
     @rpyc.exposed
-    @alog.function_counter("status", genus=alog.MetricSWCodePathAPIOrder.CALLS)
+    @alog.function_counter("status", alog.MetricSWCodePathAPIOrder.CALLS)
     def status(self) -> Dict[str, str]:
         """
         Return the status of this service's submodules.
@@ -110,7 +110,7 @@ class ResetMcuDriver(rpycserver.Service):
         return {"MCU": str(self._mcu_status)}
 
     @rpyc.exposed
-    @alog.function_counter("self_check", genus=alog.MetricSWCodePathAPIOrder.CALLS)
+    @alog.function_counter("self_check", alog.MetricSWCodePathAPIOrder.CALLS)
     def self_check(self):
         """
         Run a self diagnostics check and set our submodule statuses appropriately.
@@ -119,7 +119,7 @@ class ResetMcuDriver(rpycserver.Service):
         self._check_mcu()
 
     @rpyc.exposed
-    @alog.function_counter("reset_target", genus=alog.MetricSWCodePathAPIOrder.CALLS)
+    @alog.function_counter("reset_target", alog.MetricSWCodePathAPIOrder.CALLS)
     def reset_target(self, addr) -> bool:
         """
         Attempts to reset the device at the given `addr`. See boardconfig_controller.py for the

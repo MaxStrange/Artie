@@ -44,7 +44,7 @@ class DriverServer(rpycserver.Service):
         self.led_heartbeat()
 
     @rpyc.exposed
-    @alog.function_counter("whoami", genus=alog.MetricSWCodePathAPIOrder.CALLS)
+    @alog.function_counter("whoami", alog.MetricSWCodePathAPIOrder.CALLS)
     def whoami(self) -> str:
         """
         Return the name of this service and the version.
@@ -52,7 +52,7 @@ class DriverServer(rpycserver.Service):
         return f"artie-mouth-driver:{util.get_git_tag()}"
 
     @rpyc.exposed
-    @alog.function_counter("status", genus=alog.MetricSWCodePathAPIOrder.CALLS)
+    @alog.function_counter("status", alog.MetricSWCodePathAPIOrder.CALLS)
     def status(self) -> Dict[str, str]:
         """
         Return the status of this service's submodules.
@@ -62,7 +62,7 @@ class DriverServer(rpycserver.Service):
         return {k: str(v) for k, v in status.items()}
 
     @rpyc.exposed
-    @alog.function_counter("self_check", genus=alog.MetricSWCodePathAPIOrder.CALLS)
+    @alog.function_counter("self_check", alog.MetricSWCodePathAPIOrder.CALLS)
     def self_check(self):
         """
         Run a self diagnostics check and set our submodule statuses appropriately.
@@ -73,7 +73,7 @@ class DriverServer(rpycserver.Service):
         self._lcd_submodule.self_check()
 
     @rpyc.exposed
-    @alog.function_counter("led_on", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
+    @alog.function_counter("led_on", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_on(self) -> bool:
         """
         RPC method to turn led on.
@@ -85,7 +85,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.on()
 
     @rpyc.exposed
-    @alog.function_counter("led_off", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
+    @alog.function_counter("led_off", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_off(self) -> bool:
         """
         RPC method to turn led off.
@@ -98,7 +98,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.off()
 
     @rpyc.exposed
-    @alog.function_counter("led_heartbeat", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
+    @alog.function_counter("led_heartbeat", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_heartbeat(self) -> bool:
         """
         RPC method to turn the led to heartbeat mode.
@@ -111,7 +111,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.heartbeat()
 
     @rpyc.exposed
-    @alog.function_counter("led_get", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
+    @alog.function_counter("led_get", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LED})
     def led_get(self) -> str:
         """
         RPC method to get the LED state.
@@ -119,7 +119,7 @@ class DriverServer(rpycserver.Service):
         return self._led_submodule.get()
 
     @rpyc.exposed
-    @alog.function_counter("lcd_test", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
+    @alog.function_counter("lcd_test", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_test(self) -> bool:
         """
         RPC method to test the LCD.
@@ -131,7 +131,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.test()
 
     @rpyc.exposed
-    @alog.function_counter("lcd_off", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
+    @alog.function_counter("lcd_off", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_off(self):
         """
         RPC method to turn the LCD off.
@@ -143,7 +143,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.off()
 
     @rpyc.exposed
-    @alog.function_counter("lcd_draw", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
+    @alog.function_counter("lcd_draw", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_draw(self, val: str):
         """
         RPC method to draw the given configuration on the mouth LCD.
@@ -159,7 +159,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.draw(val)
 
     @rpyc.exposed
-    @alog.function_counter("lcd_get", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
+    @alog.function_counter("lcd_get", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_get(self) -> str:
         """
         RPC method to get the current value we think we are drawing.
@@ -167,7 +167,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.get()
 
     @rpyc.exposed
-    @alog.function_counter("lcd_talk", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
+    @alog.function_counter("lcd_talk", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.LCD})
     def lcd_talk(self):
         """
         RPC method to have the mouth enter talking mode on LCD.
@@ -180,7 +180,7 @@ class DriverServer(rpycserver.Service):
         return self._lcd_submodule.talk()
 
     @rpyc.exposed
-    @alog.function_counter("firmware_load", genus=alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.FIRMWARE})
+    @alog.function_counter("firmware_load", alog.MetricSWCodePathAPIOrder.CALLS, attributes={alog.KnownMetricAttributes.SUBMODULE: metrics.SubmoduleNames.FIRMWARE})
     def firmware_load(self):
         """
         RPC method to (re)load the FW on the mouth MCU.
