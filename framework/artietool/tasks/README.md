@@ -25,8 +25,7 @@ type: build
                   `task-name` is the name of the task that produces the desired artifact
                   and `artifact-name` is the name of the artifact, which may be an empty string.
 - *artifacts*: A list of [artifact](#artifact) items.
-- *cli-args*: Additional arguments to add to the CLI. The keys
-  are python argparse.add_argument parameters.
+- *cli-args*: Additional arguments to add to the CLI. The keys are python argparse.add_argument parameters.
 - *type*: One of
     * [build](#build)
     * [test](#test)
@@ -48,6 +47,20 @@ An *artifact* is composed of the following items:
     * *files*: A collection of one or more files.
     * *yocto-image*: A Yocto image binary.
     * *helm-chart*: A Helm chart that has been deployed to the cluster.
+
+## Script Definition
+
+A *script definition* is a way of specifying a script to run. It can be one of the following:
+
+- *script-path*: A path to a script file. This can be either an absolute path or a path relative to the root of the Artie repository.
+- *cmd*: A command string to run directly.
+
+It has an optional key:
+
+- *args*: A list of arguments to pass to the script or command.
+
+Either way, the script will be run inside a shell (i.e., `/bin/bash -c "<script-path or cmd>"`)
+and will be passed any arguments specified in the `args` list.
 
 ## Build
 
@@ -127,17 +140,46 @@ then starting that image as a container, which should build the firmware files.
 
 ### Yocto Image Job
 
-Yocto images are built by first downloading a remote repository that contains the Yocto layers/recipes,
-then running whatever shell scripts. The result should be
-a single *.img file suitable for flashing onto an SD card.
+Yocto images are built by:
 
-*NOTE*: I've never actually tried running this - as the Yocto build is set up on a separate machine. It *might* work, but I
-wouldn't hold my breath.
+1. Cloning a remote Git repository that contains all the necessary Yocto recipes.
+1. Cloning a set of Yocto layers specified in the job configuration.
+1. Running a setup script to set up the Yocto build environment.
+1. Running the Yocto build command to create the desired image.
+1. Running a post-build script to create the final image file.
 
 - *artifacts*: The names of the artifacts which are created by this job, at least one of which must be of the type `yocto-image`.
-- *repo*: The Git repository to clone.
-- *script*: The shell script to run in order to build the *.img file. Note that there is no YAML-level variable expansion for this value.
-- *binary-fname*: The name of the *.img file, which must be present at the root of the cloned repository after building.
+               The produced image will be the *.img file specified by `binary-fname`.
+- *repo*: The Git repository to clone. This repo should contain all the necessary Yocto recipes to build the desired image.
+- *repo_name*: The name of the repository once cloned. This is used to construct the path to the cloned repository.
+- *layers*: A list of Yocto layers to clone into the repository before building. Each layer should be specified as a dictionary of *name* mapped to the following items:
+    * *url*: The Git URL of the layer.
+    * *tag*: (Optional) The Git tag to checkout.
+- *setup-script*: A script definition that specifies the setup script to run before building.
+                  This script should set up the Yocto build environment (other than cloning things,
+                  which will already have been done by this point). This script definition can
+                  be relative, and if so, it will be relative to the root of the cloned repository.
+- *build-cmd*: A script definition that specifies the build command to run to build the Yocto image.
+                This command will typically source poky/oe-init-build-env and invoke `bitbake`
+                with the desired image target, which can be specified via the `${YOCTO_IMAGE}` constant.
+                See `--yocto-image` CLI argument below. This script definition can
+                be relative, and if so, it will be relative to the root of the cloned repository
+- *post-script*: A script definition that specifies the post-build script to run after building.
+                 This script will typically create the final image file. This script definition can
+                 be relative, and if so, it will be relative to the root of the cloned repository.
+- *binary-fname*: The name of or relative path to the *.img file. If a relative path,
+                  it will be relative to the root of the cloned repository. This can make use of
+                  the `${YOCTO_IMAGE}` constant to specify the image target name.
+
+CLI arguments:
+
+- *--yocto-image*: The image target to build. This can be referenced in the Yocto job configuration file
+                   via the `"${YOCTO_IMAGE}"` constant.
+- *--repos-directory*: (Optional, default '../') The directory in which to clone the repository. This can be either
+                       an absolute path or a path relative to the root of the Artie repository.
+- *--repo-branch*: (Optional, default 'main') The branch of the repository to clone.
+- *--skip-clone*: (Optional, default False) If set, skip cloning the repository. If the repository already exists and this
+                  is NOT passed, an error will be raised to prevent overwriting existing work.
 
 ### Docker Manifest
 

@@ -3,6 +3,7 @@ from .. import common
 from .. import kube
 import abc
 import os
+import pathlib
 
 class Artifact(abc.ABC):
     """
@@ -71,7 +72,8 @@ class YoctoImageArtifact(Artifact):
         if not hasattr(producing_job, 'binary_fname'):
             raise ValueError(f"YoctoImageArtifact is trying to configure itself, but its producing job does not have a 'binary_fname' attribute, so we don't know where to find the resulting Yocto image binary. Artifact: {self}; Producing Job: {producing_job}")
 
-        self.item = os.path.join(args.artifact_folder, producing_job.binary_fname)
+        fname_as_path = pathlib.Path(producing_job.binary_fname)
+        self.item = os.path.join(args.artifact_folder, fname_as_path.name)
 
     def mark_if_cached(self, args):
         self.built = self.item is not None and os.path.isfile(self.item)
