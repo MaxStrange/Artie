@@ -91,7 +91,10 @@ class Task:
             return
 
         for cliarg in self.cli_args:
-            task_parser.add_argument(cliarg.name, default=cliarg.default_val, choices=cliarg.choices, help=cliarg.arg_help)
+            if cliarg.action is not None:
+                task_parser.add_argument(cliarg.name, default=cliarg.default_val, help=cliarg.arg_help, action=cliarg.action)
+            else:
+                task_parser.add_argument(cliarg.name, default=cliarg.default_val, choices=cliarg.choices, help=cliarg.arg_help, type=cliarg.arg_type)
 
     def fill_artifacts_at_runtime(self, args):
         """

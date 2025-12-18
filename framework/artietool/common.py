@@ -10,6 +10,7 @@ import logging
 import os
 import platform
 import random
+import re
 import shutil
 import socket
 import string
@@ -252,6 +253,43 @@ def manage_timeout(func, timeout_s: int, *args, **kwargs):
         t.join(timeout=10)
         raise TimeoutError(f"Trying to run function {name} failed with a timeout.")
     return wrapper.ret
+
+def replace_vars_in_string(s: str, vars_dict: dict[str, str]|argparse.Namespace|None=None, incomplete_ok=False) -> str:
+    """
+    Replace variables in the given string using the provided dictionary
+    or argparse namespace.
+
+    Variables are denoted by ${VAR_NAME}.
+
+    Special variables ${REPO_ROOT} and ${GIT_TAG} are always replaced.
+
+    :param s: The input string with variables.
+    :param vars_dict: A dictionary mapping variable names to their values or an argparse.Namespace.
+    :param incomplete_ok: If True, do not raise an error if a variable is not found.
+    :return: The string with variables replaced.
+    """
+    s = str(s)
+
+    if '${REPO_ROOT}' in s:
+        s = s.replace("${REPO_ROOT}", repo_root())
+
+    if '${GIT_TAG}' in s:
+        s = s.replace("${GIT_TAG}", git_tag())
+
+    if vars_dict is None:
+        vars_dict = {}
+    elif isinstance(vars_dict, argparse.Namespace):
+        vars_dict = vars(vars_dict)
+
+    pattern = re.compile(r"\$\{(?P<var_name>\w+)\}")
+    for match in pattern.finditer(s):
+        var_name = match.group("var_name")
+        if var_name in vars_dict:
+            s = s.replace(match.group(0), str(vars_dict[var_name]))
+        elif not incomplete_ok:
+            raise KeyError(f"Variable '{var_name}' not found in the provided dictionary or namespace.")
+
+    return s
 
 def repo_root() -> str:
     """

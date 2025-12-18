@@ -63,7 +63,7 @@ class JobResult:
         self.name = name
         self.success = success
         self.error = error
-        self.artifacts = artifacts
+        self.artifacts = artifacts if artifacts is not None else []
 
     def __str__(self):
         """

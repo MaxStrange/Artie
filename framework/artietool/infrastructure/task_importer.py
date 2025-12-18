@@ -6,6 +6,7 @@ from . import docker_compose_test_suite_job
 from . import docker_manifest_job
 from . import file_transfer_from_container_job
 from . import hardware_test_job
+from . import scriptdefs
 from . import single_container_cli_suite_job
 from . import single_container_sanity_suite_job
 from . import test_job
@@ -20,6 +21,7 @@ from typing import List
 from typing import Tuple
 import glob
 import os
+import re
 import yaml
 
 @unique
@@ -39,9 +41,11 @@ class CLIArg:
     CLI Arg from YAML.
     """
     name: str
-    default_val: str
-    choices: List[str]
     arg_help: str
+    default_val: str
+    choices: List[str] = None
+    action: str = None
+    arg_type: type = None
 
 @dataclass
 class TaskHeader:
@@ -54,48 +58,28 @@ class TaskHeader:
     artifacts: List[artifact.Artifact]
     cli_args: List[CLIArg]
 
-def _replace_variables(s: str, fpath: str, key_value_pairs:Dict=None) -> str:
+def _replace_variables(s: str, fpath: str, key_value_pairs:Dict=None, incomplete_ok=False) -> str:
     """
     Replace any variables with their correct values.
     We can handle:
     - REPO_ROOT
     - GIT_TAG
 
-    The other allowed keys are:
+    Other often used variables are:
     - DUT
     - CLI
 
     which (if they are expected to be found) must be given, along with their values in the `key_value_pairs` args
+
+    We can also handle any other variables if they are passed in via `key_value_pairs`.
     """
     if issubclass(type(s), dependency.Dependency):
         return s
 
-    s = str(s)
-    if '${REPO_ROOT}' in s:
-        s = s.replace("${REPO_ROOT}", common.repo_root())
-
-    if '${GIT_TAG}' in s:
-        s = s.replace("${GIT_TAG}", common.git_tag())
-
-    if '${DUT}' in s:
-        if 'DUT' not in key_value_pairs:
-            raise ValueError(f"No 'DUT' found in key_value_pairs {key_value_pairs}. This means either that ${{DUT}} is not allowed in this context in {fpath} or that this is a programmer error.")
-
-        if issubclass(type(key_value_pairs['DUT']), dependency.Dependency):
-            s = key_value_pairs['DUT']
-            return s
-        else:
-            s = s.replace("${DUT}", key_value_pairs['DUT'])
-
-    if '${CLI}' in s:
-        if 'CLI' not in key_value_pairs:
-            raise ValueError(f"No 'CLI' found in key_value_pairs {key_value_pairs}. This means either that ${{CLI}} is not allowed in this context in {fpath} or that this is a programmer error.")
-        if issubclass(type(key_value_pairs['CLI']), dependency.Dependency):
-            s = key_value_pairs['CLI']
-            return s
-        else:
-            s = s.replace("${CLI}", key_value_pairs['CLI'])
-
+    try:
+        s = common.replace_vars_in_string(s, key_value_pairs, incomplete_ok=incomplete_ok)
+    except KeyError as e:
+        raise KeyError(f"While replacing variables in string '{s}' in {fpath}, got error: {e}")
 
     return s
 
@@ -132,11 +116,15 @@ def _import_cli_args(config: Dict, fpath: str) -> List[CLIArg]:
         default_val = arg_def.get('default', None)
         arg_help = arg_def.get('help', None)
         choices = arg_def.get('choices', None)
+        action = arg_def.get('action', None)
+        arg_type = arg_def.get('type', None)
         cli_args.append(CLIArg(
             name=name,
             default_val=_replace_variables(default_val, fpath) if default_val is not None else None,
             choices=[_replace_variables(choice, fpath) for choice in choices] if choices is not None else None,
-            arg_help=_replace_variables(arg_help, fpath) if arg_help is not None else None
+            arg_help=_replace_variables(arg_help, fpath) if arg_help is not None else None,
+            action=_replace_variables(action, fpath) if action is not None else None,
+            arg_type=_replace_variables(arg_type, fpath) if arg_type is not None else None,
         ))
     return cli_args
 
@@ -297,20 +285,59 @@ def _import_file_transfer_from_container_job(job_def: Dict, fpath: str, header: 
         fw_files_in_container=fw_files_in_container,
     )
 
+def _import_layer_list(layers_def: List[Dict], fpath: str) -> List[yocto_build_job.YoctoLayer]:
+    layers = []
+    for layer_name_and_def in layers_def:
+        # Layer name and def is a dict of the form { <layer-name>: { ...layer-def... } }
+        # So get the first (and only) key and value
+        name, layer_def = [item for item in layer_name_and_def.items()][0]
+
+        _validate_dict(layer_def, 'url', keyerrmsg=f"Could not find 'url' in one of the 'layers' definitions in yocto-build-job in {fpath}")
+        url = _replace_variables(layer_def['url'], fpath)
+        tag = _replace_variables(layer_def['tag'], fpath) if 'tag' in layer_def else None
+        layers.append(yocto_build_job.YoctoLayer(name=name, url=url, tag=tag))
+    return layers
+
+def _import_script_definition(script_def: Dict|str, fpath: str) -> scriptdefs.ScriptDefinition:
+    if type(script_def) == str:
+        inline_script_contents = _replace_variables(script_def, fpath, incomplete_ok=True)
+        return scriptdefs.ScriptDefinition(inline_script=inline_script_contents)
+    elif 'cmd' in script_def:
+        cmd = _replace_variables(script_def['cmd'], fpath, incomplete_ok=True)
+        args = [_replace_variables(arg, fpath, incomplete_ok=True) for arg in script_def.get('args', [])]
+        return scriptdefs.ScriptDefinition(inline_script=cmd, args=args)
+    else:
+        _validate_dict(script_def, 'script-path', keyerrmsg=f"Could not find 'script-path' or 'cmd' in script definition in {fpath}")
+        script_path = _replace_variables(script_def['script-path'], fpath, incomplete_ok=True)
+        args = [_replace_variables(arg, fpath, incomplete_ok=True) for arg in script_def.get('args', [])]
+        return scriptdefs.ScriptDefinition(script_path=script_path, args=args)
+
 def _import_yocto_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> yocto_build_job.YoctoBuildJob:
     _validate_dict(job_def, 'artifacts', keyerrmsg=f"Could not find 'artifacts' section in 'yocto-build-job' in {fpath}")
     _validate_dict(job_def, 'repo', keyerrmsg=f"Could not find 'repo' section in 'yocto-build-job' in {fpath}")
-    _validate_dict(job_def, 'script', keyerrmsg=f"Could not find 'script' section in 'yocto-build-job' in {fpath}")
+    _validate_dict(job_def, 'repo-name', keyerrmsg=f"Could not find 'repo_name' section in 'yocto-build-job' in {fpath}")
+    _validate_dict(job_def, 'layers', keyerrmsg=f"Could not find 'layers' section in 'yocto-build-job' in {fpath}")
+    _validate_dict(job_def, 'setup-script', keyerrmsg=f"Could not find 'setup-script' section in 'yocto-build-job' in {fpath}")
+    _validate_dict(job_def, 'build-cmd', keyerrmsg=f"Could not find 'build-cmd' section in 'yocto-build-job' in {fpath}")
+    _validate_dict(job_def, 'post-script', keyerrmsg=f"Could not find 'post-script' section in 'yocto-build-job' in {fpath}")
     _validate_dict(job_def, 'binary-fname', keyerrmsg=f"Could not find 'binary-fname' section in 'yocto-build-job' in {fpath}")
     artifacts = _import_artifacts_list(job_def, fpath, header.artifacts)
     repo = _replace_variables(job_def['repo'], fpath)
-    script = job_def['script']  # We do not allow YAML-level variable expansion here
-    binary_fname = _replace_variables(job_def['binary-fname'], fpath)
+    repo_name = _replace_variables(job_def['repo-name'], fpath)
+    layers = _import_layer_list(job_def['layers'], fpath)
+    setup_script = _import_script_definition(job_def['setup-script'], fpath)
+    build_cmd = _import_script_definition(job_def['build-cmd'], fpath)
+    post_script = _import_script_definition(job_def['post-script'], fpath)
+    binary_fname = _replace_variables(job_def['binary-fname'], fpath, incomplete_ok=True)
     return yocto_build_job.YoctoBuildJob(
         artifacts=artifacts,
         repo=repo,
-        script=script,
-        binary_fname=binary_fname
+        repo_name=repo_name,
+        layers=layers,
+        setup_script=setup_script,
+        build_cmd=build_cmd,
+        post_script=post_script,
+        binary_fname=binary_fname,
     )
 
 def _import_manifest_images(images: List[Dict|str], fpath: str) -> List[dependency.Dependency | str]:

@@ -2,8 +2,6 @@ name: yocto-controller-module
 labels:
   - yocto
 dependencies:
-  - driver-eyebrows: docker-image
-  - driver-mouth: docker-image
 artifacts:
   - name: yocto-image
     type: yocto-image
@@ -14,14 +12,63 @@ cli-args:
       - artie-image-dev
       - artie-image-release
     help: "The Yocto image to build for Controller Module."
+  - name: --repos-directory
+    default: ../
+    help: "The directory to clone Yocto repositories into. Relative paths are relative to the Artie repo's root. By default the repos are not cleaned up after the build."
+  - name: --repo-branch
+    default: main
+    help: "The branch of the artie-controller-node repository to clone."
+  - name: --skip-clone
+    action: store_true
+    help: "If set, skip cloning the repository. If the repository already exists and this is NOT passed, an error will be raised."
 type: build
 steps:
   - job: yocto-build
     artifacts:
       - yocto-image
     repo: https://github.com/MaxStrange/artie-controller-node.git
-    script: |
-      ./setup.sh
-      source ./poky/oe-init-build-env "$PWD"/build && bitbake artie-image-dev
-      ./create-img.sh
-    binary-fname: pi.img
+    repo-name: artie-controller-node
+    layers:
+      - poky:
+          url: git://git.yoctoproject.org/poky
+          tag: scarthgap
+      - meta-raspberrypi:
+          url: https://github.com/agherzan/meta-raspberrypi
+          tag: scarthgap
+      - meta-splash:
+          url: https://github.com/hamzamac/meta-splash.git
+      - meta-openembedded:
+          url: git://git.openembedded.org/meta-openembedded
+          tag: scarthgap
+      - meta-virtualization:
+          url: https://git.yoctoproject.org/git/meta-virtualization
+          tag: scarthgap
+    setup-script: |
+      cp assets/splash.png meta-splash/recipes-core/psplash/files/logo.png
+
+      source ./poky/oe-init-build-env "$PWD"/build
+      cp "$PWD"/conf/bblayers.ours.conf "$PWD"/conf/bblayers.conf
+      cp "$PWD"/conf/local.ours.conf "$PWD"/conf/local.conf
+
+      # Add .gitignored files
+      DAEMON_PATH="meta-controller-node/recipes-apps/docker/files/daemon-fragment.json"
+      if [[ ! -f $DAEMON_PATH ]]; then
+          touch $DAEMON_PATH
+          echo "{\n" >> $DAEMON_PATH
+          echo "  \"insecure-registries\": [\"POINT ME TO LOCAL REGISTRY\"]\n" >> $DAEMON_PATH
+          echo "}\n" >> $DAEMON_PATH
+      fi
+
+      HOST_PATH="meta-controller-node/recipes-core/network/files/host-fragment"
+      if [[ ! -f $HOST_PATH ]]; then
+          touch $HOST_PATH
+          # This is a file I use to add useful IP addresses to the /etc/hosts file on the rootfs.
+          # Typically, it would be empty.
+      fi
+    build-cmd: |
+      ./poky/oe-init-build-env "$PWD"/build && bitbake ${YOCTO_IMAGE}
+    post-script:
+      script-path: ./create-img.sh
+      args:
+        - image: ${YOCTO_IMAGE}
+    binary-fname: ${YOCTO_IMAGE}.img
