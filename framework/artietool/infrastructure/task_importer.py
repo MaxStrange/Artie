@@ -58,7 +58,7 @@ class TaskHeader:
     artifacts: List[artifact.Artifact]
     cli_args: List[CLIArg]
 
-def _replace_variables(s: str, fpath: str, key_value_pairs:Dict=None, incomplete_ok=False) -> str:
+def _replace_variables(s: str, fpath: str, key_value_pairs:Dict=None, incomplete_ok=False) -> str|dependency.Dependency:
     """
     Replace any variables with their correct values.
     We can handle:
@@ -75,6 +75,27 @@ def _replace_variables(s: str, fpath: str, key_value_pairs:Dict=None, incomplete
     """
     if issubclass(type(s), dependency.Dependency):
         return s
+
+    s = str(s)
+
+    if '${DUT}' in s:
+        if 'DUT' not in key_value_pairs:
+            raise ValueError(f"No 'DUT' found in key_value_pairs {key_value_pairs}. This means either that ${{DUT}} is not allowed in this context in {fpath} or that this is a programmer error.")
+
+        if issubclass(type(key_value_pairs['DUT']), dependency.Dependency):
+            s = key_value_pairs['DUT']
+            return s
+        else:
+            s = s.replace("${DUT}", key_value_pairs['DUT'])
+
+    if '${CLI}' in s:
+        if 'CLI' not in key_value_pairs:
+            raise ValueError(f"No 'CLI' found in key_value_pairs {key_value_pairs}. This means either that ${{CLI}} is not allowed in this context in {fpath} or that this is a programmer error.")
+        if issubclass(type(key_value_pairs['CLI']), dependency.Dependency):
+            s = key_value_pairs['CLI']
+            return s
+        else:
+            s = s.replace("${CLI}", key_value_pairs['CLI'])
 
     try:
         s = common.replace_vars_in_string(s, key_value_pairs, incomplete_ok=incomplete_ok)
