@@ -43,30 +43,10 @@ steps:
       - meta-virtualization:
           url: https://git.yoctoproject.org/git/meta-virtualization
           tag: scarthgap
-    setup-script: |
-      cp assets/splash.png meta-splash/recipes-core/psplash/files/logo.png
-
-      source ./poky/oe-init-build-env "$PWD"/build
-      cp "$PWD"/conf/bblayers.ours.conf "$PWD"/conf/bblayers.conf
-      cp "$PWD"/conf/local.ours.conf "$PWD"/conf/local.conf
-
-      # Add .gitignored files
-      DAEMON_PATH="meta-controller-node/recipes-apps/docker/files/daemon-fragment.json"
-      if [[ ! -f $DAEMON_PATH ]]; then
-          touch $DAEMON_PATH
-          echo "{\n" >> $DAEMON_PATH
-          echo "  \"insecure-registries\": [\"POINT ME TO LOCAL REGISTRY\"]\n" >> $DAEMON_PATH
-          echo "}\n" >> $DAEMON_PATH
-      fi
-
-      HOST_PATH="meta-controller-node/recipes-core/network/files/host-fragment"
-      if [[ ! -f $HOST_PATH ]]; then
-          touch $HOST_PATH
-          # This is a file I use to add useful IP addresses to the /etc/hosts file on the rootfs.
-          # Typically, it would be empty.
-      fi
+    setup-script:
+      script-path: ./setup.sh
     build-cmd: |
-      ./poky/oe-init-build-env "$PWD"/build && bitbake ${YOCTO_IMAGE}
+      source poky/oe-init-build-env "$PWD"/build && bitbake ${YOCTO_IMAGE}
     post-script:
       script-path: ./create-img.sh
       args:
