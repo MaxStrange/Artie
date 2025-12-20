@@ -58,6 +58,9 @@ A *script definition* is a way of specifying a script to run. It can be one of t
 It has an optional key:
 
 - *args*: A list of arguments to pass to the script or command.
+          For each item, if it is a string, it will be passed as a positional argument.
+          If it is a key:value pair, the key will be treated as the argument name (e.g., `--flag`)
+          and the value will be treated as the argument value.
 
 Either way, the script will be run inside a shell (i.e., `/bin/bash -c "<script-path or cmd>"`)
 and will be passed any arguments specified in the `args` list.

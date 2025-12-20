@@ -116,7 +116,7 @@ def build_docker_image(args, builddpath: str, docker_image_name: DockerImageName
     extraargs = get_extra_docker_build_args(args)
     dockerargs = f"{extraargs} {extra_build_args}"
     if buildx:
-        dockercmd = f"docker buildx build --load --platform {platform} -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
+        dockercmd = f"docker buildx build --sbom=false --provenance=false --load --platform {platform} -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
     else:
         dockercmd = f"docker build -f {dockerfile_name} {dockerargs} -t {str(docker_image_name)} {context}"
     common.info(f"Running: {dockercmd}")

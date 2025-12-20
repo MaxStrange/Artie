@@ -321,13 +321,16 @@ def _import_layer_list(layers_def: List[Dict], fpath: str) -> List[yocto_build_j
 
 def _import_script_definition(script_def: Dict|str, fpath: str) -> scriptdefs.ScriptDefinition:
     if type(script_def) == str:
+        # Inlined script
         inline_script_contents = _replace_variables(script_def, fpath, incomplete_ok=True)
         return scriptdefs.ScriptDefinition(inline_script=inline_script_contents)
     elif 'cmd' in script_def:
+        # Inlined script, potentially with args
         cmd = _replace_variables(script_def['cmd'], fpath, incomplete_ok=True)
         args = [_replace_variables(arg, fpath, incomplete_ok=True) for arg in script_def.get('args', [])]
         return scriptdefs.ScriptDefinition(inline_script=cmd, args=args)
     else:
+        # Script from file
         _validate_dict(script_def, 'script-path', keyerrmsg=f"Could not find 'script-path' or 'cmd' in script definition in {fpath}")
         script_path = _replace_variables(script_def['script-path'], fpath, incomplete_ok=True)
         args = [_replace_variables(arg, fpath, incomplete_ok=True) for arg in script_def.get('args', [])]

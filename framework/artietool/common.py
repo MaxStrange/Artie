@@ -264,7 +264,7 @@ def replace_vars_in_string(s: str, vars_dict: dict[str, str]|argparse.Namespace|
     Special variables ${REPO_ROOT} and ${GIT_TAG} are always replaced.
 
     :param s: The input string with variables.
-    :param vars_dict: A dictionary mapping variable names to their values or an argparse.Namespace.
+    :param vars_dict: A dictionary mapping variable names to their values or an argparse.Namespace. Capitalization is ignored.
     :param incomplete_ok: If True, do not raise an error if a variable is not found.
     :return: The string with variables replaced.
     """
@@ -284,8 +284,9 @@ def replace_vars_in_string(s: str, vars_dict: dict[str, str]|argparse.Namespace|
     pattern = re.compile(r"\$\{(?P<var_name>\w+)\}")
     for match in pattern.finditer(s):
         var_name = match.group("var_name")
-        if var_name in vars_dict:
-            s = s.replace(match.group(0), str(vars_dict[var_name]))
+        if var_name in vars_dict or var_name.lower() in vars_dict:
+            key = var_name if var_name in vars_dict else var_name.lower()
+            s = s.replace(match.group(0), str(vars_dict[key]))
         elif not incomplete_ok:
             raise KeyError(f"Variable '{var_name}' not found in the provided dictionary or namespace.")
 
