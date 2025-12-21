@@ -134,6 +134,7 @@ cli/build/
 *.uf2
 *.hex
 *.bin
+build-artifacts/*.img
 build-all.ps1
 
 # Tests

@@ -97,7 +97,8 @@ class ScriptDefinition:
             for arg in self.args:
                 if isinstance(arg, dict):
                     for key, value in arg.items():
-                        cmd.append(f"{key}={value}")
+                        cmd.append(f"--{key}")
+                        cmd.append(f"{value}")
         try:
             return subprocess.run(cmd, *args, **kwargs)
         except OSError:

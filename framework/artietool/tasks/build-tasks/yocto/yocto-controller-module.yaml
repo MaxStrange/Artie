@@ -44,6 +44,7 @@ steps:
           url: https://git.yoctoproject.org/git/meta-virtualization
           tag: scarthgap
     setup-script:
+      # TODO: Add an argument for this script to set the hosts and docker files correctly
       script-path: ./setup.sh
     build-cmd: |
       source poky/oe-init-build-env "$PWD"/build && bitbake ${YOCTO_IMAGE}
