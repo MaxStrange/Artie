@@ -72,6 +72,8 @@ def _replace_variables(s: str, fpath: str, key_value_pairs:Dict=None, incomplete
     which (if they are expected to be found) must be given, along with their values in the `key_value_pairs` args
 
     We can also handle any other variables if they are passed in via `key_value_pairs`.
+
+    If `incomplete_ok` is True, we will not raise an error if some variables are not found in `key_value_pairs`.
     """
     if issubclass(type(s), dependency.Dependency):
         return s
@@ -333,7 +335,13 @@ def _import_script_definition(script_def: Dict|str, fpath: str) -> scriptdefs.Sc
         # Script from file
         _validate_dict(script_def, 'script-path', keyerrmsg=f"Could not find 'script-path' or 'cmd' in script definition in {fpath}")
         script_path = _replace_variables(script_def['script-path'], fpath, incomplete_ok=True)
-        args = [_replace_variables(arg, fpath, incomplete_ok=True) for arg in script_def.get('args', [])]
+        args = []
+        for arg in script_def.get('args', []):
+            if isinstance(arg, dict):
+                for k, v in arg.items():
+                    args.append({_replace_variables(k, fpath, incomplete_ok=True): _replace_variables(v, fpath, incomplete_ok=True)})
+            else:
+                args.append(_replace_variables(arg, fpath, incomplete_ok=True))
         return scriptdefs.ScriptDefinition(script_path=script_path, args=args)
 
 def _import_yocto_build_job(job_def: Dict, fpath: str, header: TaskHeader) -> yocto_build_job.YoctoBuildJob:

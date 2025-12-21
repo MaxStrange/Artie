@@ -150,7 +150,7 @@ def copy_artie_libs(dest):
 
 def default_build_location():
     """
-    Get the default build location.
+    Get the default build (artifacts) location.
     """
     return os.path.join(repo_root(), "build-artifacts")
 

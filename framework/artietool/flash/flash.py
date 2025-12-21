@@ -1,5 +1,5 @@
 """
-This module enables artie-tool to flash firmware onto devices.
+This module enables artie-tool to flash firmware and Yocto images onto devices or SD cards.
 """
 import argparse
 

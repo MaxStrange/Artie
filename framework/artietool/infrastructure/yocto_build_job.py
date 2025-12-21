@@ -119,6 +119,10 @@ class YoctoBuildJob(job.Job):
         if not post_result.returncode == 0:
             return result.JobResult(name=self.name, success=False, error=OSError(f"Yocto post-build script failed with return code {post_result.returncode}. Stdout: {post_result.stdout}; Stderr: {post_result.stderr}."))
 
+        # Copy the built binary to the artifacts directory
+        built_binary_path = os.path.join(git_repo_location, self.binary_fname)
+        shutil.copy(built_binary_path, os.path.join(common.default_build_location(), self.binary_fname))
+
         # Fill in the artifacts
         self.mark_all_artifacts_as_built()
 

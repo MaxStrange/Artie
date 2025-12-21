@@ -1,0 +1,13 @@
+name: artie-controller-node
+labels:
+  - yocto
+dependencies:
+  - yocto-controller-module: yocto-image
+artifacts: []
+type: flash
+steps:
+  - job: flash-yocto-image
+    yocto-image:
+      dependency:
+        name: yocto-image
+        producing-task: yocto-controller-module
