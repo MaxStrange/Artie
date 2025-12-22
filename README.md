@@ -1,7 +1,5 @@
 # Artie
 
-This repository contains the code for a robot that I am slowly working on.
-
 **This code is pre-release: you cannot yet build an Artie bot - not all of the software and hardware is ready!**
 
 The purpose of Artie is twofold: data collection and testing developmental robotics theories.
@@ -10,6 +8,8 @@ The vision is that Artie will be fully open source, 3D-printable, and as cheap a
 while still being easy to use and extend.
 
 ## Get Started
+
+**Looking for the contributing guide?** [See here](./CONTRIBUTING.md)
 
 Before you can use Artie, you need to build him.
 
@@ -38,7 +38,7 @@ The Artie ecosystem consists of the following:
     - *Drivers*: Applications that run on the SBCs and interface with hardware.
 * *Artie CLI*: The simplest way to control a physical Artie. Used mostly for testing.
 * *Artie Tool*: A single tool to flash, test, build, release, etc.
-* (Planned) *Artie Workbench*: A web app that allows an authenticated user to control and configure Artie.
+* *Artie Workbench*: A web app that allows an authenticated user to control and configure Artie.
 * (Planned) *Demo Stack*: A demo that uses traditional robotics algorithms to control Artie.
 * (Planned) *Reference Stack*: A reference implementation of developmental robotics theories used to control Artie.
 * (Planned) *Simulator*: A simulated environment and simulated Artie for training and testing without a physical bot.
@@ -69,23 +69,6 @@ There are three planned ways to deploy an Artie:
 **Note that since Artie is so early in development, none of these are viable options yet!**
 **Additionally, Edge is the highest priority for development, while the other options are ones I hope to get to, but may not.**
 
-## Architecture
-
-Here are a few links to architectural discussions:
-
-### Overviews
-
-* [Architecture Overview for the whole System](./docs/architecture/overview.md)
-* [Architecture Overview for the Robot Itself](./docs/architecture/artie-overview.md)
-* [Security Overview](./docs/architecture/security.md)
-
-### Low-Level
-
-* [CAN Protocols](./docs/sdk/CANProtocol.md) - We overlay several protocols on top of CAN. This document describes them in detail.
-* [MsgPack Schema](./docs/sdk/MsgPackSchema.md) - We use [MsgPack](https://msgpack.org/) for some of the serialization/deserialization.
-
-TODO: We should probably have a 1:1 mapping of Artie bots to Elasticsearch nodes.
-
 ## Motivation
 
 ### Why Developmental Robotics?
@@ -97,6 +80,9 @@ It is an important field of study for at least the following two reasons:
    of how a human develops than to try to build a human?
 1. Developmental robitics informs the study of artificial intelligence. Although not typically the main
    focus of developmental robotics, AI can benefit from any advances in our understanding of human intelligence.
+1. Developmental robotics informs the study of robotics. Building a robot always involves solving difficult
+   engineering problems. Building a robot that can learn and adapt like a human is even more difficult,
+   and any advances in this field will likely have applications in more traditional robotics or in soft robotics.
 
 Here's a great excerpt from Wikipedia:
 
@@ -134,8 +120,7 @@ interacting with them. Parents speak directly to their children using infant-dir
 Teenagers navigate social environments that are unique to their particular group of friends.
 Young adults take elective classes at university that are interesting to them.
 *An intelligent agent has an active, often causative relationship with the data from which it learns.*
-Hence, you need to place the subject into
-an environment to truly study the development of intelligence.
+Hence, you need to place the subject into an environment to truly study the development of natural intelligence.
 
 Also, robots are awesome!
 
