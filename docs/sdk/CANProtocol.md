@@ -94,7 +94,7 @@ layer for sending larger than 8-byte data.
 *ACK frame*:
 The data field should be identical to the ACK'ed MSG frame. If it is not, the sender should assume
 an error in transmission and retransmit the original MSG frame. If the ACK is not received
-by the MSG-sending node
+by the MSG-sending node... what happens? I wrote this 2 years ago and apparently never finished my sentence...
 
 ## Remote Procedure Call Artie CAN Protocol (RPCACP)
 
@@ -123,7 +123,7 @@ As in [RTACP](#rtacp-specification), we only care about ID, DLC, and Data fields
 [0xxx] - type of frame: 0x00: ACK, 0x01: NACK, 0x02: StartRPC, 0x03: StartReturn, 0x04: TxData, 0x05: RxData
 [pp] - 2 bits of user-assigned priority: LOW (11), MED-LOW (10), MED-HIGH (01), HIGH (00)
 [ssssss] - 6 bits of sender address, which must be unique among all nodes on the CAN bus
-[tttttt] - 6 bits of target address, 0x00 specifies broadcast
+[tttttt] - 6 bits of target address, 0x00 not allowed, as this is reserved for broadcast, which does not exist in this protocol
 [rrrr rrrr] - 8 bits of random value (explained in Data section below)
 ```
 

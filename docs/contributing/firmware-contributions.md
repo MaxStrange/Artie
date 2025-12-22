@@ -26,3 +26,21 @@ The Artie ecosystem should ideally have many different isolated, decoupled hardw
 that can be swapped in/out based on the needs of a particular experiment.
 
 ## Building the Firmware
+
+To build the firmware, use Artie Tool like this:
+
+`python artie-tool.py build <target> -e --docker-repo <target-repo> --docker-logs [--insecure] -o artie-tool-log.txt`
+
+This will run Artie Tool's build command over the given target task.
+
+If you examine the build task of choice, say fw-eyebrows,
+by opening [its task file](../../framework/artietool/tasks/build-tasks/fw/fw-eyebrows.yaml),
+you can see that it has one dependency (the 'pico-base-image' which is another build task), and
+two artifacts (the docker image and the FW files). It has two steps, a Docker build,
+which does the actual build, and a second step that transfers the built files from the image.
+
+## Source Code
+
+The source for the files for most firmware live in `artie-common/firmware/`, including common
+libraries. Firmware is mostly written in C and targets the Raspberry Pi Pico (the first generation,
+but we should probably upgrade at some point).
