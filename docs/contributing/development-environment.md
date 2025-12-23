@@ -15,7 +15,83 @@ If you develop software for Artie, you will need to build Docker images and push
 with astounding size and frequency. Using something like DockerHub is not typically feasible for fast iteration,
 as you will hit rate limiting unless you are paying for a plan.
 
-TODO: Describe setting this up, including super obnoxious errors involving insecure registries.
+There are myriad ways to set up a local registry, but they are almost all way too complicated and time consuming,
+involving nginx and TLS certs that you have to pay for.
+
+**If you are on an untrusted network, you have to deal with all of that.** There's no two ways around it.
+If you cannot be sure there is no man in the middle, then you should follow one of the many tutorials
+or official guides out there for setting up a Docker registry.
+
+If however, you are on your own local network in your own home, you can probably get away with going
+the insecure route. To do it, follow these steps:
+
+1. Procure a Raspberry Pi or similar.
+1. Procure a big ol' SSD.
+1. Mount the SSD permenantly (e.g., `lsblk` then edit `/etc/fstab` with the information).
+1. Make a directory: `mkdir docker-registry`
+1. Change into that directory: `cd docker-registry`
+1. `mkdir certs`
+1. Create a self-signed cert, good for 10 years (here this machine is called artiehub, but you should use whatever your machine's hostname is):
+    ```bash
+    openssl req -newkey rsa:4096 -nodes -sha256 -keyout certs/domain.key \
+      -addext "subjectAltName = DNS:artiehub" \
+      -x509 -days 3650 -out certs/domain.crt`
+    ```
+1. Create a Docker registry configuration file called config.yml:
+    ```yaml
+    version: 0.1
+    log:
+      level: info
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: inmemory
+      filesystem:
+        rootdirectory: /var/lib/registry
+      delete:
+        enabled: true
+    http:
+      addr: :5000
+      headers:
+        X-Content-Type-Options: [nosniff]
+      http2:
+        disabled: false
+      draintimeout: 60s
+      maxrequestbytes: 10485760 # 10 MB
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    ```
+1. Create a script called run-docker-registry.sh:
+    ```bash
+    docker run --detach \
+      -p 5000:5000 \
+      --restart=always \
+      --name registry \
+      -e OTEL_SDK_DISABLED=true \
+      -e OTEL_TRACES_EXPORTER=none \
+      -e REGISTRY_HTTP_ADDR=0.0.0.0:5000 \
+      -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+      -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+      -v <path you mounted the drive on the machine>:/var/lib/registry \
+      -v <path to this directory>/config.yml:/etc/docker/registry/config.yml \
+      -v <path to this directory>/certs:/certs \
+      registry:3
+    ```
+1. Make the script executable and run it: `chmod +x ./run-docker-registry.sh`, then `./run-docker-registry.sh`.
+
+I think that's good enough to cause Docker to start the registry every time the machine boots up, but I don't remember.
+
+Anyway, you will want to make sure you:
+
+1. Update your /etc/hosts file (or equivalent on Windows: TODO) to include the name of your registry:
+   e.g., `10.0.0.251  artiehub`
+1. Update your Docker config JSON with `"insecure-registries": ["artiehub:5000]`
+1. Make sure to pass `--insecure` with any Artie Tool command that makes use of the Docker registry.
+
 
 ## Working with Artie Tool
 

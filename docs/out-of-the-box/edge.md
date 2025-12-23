@@ -22,7 +22,14 @@ Under this model of deployment:
     - [Kubectl](https://kubernetes.io/docs/tasks/tools/) - v1.32
     - [Helm](https://helm.sh/docs/intro/quickstart/) - 4.0 (don't install Kubernetes separately - Artie comes prepackaged with it)
     - If you haven't already, make sure to install the Python dependencies for Artie Tool after cloning this repo:
-      `pip install -r requirements.txt` from the 'framework' directory of the repo.
+      `pip install -r requirements.txt` from the 'framework' directory of the repo. **See the [Note on Python Installation](#note-on-python-installation)**
+      if you are running Linux.
+
+**NOTE** On your development machine, in addition to Docker, you will also need
+to deal with Qemu:
+
+* If you are on Ubuntu: `sudo apt install qemu-user-static`
+* If you are on Windows: `docker run --privileged --rm tonistiigi/binfmt --install all` then `docker run --rm --privileged multiarch/qemu-user-static --reset -p yes -c yes` (you may have to do this every time you boot up Docker Desktop or whatever).
 
 ## Turn Artie on for the First Time
 
@@ -119,3 +126,20 @@ To update the images used in your Artie deployment, you can run:
 
 1. `python artie-tool.py deploy base --delete`
 1. `python artie-tool.py deploy base --chart-version <tag> [--deployment-repo <repo>]`
+
+## Note on Python Installation
+
+If you are running Windows, it is easy to install Python and then pip install various requirements.
+If you are running Linux on the other hand, Python has been absorbed into the system package manager
+and trying to actually use it for development can be quite a headache.
+
+If you are running Linux, I personally do the following:
+
+1. Download a release of Python's **source**: https://www.python.org/downloads/source/
+1. Unzip it wherever and change directories into it.
+1. Install dependencies: https://devguide.python.org/getting-started/setup-building/index.html#install-dependencies
+   Don't forget the optional dependencies.
+1. `./configure --enable-optimizations --with-lto=full --with-pydebug`
+1. `make -s -j$(nproc)`
+1. `make altinstall` **This is critical** - do NOT just do the normal 'make install'
+1. Now install packages by means of the alternate installed pip: `python3.14 -m pip install foo` (for example).
