@@ -21,6 +21,12 @@ cli-args:
   - name: --skip-clone
     action: store_true
     help: "If set, skip cloning the repository. If the repository already exists and this is NOT passed, an error will be raised."
+  - name: --yocto-hosts
+    default: ""
+    help: "If given, should be a comma-separated list of items of the form 'host-name:address' to add to the /etc/hosts file on the Yocto image."
+  - name: --yocto-insecure-registries
+    default: ""
+    help: "If given, should be a comma-separated list of host names or addresses to add to the Docker configuration file as insecure registries."
 type: build
 steps:
   - job: yocto-build
@@ -44,7 +50,6 @@ steps:
           url: https://git.yoctoproject.org/git/meta-virtualization
           tag: scarthgap
     setup-script:
-      # TODO: Add an argument for this script to set the hosts and docker files correctly
       script-path: ./setup.sh
     build-cmd: |
       source poky/oe-init-build-env "$PWD"/build && bitbake ${YOCTO_IMAGE}
