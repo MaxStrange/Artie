@@ -5,6 +5,7 @@ from . import docker_build_job
 from . import docker_compose_test_suite_job
 from . import docker_manifest_job
 from . import file_transfer_from_container_job
+from . import flash_yocto_image_job
 from . import hardware_test_job
 from . import scriptdefs
 from . import single_container_cli_suite_job
@@ -415,6 +416,31 @@ def _import_build_task(header: TaskHeader, steps_configs: List[Dict], fpath: str
         cli_args=header.cli_args
     )
 
+def _import_yocto_flash_job(job_def: Dict, fpath: str, header: TaskHeader) -> flash_yocto_image_job.FlashYoctoImageJob:
+    _validate_dict(job_def, 'yocto-image', keyerrmsg=f"Could not find 'yocto-image' section in 'yocto-flash' job in {fpath}")
+    yocto_image_dep = job_def['yocto-image']
+    yocto_image_dependency = _import_single_dependency(yocto_image_dep, fpath) if type(yocto_image_dep) == dict else _replace_variables(yocto_image_dep, fpath)
+    return flash_yocto_image_job.FlashYoctoImageJob(image=yocto_image_dependency)
+
+def _import_flash_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.FlashTask:
+    jobs = []
+    for job_def in steps_configs:
+        _validate_dict(job_def, 'job', keyerrmsg=f"No 'job' key found in job description in 'steps' section of {fpath}")
+        match job_def['job']:
+            case 'flash-yocto-image':
+                jobs.append(_import_yocto_flash_job(job_def, fpath, header))
+            case _:
+                raise ValueError(f"Unrecognized 'job' type: '{job_def['job']}' in {fpath}")
+
+    return task.FlashTask(
+        name=header.task_name,
+        labels=header.labels,
+        dependencies=header.dependencies,
+        artifacts=header.artifacts,
+        jobs=jobs,
+        cli_args=header.cli_args
+    )
+
 def _import_sanity_test_job(job_def: Dict, fpath: str) -> single_container_sanity_suite_job.SingleContainerSanitySuiteJob:
     _validate_dict(job_def, 'steps', keyerrmsg=f"Missing 'steps' section in 'single-container-sanity-suite' definition in {fpath}")
     sanity_test_steps = []
@@ -616,7 +642,7 @@ def _import_task(fpath: str) -> task.Task:
             case TaskTypes.TEST:
                 return _import_test_task(task_header, task_config['steps'], fpath)
             case TaskTypes.FLASH:
-                raise NotImplementedError("Have not implemented flash tasks yet")
+                return _import_flash_task(task_header, task_config['steps'], fpath)
             case TaskTypes.RELEASE:
                 raise NotImplementedError("Have not implemented release tasks yet")
             case TaskTypes.DEPLOY:

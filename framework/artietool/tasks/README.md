@@ -9,6 +9,7 @@ labels:
 dependencies:
     - fw-eyebrows: fw-files
     - artie-base-image: docker-image
+cli-args: []
 artifacts:
     - name: docker-image
       type: docker-image
@@ -316,7 +317,25 @@ All hardware tests selected by the user are collected and run in a single Kubern
 
 ## Flash
 
-This specification is not yet implemented.
+All flash tasks start with:
+
+- *name*: Same as for [build](#build)
+- *labels*: Same as for [build](#build)
+- *dependencies*: Same as for [build](#build)
+- *cli-args*: Same as for [build](#build)
+- *type*: flash
+- *steps*: A list of `job` items, each of which must be one of the following:
+    * [yocto-flash](#yocto-flash-job)
+
+CLI arguments:
+
+- *--device*: (Required) The path to the device (e.g., /dev/sdX) to flash the Yocto image onto.
+
+### Yocto Flash Job
+
+- *job*: yocto-flash; This flashes a Yocto image onto a given device (typically an SD card).
+- *image*: A `dependency` item that produces a `yocto-image` artifact
+           OR a hard-coded path to a Yocto image file, which may be either absolute or relative to the root of the Artie repository.
 
 ## Deploy
 

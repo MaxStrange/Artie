@@ -180,3 +180,9 @@ class BuildTask(Task):
     A BuildTask is a Task that builds something and is invoked by the CLI's 'build' module.
     """
     pass
+
+class FlashTask(Task):
+    """
+    A FlashTask is a Task that flashes something onto a device and is invoked by the CLI's 'flash' module.
+    """
+    pass
