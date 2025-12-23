@@ -3,6 +3,10 @@ labels:
   - yocto
 dependencies:
   - yocto-controller-module: yocto-image
+cli-args:
+  - name: --device
+    required: true
+    help: "Path to the device (e.g., /dev/sdX) to flash the Yocto image onto."
 artifacts: []
 type: flash
 steps:
