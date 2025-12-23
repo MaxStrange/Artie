@@ -31,8 +31,8 @@ commands:
       - run:
           name: Install Python Requirements
           command: |
-            pip install framework/libraries/artie-tooling
-            pip install -r framework/requirements.txt
+            pip install -r ./requirements.txt
+          working_directory: framework
       - run:
           name: Start D-Bus
           command: |
