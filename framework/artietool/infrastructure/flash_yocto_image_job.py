@@ -29,7 +29,7 @@ class FlashYoctoImageJob(job.Job):
             return result.JobResult(name=self.name, success=False, error=e)
 
         device_path = args.device  # Device path passed as an argument
-        yocto_image_path = self.image.evaluate() if issubclass(type(self.image), dependency.Dependency) else self.image
+        yocto_image_path = self.image.evaluate(args).item if issubclass(type(self.image), dependency.Dependency) else self.image
 
         if not os.path.exists(yocto_image_path):
             raise FileNotFoundError(f"Yocto image not found at {yocto_image_path}")

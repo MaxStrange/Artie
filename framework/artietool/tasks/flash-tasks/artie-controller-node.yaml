@@ -7,6 +7,12 @@ cli-args:
   - name: --device
     required: true
     help: "Path to the device (e.g., /dev/sdX) to flash the Yocto image onto."
+  - name: --yocto-image
+    required: true
+    choices:
+      - artie-image-dev
+      - artie-image-release
+    help: "The Yocto image to flash onto the device."
 artifacts: []
 type: flash
 steps:

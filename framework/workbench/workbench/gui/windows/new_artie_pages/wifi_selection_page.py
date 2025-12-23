@@ -68,7 +68,6 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         self._scanning_thread.start()
         
         # TODO: Implement actual network scanning via serial connection
-        # TODO: Scan and set using nmcli on the target
         # For now, add some dummy networks
         QtCore.QTimer.singleShot(1000, self._populate_dummy_networks)
 
