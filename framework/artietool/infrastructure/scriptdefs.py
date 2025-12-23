@@ -50,7 +50,7 @@ class ScriptDefinition:
 
         self.args = filled_args
 
-    def run_script(self, runtime_args: argparse.Namespace, *args, **kwargs) -> subprocess.CompletedProcess:
+    def run_script(self, runtime_args: argparse.Namespace, additional_args: list[str]|None, *args, **kwargs) -> subprocess.CompletedProcess:
         """
         Runs the script defined by this `ScriptDefinition` by passing its contents to a shell,
         along with any other arguments provided. The given arguments should be appropriate for subprocess.run().
@@ -59,13 +59,13 @@ class ScriptDefinition:
         """
         if self.is_inline():
             cmd = common.replace_vars_in_string(self.inline_script, runtime_args)
-            return self._run_inline_script(cmd, *args, **kwargs)
+            return self._run_inline_script(cmd, additional_args, *args, **kwargs)
         elif self.is_file():
-            return self._run_file_script(self.script_path, *args, **kwargs)
+            return self._run_file_script(self.script_path, additional_args, *args, **kwargs)
         else:
             raise ValueError("ScriptDefinition must have either inline_script or script_path defined.")
 
-    def _run_inline_script(self, script: str, *args, **kwargs) -> subprocess.CompletedProcess:
+    def _run_inline_script(self, script: str, additional_args: list[str]|None, *args, **kwargs) -> subprocess.CompletedProcess:
         """
         Run the inline script by writing it to a temporary file and executing it along with any args.
         """
@@ -80,9 +80,9 @@ class ScriptDefinition:
             os.chmod(fpath, 0o755)
 
             # Now run it
-            return self._run_file_script(fpath, *args, **kwargs)
+            return self._run_file_script(fpath, additional_args, *args, **kwargs)
 
-    def _run_file_script(self, fpath: str, *args, **kwargs) -> subprocess.CompletedProcess:
+    def _run_file_script(self, fpath: str, additional_args: list[str]|None, *args, **kwargs) -> subprocess.CompletedProcess:
         """
         Run the script from file along with any potential args we have.
         """
@@ -99,7 +99,12 @@ class ScriptDefinition:
                     for key, value in arg.items():
                         cmd.append(f"--{key}")
                         cmd.append(f"{value}")
+
+        # Add any additional args
+        cmd += additional_args if additional_args else []
+
         try:
+            common.info(f"Running script: {cmd}")
             return subprocess.run(cmd, *args, **kwargs)
         except OSError:
             # Possibly the file needs to be run under a shell

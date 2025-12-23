@@ -112,19 +112,19 @@ class YoctoBuildJob(job.Job):
 
         # Run the setup script
         common.info(f"Running Yocto setup script...")
-        setup_result = self.setup_script.run_script(args, cwd=git_repo_location, args=["--insecure-registries", ','.join(args.yocto_insecure_registries), "--hosts", ','.join([f"{addr}  {host}" for addr, host in args.yocto_hosts.items()])])
+        setup_result = self.setup_script.run_script(args, additional_args=["--insecure-registries", ','.join(args.yocto_insecure_registries), "--hosts", ','.join([f"{addr}  {host}" for addr, host in args.yocto_hosts.items()])], cwd=git_repo_location)
         if not setup_result.returncode == 0:
             return result.JobResult(name=self.name, success=False, error=OSError(f"Yocto setup script failed with return code {setup_result.returncode}. Stdout: {setup_result.stdout}; Stderr: {setup_result.stderr}."))
 
         # Run the build command
         common.info(f"Running Yocto build command...")
-        build_result = self.build_cmd.run_script(args, cwd=git_repo_location)
+        build_result = self.build_cmd.run_script(args, additional_args=[], cwd=git_repo_location)
         if not build_result.returncode == 0:
             return result.JobResult(name=self.name, success=False, error=OSError(f"Yocto build command failed with return code {build_result.returncode}. Stdout: {build_result.stdout}; Stderr: {build_result.stderr}."))
 
         # Run the post-build script
         common.info(f"Running Yocto post-build script...")
-        post_result = self.post_script.run_script(args, cwd=git_repo_location)
+        post_result = self.post_script.run_script(args, additional_args=[], cwd=git_repo_location)
         if not post_result.returncode == 0:
             return result.JobResult(name=self.name, success=False, error=OSError(f"Yocto post-build script failed with return code {post_result.returncode}. Stdout: {post_result.stdout}; Stderr: {post_result.stderr}."))
 
