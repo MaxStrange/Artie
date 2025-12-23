@@ -183,6 +183,10 @@ CLI arguments:
 - *--repo-branch*: (Optional, default 'main') The branch of the repository to clone.
 - *--skip-clone*: (Optional, default False) If set, skip cloning the repository. If the repository already exists and this
                   is NOT passed, an error will be raised to prevent overwriting existing work.
+- *--yocto-hosts*: (Optional, default {}) If given, should be a comma-separated list of items of the form "host-name:host-address".
+                  These items will be added to the Yocto image's /etc/hosts file.
+- *--yocto-insecure-registries*: (Optional, default []) If given, should be a comma-separated list of insecure Docker registries
+                                 that will end up in the Docker configuration file on the target image.
 
 ### Docker Manifest
 

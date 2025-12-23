@@ -52,6 +52,16 @@ class YoctoBuildJob(job.Job):
         if not hasattr(args, 'repo_branch') or args.repo_branch is None:
             args.repo_branch = 'main'
 
+        if not hasattr(args, 'yocto_hosts') or args.yocto_hosts is None:
+            args.yocto_hosts = {}
+        else:
+            args.yocto_hosts = self._parse_yocto_hosts(args.yocto_hosts)
+
+        if not hasattr(args, 'yocto_insecure_registries') or args.yocto_insecure_registries is None:
+            args.yocto_insecure_registries = []
+        else:
+            args.yocto_insecure_registries = args.yocto_insecure_registries.split(',')
+
         # Now that we have runtime arguments, we can replace variables in places that need it
         self.binary_fname = common.replace_vars_in_string(self.binary_fname, args)
         self.setup_script.fill_in_args(args)
@@ -100,10 +110,9 @@ class YoctoBuildJob(job.Job):
             # Now create our own branch for modifications
             subprocess.run([f"git", "checkout", "-b", f"{layer.tag}-local"], cwd=layer_path).check_returncode()
 
-
         # Run the setup script
         common.info(f"Running Yocto setup script...")
-        setup_result = self.setup_script.run_script(args, cwd=git_repo_location)
+        setup_result = self.setup_script.run_script(args, cwd=git_repo_location, args=["--insecure-registries", ','.join(args.yocto_insecure_registries), "--hosts", ','.join([f"{addr}  {host}" for addr, host in args.yocto_hosts.items()])])
         if not setup_result.returncode == 0:
             return result.JobResult(name=self.name, success=False, error=OSError(f"Yocto setup script failed with return code {setup_result.returncode}. Stdout: {setup_result.stdout}; Stderr: {setup_result.stderr}."))
 
@@ -130,3 +139,22 @@ class YoctoBuildJob(job.Job):
 
     def clean(self, args):
         super().clean(args)
+
+    def _parse_yocto_hosts(self, s: str) -> dict[str, str]:
+        """
+        Parse the given string `s` into a dictionary of the form
+        address: host name.
+
+        `s` should be a comma-separated list of items of the form address:host.
+        """
+        hosts = {}
+
+        items = s.split(',')
+        for item in items:
+            parts = item.split(':')
+            if len(parts) != 2:
+                raise ValueError(f"Invalid yocto host specification: {item}. Expected format is address:host.")
+            address, host = parts
+            hosts[address] = host
+
+        return hosts
