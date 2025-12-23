@@ -72,7 +72,7 @@ class YoctoImageArtifact(Artifact):
         if not hasattr(producing_job, 'binary_fname'):
             raise ValueError(f"YoctoImageArtifact is trying to configure itself, but its producing job does not have a 'binary_fname' attribute, so we don't know where to find the resulting Yocto image binary. Artifact: {self}; Producing Job: {producing_job}")
 
-        fname_as_path = pathlib.Path(producing_job.binary_fname)
+        fname_as_path = pathlib.Path(common.replace_vars_in_string(producing_job.binary_fname, args, incomplete_ok=True))
         self.item = os.path.join(args.artifact_folder, fname_as_path.name)
 
     def mark_if_cached(self, args):

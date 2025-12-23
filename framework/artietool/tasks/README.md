@@ -330,6 +330,10 @@ All flash tasks start with:
 CLI arguments:
 
 - *--device*: (Required) The path to the device (e.g., /dev/sdX) to flash the Yocto image onto.
+- *--yocto-image*: The image target to use. This should match the name of a Yocto image
+                   produced by a dependency task. If `image` is a hard-coded path,
+                   this argument is ignored (but is still required due to parsing the dependency task).
+
 
 ### Yocto Flash Job
 
