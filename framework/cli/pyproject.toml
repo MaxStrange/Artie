@@ -12,6 +12,7 @@ dependencies = [
     "requests<2.29.0",
     "artie-tooling>=0.0.1",
     "urllib3<2.0.0",
+    "requests>=2.28.0",
 ]
 
 [project.optional-dependencies]

@@ -42,11 +42,7 @@ class ArtieSerialConnection:
     def open(self):
         """Open the underlying connection."""
         if self.port:
-            self._serial_connection = serial.Serial(
-                port=self.port,
-                baudrate=self.baudrate,
-                timeout=self.timeout
-            )
+            self._serial_connection = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
 
     def reset(self):
         """Close and re-open the connection."""

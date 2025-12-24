@@ -1,5 +1,6 @@
 from artie_tooling import artie_profile
 from PyQt6 import QtWidgets
+from ... import colors
 
 class NamePage(QtWidgets.QWizardPage):
     """Page for naming the Artie"""
@@ -7,8 +8,8 @@ class NamePage(QtWidgets.QWizardPage):
     def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
         self.config = config
-        self.setTitle("Name Your Artie")
-        self.setSubTitle("Give this Artie a unique, memorable name.")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Name Your Artie</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Give this Artie a unique, memorable name.</span>")
         
         layout = QtWidgets.QVBoxLayout(self)
         

@@ -1,6 +1,7 @@
 from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
 from comms import artie_serial
+from ... import colors
 
 
 class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
@@ -9,8 +10,8 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
     def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
         self.config = config
-        self.setTitle("Verifying WiFi Connection")
-        self.setSubTitle("Checking that Artie can connect to the selected network...")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Verifying WiFi Connection</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Checking that Artie can connect to the selected network...</span>")
         self.setCommitPage(True)
         
         layout = QtWidgets.QVBoxLayout(self)

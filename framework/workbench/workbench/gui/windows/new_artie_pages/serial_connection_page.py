@@ -1,5 +1,6 @@
 from PyQt6 import QtWidgets, QtCore
 from comms import artie_serial
+from ... import colors
 
 class SerialConnectionPage(QtWidgets.QWizardPage):
     """Page prompting user to connect serial USB cable"""
@@ -9,8 +10,8 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
     
     def __init__(self):
         super().__init__()
-        self.setTitle("Connect Serial Port USB")
-        self.setSubTitle("Please connect Artie's serial port USB cable and select the port.")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Connect Serial Port USB</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Please connect Artie's serial port USB cable and select the port.</span>")
         
         layout = QtWidgets.QVBoxLayout(self)
         
@@ -54,14 +55,20 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
         layout.addWidget(port_group)
         
         layout.addStretch()
+
+        # We are not complete until a valid port is selected
+        self._complete = False
+
+        # If the selected port changes, inform the wizard to re-check completeness
+        self.port_combo.currentIndexChanged.connect(self.isComplete)
         
         # Populate ports on initialization
         self._refresh_ports()
 
         # Set the chosen port as a QWizard 'field', which allows other pages
         # in the wizard access to its value.
-        # The asterisk marks this field as mandatory.
-        self.registerField('serial.port*', self.port_combo)
+        self.registerField('serial.port', self.port_combo, 'currentText')
+        self.isComplete()
     
     def _refresh_ports(self):
         """Refresh the list of available serial ports"""
@@ -74,6 +81,29 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
         else:
             self.port_combo.addItem(self._NO_PORTS_FOUND_TEXT)
             self.port_combo.setEnabled(False)
+
+    def isComplete(self):
+        """Check if a valid port is selected to enable Next button"""
+        # If there are no ports, we are not complete
+        if self.port_combo.count() == 0 or not self.port_combo.isEnabled():
+            if self._complete:
+                self._complete = False
+                self.completeChanged.emit()
+            return False
+        
+        # If the "No ports found" text is selected, we are not complete
+        selected_port = self.port_combo.currentText()
+        if selected_port == self._NO_PORTS_FOUND_TEXT:
+            if self._complete:
+                self._complete = False
+                self.completeChanged.emit()
+            return False
+        
+        # Otherwise, we are complete
+        if not self._complete:
+            self._complete = True
+            self.completeChanged.emit()
+        return True
     
     def validatePage(self):
         """Validate that a port is selected"""

@@ -1,5 +1,6 @@
 from PyQt6 import QtWidgets, QtCore
 from comms import tool
+from ... import colors
 
 class TestPage(QtWidgets.QWizardPage):
     """Page that runs the artie-tool.py test all-hw command"""
@@ -8,8 +9,8 @@ class TestPage(QtWidgets.QWizardPage):
         super().__init__()
         self.config = config
         self._artie_tool = tool.ArtieToolInvoker(self.config)
-        self.setTitle("Testing Hardware")
-        self.setSubTitle("Running hardware tests...")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Testing Hardware</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Running hardware tests...</span>")
         self.setCommitPage(True)
         
         layout = QtWidgets.QVBoxLayout(self)

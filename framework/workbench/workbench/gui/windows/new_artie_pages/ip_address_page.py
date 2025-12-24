@@ -1,6 +1,7 @@
 from artie_tooling import artie_profile
 from PyQt6 import QtWidgets
 import re
+from ... import colors
 
 class IPAddressPage(QtWidgets.QWizardPage):
     """Page for collecting the IP address"""
@@ -8,8 +9,8 @@ class IPAddressPage(QtWidgets.QWizardPage):
     def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
         self.config = config
-        self.setTitle("Network Configuration")
-        self.setSubTitle("Enter the IP address for the admin server.")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Network Configuration</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Enter the IP address for the admin server.</span>")
         
         layout = QtWidgets.QFormLayout(self)
         

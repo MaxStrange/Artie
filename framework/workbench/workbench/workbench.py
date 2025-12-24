@@ -3,8 +3,8 @@ This module contains the code for Artie Workbench,
 a graphical user interface for interacting with, setting up, and monitoring Artie robots.
 """
 from .model import settings
+from .gui import colors
 from PyQt6 import QtWidgets
-import pathlib
 import sys
 import os
 
@@ -14,13 +14,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gui.windows.main_window import MainWindow
 
 def load_stylesheet(app):
-    """Load and apply the Qt Green stylesheet"""
-    stylesheet_path = pathlib.Path(__file__).parent / "stylesheets" / "qt_green.qss"
+    """Load and apply the Qt Green stylesheet from colors.py"""
     try:
-        with open(stylesheet_path, 'r') as f:
-            app.setStyleSheet(f.read())
+        stylesheet = colors.generate_full_stylesheet()
+        app.setStyleSheet(stylesheet)
     except Exception as e:
-        print(f"Warning: Could not load stylesheet: {e}")
+        print(f"Warning: Could not generate stylesheet: {e}")
 
 def main():
     """

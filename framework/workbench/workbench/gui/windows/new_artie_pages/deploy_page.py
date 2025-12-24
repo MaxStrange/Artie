@@ -1,5 +1,6 @@
 from PyQt6 import QtWidgets, QtCore
 from comms import tool
+from ... import colors
 
 class DeployPage(QtWidgets.QWizardPage):
     """Page that runs the artie-tool.py deploy base command"""
@@ -8,8 +9,8 @@ class DeployPage(QtWidgets.QWizardPage):
         super().__init__()
         self.config = config
         self._artie_tool = tool.ArtieToolInvoker(self.config)
-        self.setTitle("Deploying Base Configuration")
-        self.setSubTitle("Running deployment script...")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Deploying Base Configuration</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Running deployment script...</span>")
         self.setCommitPage(True)
         
         layout = QtWidgets.QVBoxLayout(self)

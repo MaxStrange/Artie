@@ -32,7 +32,7 @@ just good software engineering principles):
   decoupled. It is hard to know ahead of time what capabilities a future Artie might need, so modularity is key.
 - **Extensibility**: Ensure that new features and functionalities can be added without major overhauls to the existing system.
 - **Usability**: Prioritize ease of use for both developers and end-users. Clear documentation is important.
-- **Open Source**: The licensing model for Artie is MIT or software, except for Workbench, which requires GPLv3 due to
+- **Open Source**: The licensing model for Artie is MIT or software, except for Workbench, which requires LGPLv3 due to
   its use of Qt. Any contributions must be compatible with these licenses. Hardware is licensed under CERN-OHL-P. Yocto
   images are licensed as Linux images, with all kinds of licenses for different components,
   see the [Yocto documentation](https://docs.yoctoproject.org/next/overview-manual/development-environment.html#licensing) for details.

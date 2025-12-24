@@ -10,6 +10,7 @@ setup(
         "requests<2.29.0",
         "urllib3<2.0.0",
         "artie-tooling>=0.0.1",
+        "requests>=2.28.0",
     ],
     extras_require={
         "remote": [

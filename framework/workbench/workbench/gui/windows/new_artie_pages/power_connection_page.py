@@ -1,12 +1,13 @@
 from PyQt6 import QtWidgets, QtCore
+from ... import colors
 
 class PowerConnectionPage(QtWidgets.QWizardPage):
     """Page prompting user to connect power cable"""
     
     def __init__(self):
         super().__init__()
-        self.setTitle("Connect Power Cable")
-        self.setSubTitle("Please connect Artie's power cable before proceeding.")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Connect Power Cable</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Please connect Artie's power cable before proceeding.</span>")
         
         layout = QtWidgets.QVBoxLayout(self)
         

@@ -1,13 +1,14 @@
 from artie_tooling import artie_profile
 from PyQt6 import QtWidgets, QtCore
+from ... import colors
 
 class CompletePage(QtWidgets.QWizardPage):
     """Final completion page"""
     
     def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
-        self.setTitle("Setup Complete!")
-        self.setSubTitle("Your Artie has been successfully configured and is ready to use.")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Setup Complete!</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Your Artie has been successfully configured and is ready to use.</span>")
 
         layout = QtWidgets.QVBoxLayout(self)
 

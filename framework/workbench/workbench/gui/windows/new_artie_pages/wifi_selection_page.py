@@ -1,6 +1,7 @@
 from PyQt6 import QtWidgets, QtCore
 from comms import artie_serial
 import threading
+from ... import colors
 
 class WiFiSelectionPage(QtWidgets.QWizardPage):
     """Page for selecting WiFi network and entering credentials"""
@@ -8,8 +9,8 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
     def __init__(self):
         super().__init__()
         self._scanning_thread = threading.Thread(target=self._get_networks, name='scanning thread', daemon=True)
-        self.setTitle("Configure WiFi")
-        self.setSubTitle("Select a WiFi network for Artie to connect to.")
+        self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Configure WiFi</span>")
+        self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Select a WiFi network for Artie to connect to.</span>")
         
         layout = QtWidgets.QVBoxLayout(self)
         
@@ -66,10 +67,6 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         # find the Wifi networks that Artie has access to and populate
         # them in the network list.
         self._scanning_thread.start()
-        
-        # TODO: Implement actual network scanning via serial connection
-        # For now, add some dummy networks
-        QtCore.QTimer.singleShot(1000, self._populate_dummy_networks)
 
     def _get_networks(self):
         """This is the thread target for the scanning button."""
