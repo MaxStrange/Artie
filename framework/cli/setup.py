@@ -8,6 +8,8 @@ setup(
     license="MIT",
     install_requires=[
         "requests<2.29.0",
+        "urllib3<2.0.0",
+        "artie-tooling>=0.0.1",
     ],
     extras_require={
         "remote": [
