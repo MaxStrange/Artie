@@ -45,7 +45,7 @@ class NewArtieWizard(QtWidgets.QWizard):
         self.setPage(PageID.POWER, power_connection_page.PowerConnectionPage())
         self.setPage(PageID.SERIAL, serial_connection_page.SerialConnectionPage())
         self.setPage(PageID.CREDENTIALS, credentials_page.CredentialsPage(self.artie_config))
-        self.setPage(PageID.WIFI, wifi_selection_page.WiFiSelectionPage())
+        self.setPage(PageID.WIFI, wifi_selection_page.WiFiSelectionPage(self.artie_config))
         self.setPage(PageID.CHECK_WIFI_CONNECTION, wifi_check_connection_page.WiFiCheckConnectionPage(self.artie_config))
         self.setPage(PageID.IP_ADDRESS, ip_address_page.IPAddressPage(self.artie_config))
         self.setPage(PageID.NAME, name_page.NamePage(self.artie_config))

@@ -1,13 +1,17 @@
 from PyQt6 import QtWidgets, QtCore
+from artie_tooling import artie_profile
 from comms import artie_serial
+from util import log
 import threading
 from ... import colors
 
 class WiFiSelectionPage(QtWidgets.QWizardPage):
     """Page for selecting WiFi network and entering credentials"""
     
-    def __init__(self):
+    def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
+        self.config = config
+
         self._scanning_thread = threading.Thread(target=self._get_networks, name='scanning thread', daemon=True)
         self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Configure WiFi</span>")
         self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Select a WiFi network for Artie to connect to.</span>")
@@ -18,9 +22,10 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         network_label = QtWidgets.QLabel("Available Networks:")
         layout.addWidget(network_label)
         
-        self.network_list = QtWidgets.QListWidget()
-        self.network_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-        layout.addWidget(self.network_list)
+        self.network_table = QtWidgets.QTableWidget()
+        self.network_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.network_table.setHorizontalHeaderLabels(["SSID", "Signal Level", "BSSID"])
+        layout.addWidget(self.network_table)
         
         # Scan button
         scan_layout = QtWidgets.QHBoxLayout()
@@ -48,7 +53,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         layout.addWidget(credentials_group)
         
         # Connect list selection to SSID field
-        self.network_list.itemSelectionChanged.connect(self._on_network_selected)
+        self.network_table.itemSelectionChanged.connect(self._on_network_selected)
         
         # Note
         note_label = QtWidgets.QLabel("<i>Note: WiFi credentials are stored on Artie's OS, not in the Workbench.</i>")
@@ -63,7 +68,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
             return
 
         self._scanning_thread = threading.Thread(target=self._get_networks, name='scanning thread', daemon=True)
-        self.network_list.clear()
+        self.network_table.clear()
         self.scan_button.setEnabled(False)
         self.scan_button.setText("Scanning...")
 
@@ -77,18 +82,23 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
             err, wifi_networks = connection.scan_for_wifi_networks()
             if err:
-                QtWidgets.QMessageBox.critical(self, "Error Setting Credentials", f"An error occurred while setting credentials: {err}. Try submitting again.")
+                QtWidgets.QMessageBox.critical(self, "Error Scanning Networks", f"An error occurred while scanning for networks: {err}. Try scanning again.")
                 return
 
+        log.debug(f"Found {len(wifi_networks)} WiFi networks.")
         for network in wifi_networks:
-            self.network_list.addItem(network)
+            row_position = self.network_table.rowCount()
+            self.network_table.insertRow(row_position)
+            self.network_table.setItem(row_position, 0, QtWidgets.QTableWidgetItem(network.ssid))
+            self.network_table.setItem(row_position, 1, QtWidgets.QTableWidgetItem(str(network.signal_level)))
+            self.network_table.setItem(row_position, 2, QtWidgets.QTableWidgetItem(network.bssid))
 
         self.scan_button.setEnabled(True)
         self.scan_button.setText("Scan for Networks")
     
     def _on_network_selected(self):
         """Update SSID field when network is selected"""
-        selected_items = self.network_list.selectedItems()
+        selected_items = self.network_table.selectedItems()
         if selected_items:
             self.ssid_input.setText(selected_items[0].text())
     
@@ -106,7 +116,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
             return False
         
         # Store WiFi credentials on Artie
-        # TODO: Decide how to handle the option to use static IP
+        # TODO: Add option for static IP to the GUI, then pass the settings here
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
             err = connection.select_wifi(ssid, password)
             if err:

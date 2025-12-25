@@ -16,7 +16,7 @@ def initialize_logger(level: int = logging.DEBUG, fpath: str = None) -> logging.
     ch.setLevel(level)
    
     # Create formatter and add it to the handler
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('[%(asctime)s:%(name)s:%(levelname)s]>%(message)s')
     ch.setFormatter(formatter)
     
     # Add the handler to the logger
