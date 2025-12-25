@@ -17,7 +17,6 @@ class NamePage(QtWidgets.QWizardPage):
         form_layout = QtWidgets.QFormLayout()
         self.name_input = QtWidgets.QLineEdit()
         self.name_input.setPlaceholderText("e.g., Artie-Lab-01")
-        self.registerField("artie_name*", self.name_input)
         form_layout.addRow("Artie Name:", self.name_input)
         layout.addLayout(form_layout)
         

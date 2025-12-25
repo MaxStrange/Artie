@@ -64,8 +64,8 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         self.progress.setRange(0, 0)  # Indeterminate
         
         # Log WiFi details
-        self.details_text.append(f"Network SSID: {self.config.get('wifi_ssid', 'N/A')}")
-        self.details_text.append(f"Artie IP: {self.config.get('artie_ip', 'N/A')}\n")
+        self.details_text.append(f"Network SSID: {self.field('wifi.ssid')}\n")
+        self.details_text.append(f"Artie IP: {self.config.controller_node_ip}\n")
         
         QtCore.QTimer.singleShot(500, self._verify_connection)
     
@@ -77,7 +77,7 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
             err = connection.verify_wifi_connection()
             if err:
-                self._connection_failure()
+                self._connection_failure(err)
             else:
                 self._connection_success()
     
@@ -89,16 +89,16 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         # Update UI
         self.status_label.setText("✅\n\nConnected!")
         self.status_label.setStyleSheet("font-size: 48px; color: #4CAF50;")
-        self.status_text.setText(f"Successfully connected to {self.config.get('wifi_ssid', 'network')}!")
+        self.status_text.setText(f"Successfully connected to {self.field('wifi.ssid')}.")
         self.progress.setRange(0, 1)
         self.progress.setValue(1)
         
         self.connection_verified = True
         self.completeChanged.emit()
     
-    def _connection_failure(self):
+    def _connection_failure(self, err: Exception):
         """Connection failure"""
-        self.details_text.append("\nERROR: Failed to connect to network")
+        self.details_text.append(f"\nERROR: Failed to connect to network: {err}")
         self.details_text.append("Please check the WiFi password and try again.")
         
         # Update UI

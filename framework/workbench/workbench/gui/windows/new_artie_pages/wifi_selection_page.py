@@ -37,6 +37,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         self.ssid_input = QtWidgets.QLineEdit()
         self.ssid_input.setPlaceholderText("Selected network SSID")
         self.ssid_input.setReadOnly(True)
+        self.registerField('wifi.ssid*', self.ssid_input)
         credentials_layout.addRow("SSID:", self.ssid_input)
         
         self.wifi_password_input = QtWidgets.QLineEdit()
@@ -50,15 +51,18 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         self.network_list.itemSelectionChanged.connect(self._on_network_selected)
         
         # Note
-        note_label = QtWidgets.QLabel(
-            "<i>Note: WiFi credentials are stored on Artie's OS, not in the Workbench.</i>"
-        )
+        note_label = QtWidgets.QLabel("<i>Note: WiFi credentials are stored on Artie's OS, not in the Workbench.</i>")
         note_label.setWordWrap(True)
         note_label.setStyleSheet("color: #666;")
         layout.addWidget(note_label)
     
     def _scan_networks(self):
         """Scan for available WiFi networks"""
+        if self._scanning_thread.is_alive():
+            # Shouldn't be possible due to button disabling, but just in case
+            return
+
+        self._scanning_thread = threading.Thread(target=self._get_networks, name='scanning thread', daemon=True)
         self.network_list.clear()
         self.scan_button.setEnabled(False)
         self.scan_button.setText("Scanning...")
@@ -102,6 +106,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
             return False
         
         # Store WiFi credentials on Artie
+        # TODO: Decide how to handle the option to use static IP
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
             err = connection.select_wifi(ssid, password)
             if err:

@@ -18,19 +18,16 @@ class IPAddressPage(QtWidgets.QWizardPage):
         self.artie_ip_input = QtWidgets.QLineEdit()
         self.artie_ip_input.setText(config.controller_node_ip)
         self.artie_ip_input.setReadOnly(True)
-        self.registerField("artie_ip*", self.artie_ip_input)
         layout.addRow("Artie IP Address:", self.artie_ip_input)
         
         # Admin IP
         self.admin_ip_input = QtWidgets.QLineEdit()
         self.admin_ip_input.setPlaceholderText("e.g., 192.168.1.10")
-        self.registerField("admin_ip*", self.admin_ip_input)
         layout.addRow("Admin Server IP:", self.admin_ip_input)
         
         # Admin token
         self.admin_token_input = QtWidgets.QLineEdit()
         self.admin_token_input.setPlaceholderText("Token from /var/lib/rancher/k3s/server/node-token")
-        self.registerField("admin_token*", self.admin_token_input)
         layout.addRow("Admin Token:", self.admin_token_input)
         
         # Info label
@@ -44,7 +41,6 @@ class IPAddressPage(QtWidgets.QWizardPage):
     
     def validatePage(self):
         """Validate IP addresses"""
-        artie_ip = self.artie_ip_input.text()
         admin_ip = self.admin_ip_input.text()
         admin_token = self.admin_token_input.text()
         
