@@ -19,9 +19,9 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         # Connection status icon
         self.status_label = QtWidgets.QLabel()
         self.status_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setMinimumHeight(150)
+        self.status_label.setMinimumHeight(80)
         self.status_label.setText("📡\n\nConnecting...")
-        self.status_label.setStyleSheet("font-size: 48px; color: #666;")
+        self.status_label.setStyleSheet(f"font-size: 24px; color: {colors.BasePalette.GRAY};")
         layout.addWidget(self.status_label)
         
         # Progress indicator
@@ -44,9 +44,13 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         
         self.details_text = QtWidgets.QTextEdit()
         self.details_text.setReadOnly(True)
-        self.details_text.setStyleSheet("font-family: monospace;")
+        self.details_text.setStyleSheet(f"font-family: monospace; background-color: {colors.BasePalette.WHITE}; color: {colors.BasePalette.BLACK};")
         self.details_text.setMaximumHeight(150)
         details_layout.addWidget(self.details_text)
+        
+        # Connect checkbox to toggle visibility
+        self.details_group.toggled.connect(self.details_text.setVisible)
+        self.details_text.setVisible(False)
         
         layout.addWidget(self.details_group)
         
@@ -59,7 +63,7 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         self.connection_verified = False
         self.details_text.clear()
         self.status_label.setText("📡\n\nConnecting...")
-        self.status_label.setStyleSheet("font-size: 48px; color: #666;")
+        self.status_label.setStyleSheet(f"font-size: 24px; color: {colors.BasePalette.GRAY};")
         self.status_text.setText("Please wait while we verify the WiFi connection...")
         self.progress.setRange(0, 0)  # Indeterminate
         
@@ -93,7 +97,7 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         
         # Update UI
         self.status_label.setText("✅\n\nConnected!")
-        self.status_label.setStyleSheet("font-size: 48px; color: #4CAF50;")
+        self.status_label.setStyleSheet(f"font-size: 24px; color: {colors.BasePalette.GREEN};")
         self.status_text.setText(f"Successfully connected to {self.field('wifi.ssid')}.")
         self.progress.setRange(0, 1)
         self.progress.setValue(1)
@@ -108,7 +112,7 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         
         # Update UI
         self.status_label.setText("❌\n\nConnection Failed")
-        self.status_label.setStyleSheet("font-size: 48px; color: #f44336;")
+        self.status_label.setStyleSheet(f"font-size: 24px; color: {colors.BasePalette.RED};")
         self.status_text.setText("Failed to connect to WiFi. Please go back and check your credentials.")
         self.progress.setRange(0, 1)
         self.progress.setValue(0)

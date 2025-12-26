@@ -59,7 +59,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         # Note
         note_label = QtWidgets.QLabel("<i>Note: WiFi credentials are stored on Artie's OS, not in the Workbench.</i>")
         note_label.setWordWrap(True)
-        note_label.setStyleSheet("color: #666;")
+        note_label.setStyleSheet(f"color: {colors.BasePalette.GRAY};")
         layout.addWidget(note_label)
     
     def _scan_networks(self):

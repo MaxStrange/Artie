@@ -42,7 +42,7 @@ class CredentialsPage(QtWidgets.QWizardPage):
             "OS-specific encryption and will not be visible in plaintext.</i>"
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #666;")
+        info_label.setStyleSheet(f"color: {colors.BasePalette.GRAY};")
         layout.addRow(info_label)
     
     def validatePage(self):

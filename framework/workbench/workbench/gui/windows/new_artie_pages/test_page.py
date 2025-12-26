@@ -23,7 +23,7 @@ class TestPage(QtWidgets.QWizardPage):
         # Output text
         self.output_text = QtWidgets.QTextEdit()
         self.output_text.setReadOnly(True)
-        self.output_text.setStyleSheet("font-family: monospace;")
+        self.output_text.setStyleSheet(f"font-family: monospace; background-color: {colors.BasePalette.WHITE}; color: {colors.BasePalette.BLACK};")
         layout.addWidget(self.output_text)
         
         self.test_complete = False

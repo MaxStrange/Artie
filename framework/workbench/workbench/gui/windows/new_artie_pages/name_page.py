@@ -26,7 +26,7 @@ class NamePage(QtWidgets.QWizardPage):
             "Choose a name that helps you distinguish between multiple Arties."
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #666;")
+        info_label.setStyleSheet(f"color: {colors.BasePalette.GRAY};")
         layout.addWidget(info_label)
         
         layout.addStretch()

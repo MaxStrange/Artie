@@ -20,7 +20,7 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
         icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         icon_label.setMinimumHeight(200)
         icon_label.setText("🔗")
-        icon_label.setStyleSheet("font-size: 48px; color: #666;")
+        icon_label.setStyleSheet(f"font-size: 48px; color: {colors.BasePalette.GRAY};")
         layout.addWidget(icon_label)
         
         # Instructions

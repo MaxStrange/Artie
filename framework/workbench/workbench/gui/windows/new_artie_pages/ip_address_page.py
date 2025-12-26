@@ -36,7 +36,7 @@ class IPAddressPage(QtWidgets.QWizardPage):
             "/var/lib/rancher/k3s/server/node-token</i>"
         )
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #666;")
+        info_label.setStyleSheet(f"color: {colors.BasePalette.GRAY};")
         layout.addRow(info_label)
     
     def validatePage(self):
