@@ -47,6 +47,11 @@ class InstallPage(QtWidgets.QWizardPage):
     
     def _run_install(self):
         """Run the artie-tool.py install command"""
+        ###################### DEBUG TODO ############################
+        self._complete_install(True)
+        return
+        ##############################################################
+
         err = self._artie_tool.install()
         if err:
             self._complete_install(False, err)

@@ -47,6 +47,11 @@ class DeployPage(QtWidgets.QWizardPage):
     
     def _run_deploy(self):
         """Run the artie-tool.py deploy base command"""
+        ###################### DEBUG TODO ############################
+        self._complete_deployment(True)
+        return
+        ##############################################################
+
         err = self._artie_tool.deploy("base")
         if err:
             self._complete_deployment(False, err)

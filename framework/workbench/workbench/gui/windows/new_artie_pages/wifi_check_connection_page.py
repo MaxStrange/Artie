@@ -73,6 +73,11 @@ class WiFiCheckConnectionPage(QtWidgets.QWizardPage):
         """Verify the WiFi connection"""
         self.details_text.append("Attempting to connect to WiFi network...")
         self.details_text.append("Sending WiFi credentials to Artie...")
+
+        ###################### DEBUG TODO ############################
+        self._connection_success()
+        return
+        ##############################################################
         
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
             err = connection.verify_wifi_connection()

@@ -605,6 +605,39 @@ QToolTip {{
 }}
 """
 
+class QTableWidgetStyle(enum.StrEnum):
+    """Colors for QTableWidget styling."""
+    BACKGROUND = BasePalette.DARK_ACCENT
+    COLOR = BasePalette.LIGHT
+    BORDER = BasePalette.GRAY
+    HEADER_BG = BasePalette.DARK
+    HEADER_COLOR = BasePalette.LIGHT
+    SELECTED_BG = BasePalette.GREEN
+    SELECTED_COLOR = BasePalette.WHITE
+    
+    @property
+    def stylesheet(self) -> str:
+        """Generate QTableWidget stylesheet."""
+        return f"""
+QTableWidget {{
+    background-color: {QTableWidgetStyle.BACKGROUND};
+    color: {QTableWidgetStyle.COLOR};
+    border: 1px solid {QTableWidgetStyle.BORDER};
+    gridline-color: {QTableWidgetStyle.BORDER};
+}}
+
+QHeaderView::section {{
+    background-color: {QTableWidgetStyle.HEADER_BG};
+    color: {QTableWidgetStyle.HEADER_COLOR};
+    border: 1px solid {QTableWidgetStyle.BORDER};
+    padding: 4px;
+}}
+
+QTableWidget::item:selected {{
+    background-color: {QTableWidgetStyle.SELECTED_BG};
+    color: {QTableWidgetStyle.SELECTED_COLOR};
+}}
+"""
 
 def generate_full_stylesheet() -> str:
     """
@@ -631,6 +664,7 @@ def generate_full_stylesheet() -> str:
         QDialogStyle.BACKGROUND.stylesheet,
         QMessageBoxStyle.BACKGROUND.stylesheet,
         QToolTipStyle.BACKGROUND.stylesheet,
+        QTableWidgetStyle.BACKGROUND.stylesheet,
     ]
     
     return "/* Qt Green Theme - Generated from colors.py */\n" + "\n".join(styles)

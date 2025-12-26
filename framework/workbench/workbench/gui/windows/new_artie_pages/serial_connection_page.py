@@ -84,6 +84,11 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
 
     def isComplete(self):
         """Check if a valid port is selected to enable Next button"""
+
+        ###################### DEBUG TODO ############################
+        return True
+        ##############################################################
+
         # If there are no ports, we are not complete
         if self.port_combo.count() == 0 or not self.port_combo.isEnabled():
             if self._complete:
@@ -107,6 +112,10 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
     
     def validatePage(self):
         """Validate that a port is selected"""
+        ###################### DEBUG TODO ############################
+        return True
+        ##############################################################
+
         if self.port_combo.count() == 0 or not self.port_combo.isEnabled():
             QtWidgets.QMessageBox.warning(
                 self,

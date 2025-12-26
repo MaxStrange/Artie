@@ -23,8 +23,9 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         layout.addWidget(network_label)
         
         self.network_table = QtWidgets.QTableWidget()
-        self.network_table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.network_table.setColumnCount(3)
         self.network_table.setHorizontalHeaderLabels(["SSID", "Signal Level", "BSSID"])
+        self.network_table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.network_table)
         
         # Scan button
@@ -68,7 +69,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
             return
 
         self._scanning_thread = threading.Thread(target=self._get_networks, name='scanning thread', daemon=True)
-        self.network_table.clear()
+        self.network_table.clearContents()
         self.scan_button.setEnabled(False)
         self.scan_button.setText("Scanning...")
 
@@ -79,28 +80,56 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
 
     def _get_networks(self):
         """This is the thread target for the scanning button."""
+        ###################### DEBUG TODO ############################
+        row_position = 0
+        for network in [artie_serial.WifiNetwork("1e:9d:72:32:45:72", 5785, -74, "", "skynet5")]:
+            # If this index does not exist, add a new row
+            if row_position >= self.network_table.rowCount():
+                self.network_table.insertRow(row_position)
+            self.network_table.setItem(row_position, 0, QtWidgets.QTableWidgetItem(network.ssid))
+            self.network_table.setItem(row_position, 1, QtWidgets.QTableWidgetItem(str(network.signal_level)))
+            self.network_table.setItem(row_position, 2, QtWidgets.QTableWidgetItem(network.bssid))
+            row_position += 1
+
+        self.scan_button.setEnabled(True)
+        self.scan_button.setText("Scan for Networks")
+        return
+        ##############################################################
+
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
             err, wifi_networks = connection.scan_for_wifi_networks()
             if err:
+                # TODO: Can't do this from another thread. Need the parent thread to actually do this.
                 QtWidgets.QMessageBox.critical(self, "Error Scanning Networks", f"An error occurred while scanning for networks: {err}. Try scanning again.")
                 return
 
         log.debug(f"Found {len(wifi_networks)} WiFi networks.")
+        row_position = 0
         for network in wifi_networks:
-            row_position = self.network_table.rowCount()
-            self.network_table.insertRow(row_position)
+            # If this index does not exist, add a new row
+            if row_position >= self.network_table.rowCount():
+                self.network_table.insertRow(row_position)
             self.network_table.setItem(row_position, 0, QtWidgets.QTableWidgetItem(network.ssid))
             self.network_table.setItem(row_position, 1, QtWidgets.QTableWidgetItem(str(network.signal_level)))
             self.network_table.setItem(row_position, 2, QtWidgets.QTableWidgetItem(network.bssid))
+            row_position += 1
 
         self.scan_button.setEnabled(True)
         self.scan_button.setText("Scan for Networks")
     
     def _on_network_selected(self):
         """Update SSID field when network is selected"""
+        # First, select the entire row when an item is clicked
+        selected_ranges = self.network_table.selectedRanges()
+        for selected_range in selected_ranges:
+            for row in range(selected_range.topRow(), selected_range.bottomRow() + 1):
+                self.network_table.selectRow(row)
+
+        # Now determine the SSID of the selected row
         selected_items = self.network_table.selectedItems()
         if selected_items:
-            self.ssid_input.setText(selected_items[0].text())
+            ssid = selected_items[0].text()
+            self.ssid_input.setText(ssid)
     
     def validatePage(self):
         """Validate WiFi selection"""
@@ -114,6 +143,10 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         if not password:
             QtWidgets.QMessageBox.warning(self, "No Password", "Please enter the WiFi password.")
             return False
+
+        ###################### DEBUG TODO ############################
+        return True
+        ##############################################################
         
         # Store WiFi credentials on Artie
         # TODO: Add option for static IP to the GUI, then pass the settings here
