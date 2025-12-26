@@ -73,7 +73,7 @@ class ArtieSerialConnection:
             return err, []
 
         # Remove any existing wpa_supplicant PID files
-        err = self._write_line("rm -f /var/run/wpa_supplicant/wlan0".encode(), check_return_code=False)
+        err = self._write_line("rm -f /var/run/wpa_supplicant/wlan0".encode())
         if err:
             return err, []
 

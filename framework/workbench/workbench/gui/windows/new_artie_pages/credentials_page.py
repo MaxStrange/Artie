@@ -47,10 +47,6 @@ class CredentialsPage(QtWidgets.QWizardPage):
     
     def validatePage(self):
         """Validate that passwords match"""
-        ###################### DEBUG TODO ############################
-        return True
-        ##############################################################
-
         username = self.username_input.text()
         password = self.password_input.text()
         confirm = self.confirm_password_input.text()

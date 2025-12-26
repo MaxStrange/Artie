@@ -78,17 +78,14 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
         if ports:
             self.port_combo.addItems(ports)
             self.port_combo.setEnabled(True)
+            self.isComplete()
         else:
             self.port_combo.addItem(self._NO_PORTS_FOUND_TEXT)
             self.port_combo.setEnabled(False)
+            self.isComplete()
 
     def isComplete(self):
         """Check if a valid port is selected to enable Next button"""
-
-        ###################### DEBUG TODO ############################
-        return True
-        ##############################################################
-
         # If there are no ports, we are not complete
         if self.port_combo.count() == 0 or not self.port_combo.isEnabled():
             if self._complete:
@@ -112,25 +109,13 @@ class SerialConnectionPage(QtWidgets.QWizardPage):
     
     def validatePage(self):
         """Validate that a port is selected"""
-        ###################### DEBUG TODO ############################
-        return True
-        ##############################################################
-
         if self.port_combo.count() == 0 or not self.port_combo.isEnabled():
-            QtWidgets.QMessageBox.warning(
-                self,
-                "No Port Selected",
-                "No serial ports detected. Please connect the USB cable and click Refresh."
-            )
+            QtWidgets.QMessageBox.warning(self, "No Port Selected", "No serial ports detected. Please connect the USB cable and click Refresh.")
             return False
         
         selected_port = self.port_combo.currentText()
         if selected_port == self._NO_PORTS_FOUND_TEXT:
-            QtWidgets.QMessageBox.warning(
-                self,
-                "No Port Selected",
-                "No serial ports detected. Please connect the USB cable and click Refresh."
-            )
+            QtWidgets.QMessageBox.warning(self, "No Port Selected", "No serial ports detected. Please connect the USB cable and click Refresh.")
             return False
         
         return True

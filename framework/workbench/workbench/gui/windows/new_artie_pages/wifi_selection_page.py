@@ -7,12 +7,16 @@ from ... import colors
 
 class WiFiSelectionPage(QtWidgets.QWizardPage):
     """Page for selecting WiFi network and entering credentials"""
+
+    _error_signal = QtCore.pyqtSignal(str)
+    """Signal for reporting errors from threads."""
     
     def __init__(self, config: artie_profile.ArtieProfile):
         super().__init__()
         self.config = config
 
-        self._scanning_thread = threading.Thread(target=self._get_networks, name='scanning thread', daemon=True)
+        self._error_signal.connect(self._on_error)
+        self._scanning_thread = threading.Thread(target=self._scan_networks, name='scanning thread', daemon=True)
         self.setTitle(f"<span style='color:{colors.BasePalette.BLACK};'>Configure WiFi</span>")
         self.setSubTitle(f"<span style='color:{colors.BasePalette.DARK_GRAY};'>Select a WiFi network for Artie to connect to.</span>")
         
@@ -31,7 +35,7 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         # Scan button
         scan_layout = QtWidgets.QHBoxLayout()
         self.scan_button = QtWidgets.QPushButton("Scan for Networks")
-        self.scan_button.clicked.connect(self._scan_networks)
+        self.scan_button.clicked.connect(self._spawn_scan_thread)
         scan_layout.addWidget(self.scan_button)
         scan_layout.addStretch()
         layout.addLayout(scan_layout)
@@ -62,45 +66,28 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         note_label.setStyleSheet(f"color: {colors.BasePalette.GRAY};")
         layout.addWidget(note_label)
     
-    def _scan_networks(self):
+    def _spawn_scan_thread(self):
         """Scan for available WiFi networks"""
         if self._scanning_thread.is_alive():
             # Shouldn't be possible due to button disabling, but just in case
             return
 
-        self._scanning_thread = threading.Thread(target=self._get_networks, name='scanning thread', daemon=True)
+        self._scanning_thread = threading.Thread(target=self._scan_networks, name='scanning thread', daemon=True)
         self.network_table.clearContents()
-        self.scan_button.setEnabled(False)
-        self.scan_button.setText("Scanning...")
+        self._disable_scan_button()
 
         # Start the scanning thread. This will do its best to asyncronously
         # find the Wifi networks that Artie has access to and populate
         # them in the network list.
         self._scanning_thread.start()
 
-    def _get_networks(self):
+    def _scan_networks(self):
         """This is the thread target for the scanning button."""
-        ###################### DEBUG TODO ############################
-        row_position = 0
-        for network in [artie_serial.WifiNetwork("1e:9d:72:32:45:72", 5785, -74, "", "skynet5")]:
-            # If this index does not exist, add a new row
-            if row_position >= self.network_table.rowCount():
-                self.network_table.insertRow(row_position)
-            self.network_table.setItem(row_position, 0, QtWidgets.QTableWidgetItem(network.ssid))
-            self.network_table.setItem(row_position, 1, QtWidgets.QTableWidgetItem(str(network.signal_level)))
-            self.network_table.setItem(row_position, 2, QtWidgets.QTableWidgetItem(network.bssid))
-            row_position += 1
-
-        self.scan_button.setEnabled(True)
-        self.scan_button.setText("Scan for Networks")
-        return
-        ##############################################################
-
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
             err, wifi_networks = connection.scan_for_wifi_networks()
             if err:
-                # TODO: Can't do this from another thread. Need the parent thread to actually do this.
-                QtWidgets.QMessageBox.critical(self, "Error Scanning Networks", f"An error occurred while scanning for networks: {err}. Try scanning again.")
+                self._error_signal.emit(f"An error occurred while scanning for networks: {err}. Try scanning again.")
+                self._enable_scan_button()
                 return
 
         log.debug(f"Found {len(wifi_networks)} WiFi networks.")
@@ -114,8 +101,21 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
             self.network_table.setItem(row_position, 2, QtWidgets.QTableWidgetItem(network.bssid))
             row_position += 1
 
+        self._enable_scan_button()
+
+    def _enable_scan_button(self):
+        """Re-enable the scan button from the scanning thread."""
         self.scan_button.setEnabled(True)
         self.scan_button.setText("Scan for Networks")
+
+    def _disable_scan_button(self):
+        """Disable the scan button from the scanning thread."""
+        self.scan_button.setEnabled(False)
+        self.scan_button.setText("Scanning...")
+
+    def _on_error(self, message: str):
+        """Handle errors from threads by showing a message box."""
+        QtWidgets.QMessageBox.critical(self, "Error", message)
     
     def _on_network_selected(self):
         """Update SSID field when network is selected"""
@@ -144,10 +144,6 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
             QtWidgets.QMessageBox.warning(self, "No Password", "Please enter the WiFi password.")
             return False
 
-        ###################### DEBUG TODO ############################
-        return True
-        ##############################################################
-        
         # Store WiFi credentials on Artie
         # TODO: Add option for static IP to the GUI, then pass the settings here
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
