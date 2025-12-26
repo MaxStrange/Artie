@@ -135,6 +135,12 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
         """Validate WiFi selection"""
         ssid = self.ssid_input.text()
         password = self.wifi_password_input.text()
+
+        # Get the BSSID of the selected network
+        selected_items = self.network_table.selectedItems()
+        bssid = None
+        if selected_items:
+            bssid = selected_items[2].text()
         
         if not ssid:
             QtWidgets.QMessageBox.warning(self, "No Network Selected", "Please select a WiFi network.")
@@ -144,10 +150,14 @@ class WiFiSelectionPage(QtWidgets.QWizardPage):
             QtWidgets.QMessageBox.warning(self, "No Password", "Please enter the WiFi password.")
             return False
 
+        if not bssid:
+            QtWidgets.QMessageBox.warning(self, "No Network Selected", "Please select a WiFi network.")
+            return False
+
         # Store WiFi credentials on Artie
         # TODO: Add option for static IP to the GUI, then pass the settings here
         with artie_serial.ArtieSerialConnection(port=self.field('serial.port')) as connection:
-            err = connection.select_wifi(ssid, password)
+            err = connection.select_wifi(bssid, ssid, password)
             if err:
                 QtWidgets.QMessageBox.critical(self, "Error Selecting Wifi Network", f"An error occurred while selecting the wifi network: {err}.")
                 return False
