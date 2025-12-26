@@ -94,7 +94,7 @@ class ArtieProfile:
         elif self.artie_name is not None and path is None:
             path = DEFAULT_SAVE_PATH / f"{self.artie_name}.json"
         elif self.artie_name is None and path is not None:
-            path = pathlib.Path(path)
+            path = pathlib.Path(path) / "unnamed_artie.json"
         else:
             path = DEFAULT_SAVE_PATH / "unnamed_artie.json"
 

@@ -14,43 +14,60 @@ class CompletePage(QtWidgets.QWizardPage):
 
         layout = QtWidgets.QVBoxLayout(self)
 
+        text_frame = QtWidgets.QFrame()
+        text_layout = QtWidgets.QVBoxLayout(text_frame)
+
         # Success icon
         icon_label = QtWidgets.QLabel()
         icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        icon_label.setMinimumHeight(200)
         icon_label.setText("✅\n\nSetup Successful!")
         icon_label.setStyleSheet(f"font-size: 48px; color: {colors.BasePalette.GREEN};")
-        layout.addWidget(icon_label)
+        text_layout.addWidget(icon_label)
 
         # Summary
         summary_label = QtWidgets.QLabel(
-            "Your Artie has been:<br>"
-            "<ul>"
-            "<li>Installed with the base configuration</li>"
-            "<li>Deployed to the K3S cluster</li>"
-            "<li>Tested and verified</li>"
-            "</ul>"
-            f"<br>Click Finish to save {config.artie_name} to the path below."
+            "Your Artie has been:<br><br>"
+            "<span style='display: inline-block; margin: 0 10px;'>✓ Installed with the base configuration </span>"
+            "<span style='display: inline-block; margin: 0 10px;'>✓ Deployed to the K3S cluster </span>"
+            "<span style='display: inline-block; margin: 0 10px;'>✓ Tested and verified</span>"
+            f"<br><br>Click Finish to save {config.artie_name} to the path below."
         )
         summary_label.setWordWrap(True)
         summary_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(summary_label)
+        text_layout.addWidget(summary_label)
+
+        text_frame.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+        layout.addWidget(text_frame)
 
         # File path selection
         path_label = QtWidgets.QLabel("Save to Folder:")
         layout.addWidget(path_label)
 
-        # Create a folder picker dialog
-        folder_picker = QtWidgets.QFileDialog(self)
-        folder_picker.setFileMode(QtWidgets.QFileDialog.FileMode.Directory)
-        folder_picker.setOption(QtWidgets.QFileDialog.Option.ShowDirsOnly, True)
-        folder_picker.setLabelText(QtWidgets.QFileDialog.DialogLabel.Accept, "Select Folder")
-        folder_picker.setLabelText(QtWidgets.QFileDialog.DialogLabel.Reject, "Cancel")
-        folder_picker.setDirectory(str(artie_profile.DEFAULT_SAVE_PATH.parent))
-        self.registerField("complete.savefolder", folder_picker)
-        layout.addWidget(folder_picker)
-
+        # Create a horizontal layout for path selection
+        path_layout = QtWidgets.QHBoxLayout()
+        
+        # Line edit for folder path
+        self.folder_line_edit = QtWidgets.QLineEdit()
+        self.folder_line_edit.setText(str(artie_profile.DEFAULT_SAVE_PATH))
+        self.folder_line_edit.setPlaceholderText("Select a folder to save the Artie profile")
+        path_layout.addWidget(self.folder_line_edit)
+        
+        # Browse button
+        browse_button = QtWidgets.QPushButton("Browse...")
+        browse_button.clicked.connect(self._browse_folder)
+        path_layout.addWidget(browse_button)
+        
+        layout.addLayout(path_layout)
+        self.registerField("complete.savefolder", self.folder_line_edit)
+        
         layout.addStretch()
+
+    def _browse_folder(self):
+        """Open folder dialog and update line edit"""
+        default = self.folder_line_edit.text() or str(artie_profile.DEFAULT_SAVE_PATH)
+        folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Folder", default, QtWidgets.QFileDialog.Option.ShowDirsOnly)
+        if folder:
+            self.folder_line_edit.setText(folder)
 
     def validatePage(self) -> bool:
         """Called when Finish is clicked"""
