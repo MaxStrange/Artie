@@ -32,6 +32,12 @@ _BUILDX_DRIVER = None
 # Cached result of the Docker server's architecture (per process)
 _HOST_ARCH = None
 
+# Character-level validation for the pieces of a Docker image reference. These only
+# validate a piece that parse_docker_image_name() has already split out positionally.
+_DOCKER_REPO_PATTERN = re.compile(r"^[\w.\-]+(?::\d+)?(?:/[\w.\-]+)*$")
+_DOCKER_IMAGE_PATTERN = re.compile(r"^[a-z0-9.\-_]+$")
+_DOCKER_TAG_PATTERN = re.compile(r"^[\w.\-]{1,127}$")
+
 class DockerImageName:
     def __init__(self, repo: str, name: str, tag: str) -> None:
         self.repo = repo
@@ -361,16 +367,37 @@ def parse_docker_image_name(fully_qualified_name: str):
 
     construct_docker_image_name on the other hand, takes the constituent pieces already parsed,
     infers ones that aren't given, and returns the DockerImageName object from these pieces.
+
+    The returned repo keeps its trailing '/' (like construct_docker_image_name produces),
+    so that repo + name + ':' + tag reassembles into what was passed in.
     """
-    # Thank you, Stack Overflow: https://stackoverflow.com/questions/74990220/how-to-use-docker-image-tag-parsing-regex-in-javascript
-    # With a minor modification
-    r = re.compile(r"^(?P<repository>[\w.\-_]+(?::\d+|)|)(?:/|)(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+|))(:(?P<tag>[\w.\-_]{1,127})|)$")
-    o = r.match(fully_qualified_name)
-    if not o:
+    remaining = str(fully_qualified_name).strip()
+
+    # Split the tag off first. Only a ':' in the final path component introduces a tag;
+    # an earlier one is a registry port ('artiehub:5000/artie-api-server'). Splitting
+    # positionally rather than with one big regex avoids the alternatives in the pattern
+    # backtracking into a wrong-but-matching parse.
+    tag = ""
+    colon_idx = remaining.rfind(':')
+    if colon_idx > remaining.rfind('/'):
+        remaining, tag = remaining[:colon_idx], remaining[colon_idx + 1:]
+
+    # What's left is the repo prefix (if any) plus the image name, which is the last
+    # path component.
+    slash_idx = remaining.rfind('/')
+    repo, image = (remaining[:slash_idx + 1], remaining[slash_idx + 1:]) if slash_idx >= 0 else ("", remaining)
+
+    valid = bool(_DOCKER_IMAGE_PATTERN.match(image))
+    if repo:
+        valid = valid and bool(_DOCKER_REPO_PATTERN.match(repo.rstrip('/')))
+    if tag:
+        valid = valid and bool(_DOCKER_TAG_PATTERN.match(tag))
+    if not valid:
         errmsg = f"Could not understand the given string as a Docker image ID: {fully_qualified_name}"
         common.error(errmsg)
         raise ValueError(errmsg)
-    return DockerImageName(o.groupdict().get('repository', ""), o.groupdict().get('image', ""), o.groupdict().get('tag', ""))
+
+    return DockerImageName(repo, image, tag)
 
 def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag=None) -> DockerImageName:
     """
