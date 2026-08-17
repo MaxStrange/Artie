@@ -289,6 +289,19 @@ def get_local_image_architecture(image_name: str|DockerImageName) -> str:
     p = subprocess.run(["docker", "image", "inspect", str(image_name), "--format", "{{.Architecture}}"], capture_output=True, encoding='utf-8')
     return p.stdout.strip() if p.returncode == 0 else ""
 
+def tag_docker_image(source: str|DockerImageName, target: str|DockerImageName):
+    """
+    Add `target` as an additional local tag for the image `source`, which must already
+    be present in the local image store.
+    """
+    cmd = ["docker", "tag", str(source), str(target)]
+    common.info(f"Running command: {' '.join(cmd)}")
+    p = subprocess.run(cmd, capture_output=True, encoding='utf-8')
+    if p.returncode != 0:
+        msg = f"Failed to tag {source} as {target}: {p.stderr.strip()}"
+        common.error(msg)
+        raise RuntimeError(msg)
+
 def check_and_pull_if_docker_image_exists(args, imgname: DockerImageName) -> bool:
     """
     Returns whether the given Docker image exists and pulls it if it exists remotely and can be pulled.
