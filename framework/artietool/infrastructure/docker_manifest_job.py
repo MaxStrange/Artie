@@ -27,9 +27,38 @@ class DockerManifestJob(job.Job):
                 evaluated_images.append(img)
         return evaluated_images
 
+    def _tag_locally(self, args, manifest_name: str):
+        """
+        Stand in for the manifest list when there is no registry to put one in.
+
+        A manifest list only exists inside a registry, but downstream consumers (tests,
+        deployments) refer to this artifact by its manifest name regardless. With no
+        repo configured, nothing would ever produce that name, so the name resolves to
+        nothing locally and Docker falls back to trying to pull it. Point the name at
+        the arch-specific image that can actually run on this machine instead.
+        """
+        evaluated_images = self._evaluate_images(args, self.images)
+        host_arch = docker.get_host_architecture()
+
+        # Prefer an image built for this machine's architecture; it's the only one we could run.
+        local_arches = {img: docker.get_local_image_architecture(img) for img in evaluated_images}
+        runnable = [img for img, arch in local_arches.items() if arch and arch == host_arch]
+        if not runnable:
+            # Nothing runnable here. Fall back to anything that at least exists locally.
+            runnable = [img for img, arch in local_arches.items() if arch]
+
+        if not runnable:
+            common.warning(f"No docker repo specified and none of the images for manifest {manifest_name} were found locally ({evaluated_images}), so {manifest_name} will not resolve to anything. Anything that consumes it will try to pull it and fail.")
+            return
+
+        source = runnable[0]
+        common.info(f"No docker repo specified, so there is nowhere to put a manifest list. Tagging {source} as {manifest_name} locally instead (host architecture: {host_arch or 'unknown'}).")
+        docker.tag_docker_image(source, manifest_name)
+
     def __call__(self, args) -> result.JobResult:
         if args.docker_repo is None:
-            common.info("No docker repo specified. Skipping docker manifest creation.")
+            manifest_name = str(docker.construct_docker_image_name(args, self.img_base_name))
+            self._tag_locally(args, manifest_name)
             self.mark_all_artifacts_as_built()
             return result.JobResult(self.name, success=True, artifacts=self.artifacts)
 
