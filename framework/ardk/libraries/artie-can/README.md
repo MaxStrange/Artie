@@ -287,6 +287,129 @@ artie_can_whoami_response_t whoami;
 artie_can_rpcacp_get_whoami_result(&node1, &whoami); // whoami.node_name == "node2", etc.
 ```
 
+## Python API
+
+The `artie_can` Python package wraps the C library. It is built with
+[CFFI](https://cffi.readthedocs.io/) in API mode, which means the declarations in `build_ffi.py`
+are compiled against the real headers - struct sizes, field offsets and enum values all come from
+the C compiler, so the bindings cannot silently drift out of step with the library the way a
+hand-written `ctypes` mirror would. The C sources are compiled straight into the extension module,
+so an installed `artie_can` is self-contained: no shared library to locate at import time, and no
+CMake needed to install.
+
+```bash
+pip install -e .            # needs a C compiler; everything else is in pyproject.toml
+python build_ffi.py         # optional: compile the bindings alone, into build-python/
+```
+
+### The Node
+
+Everything goes through `Node`, which owns a transport, the protocols you enable, and the threads
+that keep them running. The C library requires that `artie_can_tick()` be called constantly and
+that every other entry point be called from that same thread; the node does both for you on a
+worker thread, so the methods below are ordinary blocking calls. Received frames are parsed on a
+second thread and handed to a callback or a queue, so nothing of yours runs in the library's
+interrupt-context receive callback.
+
+```python
+from artie_can import Node, NodeClass, Priority, Protocol, UdpMulticastBackend
+
+bus = dict(group="239.0.0.1", port=5000)
+with Node(UdpMulticastBackend(**bus), address=0x01) as sender, \
+     Node(UdpMulticastBackend(**bus), address=0x02) as receiver:
+    sender.rtacp_send(0x02, b"\xde\xad\xbe\xef", priority=Priority.MEDIUM)
+    print(receiver.receive_rtacp(timeout=1.0).data.hex())
+```
+
+A node takes part only in the protocols you ask for, and the methods for the others raise
+`InvalidArgument`:
+
+```python
+node = Node(
+    UdpMulticastBackend(**bus),
+    address=0x02,
+    protocols=Protocol.RTACP | Protocol.PSACP | Protocol.BWACP | Protocol.RPCACP,
+    node_class=NodeClass.SENSOR,
+    name="left-eyebrow",          # reported by WHOAMI
+    firmware_version="1.0.0",
+)
+```
+
+Pass `on_rtacp=`, `on_psacp=` or `on_frame=` to have messages delivered to a callback instead of
+queued for `receive_rtacp()` / `receive_psacp()` / `receive_frame()`. Callbacks run on the node's
+dispatcher thread, one at a time, in arrival order, and must not call back into the same node.
+
+### Each protocol
+
+```python
+# RTACP - small real-time messages. Unicast waits for the ACK; broadcast does not.
+node.rtacp_send(0x02, b"\x01\x02")
+node.rtacp_send(BROADCAST_ADDRESS, b"\x01\x02")
+message = node.receive_rtacp(timeout=1.0)
+
+# PSACP - fire-and-forget pub/sub.
+node.subscribe(0x0C)
+node.publish(0x0C, b"\xa5", high_priority=False)
+message = node.receive_psacp(timeout=1.0)
+
+# BWACP - bulk block writes into the receivers' block buffers.
+node.block_write(payload, offset=0x1000, target_class=NodeClass.SENSOR)
+node.block_write(payload, offset=0, target_address=0x02)
+received = bytes(node.block_buffer[0x1000:0x1000 + len(payload)])
+
+# RPCACP - remote procedure calls.
+print(node.whoami(0x02), node.node_status(0x02), node.list_procedures(0x02, page=0))
+```
+
+Device-specific procedures are described by an `RpcSignature` that both ends share. Parameter
+types are named with the same strings the C library matches on; the primitives marshal to and from
+Python values automatically, and anything else (`"array<uint8_t, 4>"`, `"struct pose"`) is passed
+through as raw `bytes` of a size you declare.
+
+```python
+from artie_can import RpcParam, RpcSignature
+
+INCREMENT = RpcSignature(
+    procedure_id=0x10,
+    name="INCREMENT",
+    params=(RpcParam("uint8_t"),),
+    returns=RpcParam("uint8_t"),
+    function=lambda value: (value + 1) & 0xFF,   # only the answering node needs this
+)
+
+answering_node.register_procedure(INCREMENT)
+assert calling_node.call(0x02, INCREMENT, 41) == 42
+```
+
+A registered procedure runs on the answering node's worker thread and must not call back into that
+node. Raising from it is reported to the caller as a `RemoteError` carrying EINVAL.
+
+### Errors
+
+Every failure is an `ArtieCanError` subclass - `Timeout`, `Busy`, `NoResponse`, `RemoteError` and
+so on - carrying the library's full `ErrorFlag` mask, since the C API reports failures as a bit
+mask that can have more than one bit set.
+
+Two behaviours are worth knowing about:
+
+* A `Timeout` from `rtacp_send()` means the ACK did not arrive within RTACP's 10 ms budget,
+  **not** that the message was lost. The frame is usually delivered and it is the ACK that came
+  back late, so treat it as "delivery unconfirmed" and only retry if the receiver tolerates
+  duplicates.
+* RPC calls retry themselves, within their timeout, while the far end answers that it is busy.
+  A node stays busy for a short while after the caller already has its result, so back-to-back
+  calls run into this constantly; because that rejection means the procedure definitely did not
+  run, repeating the request is safe. Pass `retry_if_busy=False` to get the `RemoteError`
+  instead. Nothing else is retried - a timeout leaves it unknown whether the remote ran the
+  procedure, so that one is always yours to decide about.
+
+### Backends
+
+`UdpMulticastBackend` simulates a bus over UDP multicast, which is what the tests and local
+development use. `Mcp2515Backend` drives a real bus through an MCP2515, and takes two callables
+from you - one to clock a byte over SPI and return the byte clocked back, one to drive chip
+select - since the library has no way to reach your SPI peripheral itself.
+
 ## Testing
 
 There are two suites, and they test different things.
@@ -332,4 +455,11 @@ logs from container start, so a marker reused across scenarios could match the w
 To integrate the Artie CAN Library into an application, there are several ways to do it depending
 on the programming language and the hardware.
 
-TODO
+From Python, install this directory as a package and use `artie_can.Node` - see
+[the Python API section](#python-api) above. It is not yet wired into Artie Tool or the base
+image's Python environment.
+
+From C, build the library with CMake and link against `artie_can` (shared) or `artie_can_static`,
+with `include/`, `include/backend/`, `include/protocol/` and `include/util/` on the include path.
+On an MCU, compile the sources directly into your firmware instead and supply a backend - see
+`artie_can_init_custom()`.

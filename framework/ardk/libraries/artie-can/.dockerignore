@@ -13,6 +13,7 @@ htmlcov/
 
 # Build artifacts (will rebuild in container)
 build/
+build-python/
 cmake_build/
 dist/
 *.egg-info/
