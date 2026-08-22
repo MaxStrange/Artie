@@ -131,6 +131,8 @@ dmypy.json
 firmware/eyebrows/src/build/
 cli/build/
 framework/ardk/libraries/artie-can/build/
+# Output of `python build_ffi.py`, the standalone build of the artie-can Python bindings
+framework/ardk/libraries/artie-can/build-python/
 *.elf
 *.uf2
 *.hex

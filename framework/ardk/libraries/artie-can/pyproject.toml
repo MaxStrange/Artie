@@ -1,24 +1,23 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=64", "cffi>=1.15"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "artie-can"
 readme = "README.md"
 version = "0.1.0"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 license = "MIT"
 description = "Artie CAN library for communication over CAN bus"
-dependencies = []
+dependencies = [
+    "cffi>=1.15",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-artie_can = ["lib/*.so"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
