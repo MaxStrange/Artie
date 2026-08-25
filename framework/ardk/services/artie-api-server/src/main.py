@@ -28,12 +28,6 @@ app.register_blueprint(api_interface_statusled.statusled_api)
 app.register_blueprint(api_interface_service.service_api)
 app.register_blueprint(api_interface_imu.imu_api)
 
-# Generate our self-signed certificate (if not already present)
-# These are used for RPC encryption between the API server and the Artie services.
-certfpath = "/etc/cert.pem"
-keyfpath = "/etc/pkey.pem"
-util.generate_self_signed_cert(certfpath, keyfpath, days=None, force=True)
-
 # For local development/testing
 if __name__ == "__main__":
     # Set up logging
