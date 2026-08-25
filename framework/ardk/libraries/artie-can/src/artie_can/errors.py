@@ -61,9 +61,7 @@ class ErrorFlag(enum.IntFlag):
         return bool(self) and not (self & ~_RETRIABLE_MASK)
 
 
-_RETRIABLE_MASK = (
-    ErrorFlag.TIMEOUT | ErrorFlag.SEND_BUSY | ErrorFlag.NO_SPACE | ErrorFlag.NO_RESPONSE
-)
+_RETRIABLE_MASK = (ErrorFlag.TIMEOUT | ErrorFlag.SEND_BUSY | ErrorFlag.NO_SPACE | ErrorFlag.NO_RESPONSE)
 
 
 class ArtieCanError(Exception):
@@ -78,8 +76,10 @@ class ArtieCanError(Exception):
         self.operation = operation
         if operation:
             message = f"{operation}: {message}"
+
         if self.flags:
             message = f"{message} (flags={self.flags!r})"
+
         super().__init__(message)
 
 
@@ -173,9 +173,11 @@ def to_exception(code: int, operation: str = "") -> ArtieCanError | None:
     flags = ErrorFlag(code)
     if not flags:
         return None
+
     for flag, exception_type, message in _EXCEPTIONS:
         if flags & flag:
             return exception_type(message, flags, operation)
+
     return ArtieCanError("unrecognized error code", flags, operation)
 
 

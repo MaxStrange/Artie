@@ -11,8 +11,15 @@
 #include "frame.h"
 #include "translationlayer.h"
 
-/** Maximum payload size for BWACP (64 KB) */
-#define ARTIE_CAN_BWACP_MAX_PAYLOAD_SIZE (65536U)
+/**
+ * Default size of the buffer a receiver hands to artie_can_bwacp_set_receive_buffer().
+ *
+ * BWACP has no maximum transfer size: nothing on the wire carries a length, a transfer runs until
+ * the COMPLETE frame, and the offset and byte counters are 32-bit. What a receiver can actually
+ * take is the buffer it supplies, so this is only the size the bindings pick when the caller does
+ * not choose one - a receiver that needs more should just allocate more.
+ */
+#define ARTIE_CAN_BWACP_DEFAULT_BUFFER_SIZE (65536U)
 
 /** Maximum number of times a DATA frame can be repeated */
 #define ARTIE_CAN_BWACP_MAX_REPEATS (5U)

@@ -115,6 +115,59 @@ static artie_can_error_t _send_nack(artie_can_backend_t *handle, uint8_t target_
 }
 
 /**
+ * @brief Whether @p dlc more bytes still fit in the receive buffer at the current write position.
+ *
+ * The write position is (receive_address + receive_bytes_written), and receive_address comes
+ * straight off the wire in the READY frame, so the arithmetic subtracts from the buffer size
+ * rather than adding up to it: a hostile or buggy sender advertising an address near UINT32_MAX
+ * would otherwise wrap the sum around and slip past an addition-based bounds check.
+ */
+static bool _receive_fits(const bwacp_context_t *ctx, uint8_t dlc)
+{
+    if (ctx->receive_buffer == NULL)
+    {
+        return false;
+    }
+    if (ctx->receive_address > ctx->receive_buffer_size)
+    {
+        return false;
+    }
+
+    uint32_t remaining = ctx->receive_buffer_size - ctx->receive_address;
+    if (ctx->receive_bytes_written > remaining)
+    {
+        return false;
+    }
+
+    return (uint32_t)dlc <= (remaining - ctx->receive_bytes_written);
+}
+
+/**
+ * @brief Drop out of a reception whose data will not fit in the receive buffer.
+ *
+ * Too small a buffer (or none at all) is not something a retransmission can fix - the same bytes
+ * would arrive again and still not fit - so NACKing to ask for a repeat only burns the repeat
+ * budget, and ACKing as if the bytes had been stored leaves the sender believing in a transfer
+ * this node has holes in. BWACP has no abort frame, so the only way to say "count me out" is to
+ * stop answering: going back to IDLE and forgetting the sender makes the ISR filter discard the
+ * rest of the transfer, and the sender's existing repeat-then-blacklist path takes it from there.
+ * A multicast carries on with the receivers that do have room; a unicast fails with a timeout.
+ */
+static void _abort_receive_no_space(artie_can_backend_t *handle)
+{
+    bwacp_context_t *ctx = &handle->context->bwacp_context;
+
+    ARTIE_CAN_LOG(handle->context, "BWACP: Receive buffer cannot hold this transfer (address=%u, written=%u, size=%u); leaving the transfer\n",
+                  ctx->receive_address, ctx->receive_bytes_written, ctx->receive_buffer_size);
+
+    ctx->receive_bytes_written = 0;
+    ctx->receive_accepted_any_frame = false;
+    ctx->transfer_invalidated = false;
+    ctx->sending_node_address = 0xFF;
+    ctx->state = BWACP_STATE_IDLE;
+}
+
+/**
  * @brief Send a READY frame.
  */
 static artie_can_error_t _send_ready(artie_can_backend_t *handle, const uint8_t *payload, uint32_t payload_size, uint32_t address, uint8_t target_address, uint8_t target_class, artie_can_frame_priority_bwacp_t priority)
@@ -472,19 +525,14 @@ static artie_can_error_t _handle_data_expect_repeat(artie_can_backend_t *handle,
         // Repeat has correct parity - process it
         ARTIE_CAN_LOG(handle->context, "BWACP: Repeat frame has correct parity; processing\n");
 
-        if ((ctx->receive_address + ctx->receive_bytes_written + frame->dlc) <= ctx->receive_buffer_size)
+        if (!_receive_fits(ctx, frame->dlc))
         {
-            if (ctx->receive_buffer != NULL)
-            {
-                memcpy(&ctx->receive_buffer[ctx->receive_address + ctx->receive_bytes_written], frame->data, frame->dlc);
-                ctx->receive_bytes_written += frame->dlc;
-            }
+            _abort_receive_no_space(handle);
+            return ARTIE_CAN_ERR_NO_SPACE;
         }
-        else
-        {
-            ARTIE_CAN_LOG(handle->context, "BWACP: Receive buffer overflow on repeat\n");
-            err = ARTIE_CAN_ERR_NO_SPACE;
-        }
+
+        memcpy(&ctx->receive_buffer[ctx->receive_address + ctx->receive_bytes_written], frame->data, frame->dlc);
+        ctx->receive_bytes_written += frame->dlc;
 
         // Toggle expected parity for next frame
         ctx->receive_expected_parity = !ctx->receive_expected_parity;
@@ -534,24 +582,14 @@ static artie_can_error_t _handle_data_receiving(artie_can_backend_t *handle, art
     else
     {
         // Parity correct - process the frame normally
-        if ((ctx->receive_address + ctx->receive_bytes_written + frame->dlc) <= ctx->receive_buffer_size)
+        if (!_receive_fits(ctx, frame->dlc))
         {
-            if (ctx->receive_buffer != NULL)
-            {
-                memcpy(&ctx->receive_buffer[ctx->receive_address + ctx->receive_bytes_written], frame->data, frame->dlc);
-                ctx->receive_bytes_written += frame->dlc;
-            }
-            else
-            {
-                ARTIE_CAN_LOG(handle->context, "BWACP: Received DATA frame but receive buffer is NULL\n");
-                err = ARTIE_CAN_ERR_NO_SPACE;
-            }
+            _abort_receive_no_space(handle);
+            return ARTIE_CAN_ERR_NO_SPACE;
         }
-        else
-        {
-            ARTIE_CAN_LOG(handle->context, "BWACP: Receive buffer overflow\n");
-            err = ARTIE_CAN_ERR_NO_SPACE;
-        }
+
+        memcpy(&ctx->receive_buffer[ctx->receive_address + ctx->receive_bytes_written], frame->data, frame->dlc);
+        ctx->receive_bytes_written += frame->dlc;
 
         // Toggle expected parity for next frame
         ctx->receive_expected_parity = !ctx->receive_expected_parity;

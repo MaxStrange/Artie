@@ -18,8 +18,7 @@ import struct
 from typing import Any, Callable, Sequence
 
 from ._artie_can import ffi
-from .enums import MAX_RPC_PARAMS
-from .errors import InvalidArgument
+from . import enums, errors
 
 __all__ = [
     "RpcParam",
@@ -74,7 +73,7 @@ class RpcParam:
 
     def __post_init__(self):
         if self.type_name != VOID and self.type_name not in _PRIMITIVES and self.size is None:
-            raise InvalidArgument(
+            raise errors.InvalidArgument(
                 f"type_name {self.type_name!r} is not a known primitive, so its native size must "
                 f"be given explicitly, e.g. RpcParam({self.type_name!r}, size=4)"
             )
@@ -106,10 +105,10 @@ class RpcParam:
             try:
                 return struct.pack(_PRIMITIVES[self.type_name][0], value)
             except struct.error as exc:
-                raise InvalidArgument(f"{value!r} is not a valid {self.type_name}: {exc}") from exc
+                raise errors.InvalidArgument(f"{value!r} is not a valid {self.type_name}: {exc}") from exc
         raw = bytes(value)
         if len(raw) != self.native_size:
-            raise InvalidArgument(
+            raise errors.InvalidArgument(
                 f"{self.type_name} expects exactly {self.native_size} bytes, got {len(raw)}"
             )
         return raw
@@ -156,15 +155,15 @@ class RpcSignature:
     function: Callable[..., Any] | None = None
 
     def __post_init__(self):
-        if len(self.params) > MAX_RPC_PARAMS:
-            raise InvalidArgument(
-                f"an RPC signature carries at most {MAX_RPC_PARAMS} parameters, got {len(self.params)}"
+        if len(self.params) > enums.MAX_RPC_PARAMS:
+            raise errors.InvalidArgument(
+                f"an RPC signature carries at most {enums.MAX_RPC_PARAMS} parameters, got {len(self.params)}"
             )
         # Everything after a variable-length parameter would be unaddressable: the library reads
         # such a parameter as "from my offset to the end of the payload".
         for index, param in enumerate(self.params[:-1]):
             if not param.is_primitive and param.type_name != VOID:
-                raise InvalidArgument(
+                raise errors.InvalidArgument(
                     f"parameter {index} ({param.type_name}) has no fixed wire size, so it must be "
                     "the last parameter in the signature"
                 )
@@ -186,12 +185,12 @@ class RpcSignature:
     def encode_args(self, args: Sequence[Any]) -> list[bytes]:
         """Encode call arguments, checking arity against the signature."""
         if len(args) > len(self.params):
-            raise InvalidArgument(
+            raise errors.InvalidArgument(
                 f"{self.name} takes at most {len(self.params)} arguments, got {len(args)}"
             )
         for index, param in enumerate(self.params[len(args):], start=len(args)):
             if not param.optional:
-                raise InvalidArgument(
+                raise errors.InvalidArgument(
                     f"{self.name} requires argument {index} ({param.type_name}); only optional "
                     "trailing parameters may be omitted"
                 )

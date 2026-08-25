@@ -13,13 +13,7 @@ from __future__ import annotations
 import dataclasses
 
 from ._artie_can import ffi, lib
-from .enums import (
-    BROADCAST_ADDRESS,
-    MAX_FRAME_DATA_LENGTH,
-    Priority,
-    _PROTOCOL_ID_PSACP_HIGH,
-)
-from .errors import check
+from . import enums, errors
 
 __all__ = ["Frame", "RtacpMessage", "PsacpMessage"]
 
@@ -39,10 +33,8 @@ class Frame:
     data: bytes = b""
 
     def __post_init__(self):
-        if len(self.data) > MAX_FRAME_DATA_LENGTH:
-            raise ValueError(
-                f"a CAN frame carries at most {MAX_FRAME_DATA_LENGTH} data bytes, got {len(self.data)}"
-            )
+        if len(self.data) > enums.MAX_FRAME_DATA_LENGTH:
+            raise ValueError(f"a CAN frame carries at most {enums.MAX_FRAME_DATA_LENGTH} data bytes, got {len(self.data)}")
 
     @property
     def protocol_id(self) -> int:
@@ -76,7 +68,7 @@ class Frame:
     @classmethod
     def _from_c(cls, cframe) -> "Frame":
         # dlc comes off the wire, so clamp it rather than trusting it to index our buffer.
-        length = min(cframe.dlc, MAX_FRAME_DATA_LENGTH)
+        length = min(cframe.dlc, enums.MAX_FRAME_DATA_LENGTH)
         return cls(id=cframe.id, data=bytes(ffi.buffer(cframe.data, length)))
 
 
@@ -90,13 +82,13 @@ class RtacpMessage:
     source_address: int
     target_address: int
     data: bytes = b""
-    priority: Priority = Priority.MEDIUM
+    priority: enums.Priority = enums.Priority.MEDIUM
     ack: bool = False
 
     @property
     def is_broadcast(self) -> bool:
         """True if this message went to every node rather than one."""
-        return self.target_address == BROADCAST_ADDRESS
+        return self.target_address == enums.BROADCAST_ADDRESS
 
     def _to_frame(self) -> Frame:
         crtacp = ffi.new("artie_can_frame_rtacp_t *")
@@ -108,18 +100,18 @@ class RtacpMessage:
         ffi.memmove(crtacp.data, self.data, len(self.data))
 
         cframe = ffi.new("artie_can_frame_t *")
-        check(lib.artie_can_rtacp_init_frame(cframe, crtacp), "artie_can_rtacp_init_frame")
+        errors.check(lib.artie_can_rtacp_init_frame(cframe, crtacp), "artie_can_rtacp_init_frame")
         return Frame._from_c(cframe)
 
     @classmethod
     def _from_frame(cls, frame: Frame) -> "RtacpMessage":
         crtacp = ffi.new("artie_can_frame_rtacp_t *")
-        check(lib.artie_can_rtacp_parse_frame(frame._to_c(), crtacp), "artie_can_rtacp_parse_frame")
+        errors.check(lib.artie_can_rtacp_parse_frame(frame._to_c(), crtacp), "artie_can_rtacp_parse_frame")
         return cls(
             source_address=crtacp.source_address,
             target_address=crtacp.target_address,
-            data=bytes(ffi.buffer(crtacp.data, min(crtacp.nbytes, MAX_FRAME_DATA_LENGTH))),
-            priority=Priority(crtacp.priority),
+            data=bytes(ffi.buffer(crtacp.data, min(crtacp.nbytes, enums.MAX_FRAME_DATA_LENGTH))),
+            priority=enums.Priority(crtacp.priority),
             ack=bool(crtacp.ack),
         )
 
@@ -134,7 +126,7 @@ class PsacpMessage:
     source_address: int
     topic: int
     data: bytes = b""
-    priority: Priority = Priority.MEDIUM
+    priority: enums.Priority = enums.Priority.MEDIUM
     high_priority: bool = False
     """Selects the high-priority PSACP protocol ID, which wins arbitration against the low one."""
 
@@ -148,17 +140,17 @@ class PsacpMessage:
         ffi.memmove(cpsacp.data, self.data, len(self.data))
 
         cframe = ffi.new("artie_can_frame_t *")
-        check(lib.artie_can_psacp_init_frame(cframe, cpsacp), "artie_can_psacp_init_frame")
+        errors.check(lib.artie_can_psacp_init_frame(cframe, cpsacp), "artie_can_psacp_init_frame")
         return Frame._from_c(cframe)
 
     @classmethod
     def _from_frame(cls, frame: Frame) -> "PsacpMessage":
         cpsacp = ffi.new("artie_can_frame_psacp_t *")
-        check(lib.artie_can_psacp_parse_frame(frame._to_c(), cpsacp), "artie_can_psacp_parse_frame")
+        errors.check(lib.artie_can_psacp_parse_frame(frame._to_c(), cpsacp), "artie_can_psacp_parse_frame")
         return cls(
             source_address=cpsacp.source_address,
             topic=cpsacp.topic,
-            data=bytes(ffi.buffer(cpsacp.data, min(cpsacp.nbytes, MAX_FRAME_DATA_LENGTH))),
-            priority=Priority(cpsacp.priority),
-            high_priority=frame.protocol_id == _PROTOCOL_ID_PSACP_HIGH,
+            data=bytes(ffi.buffer(cpsacp.data, min(cpsacp.nbytes, enums.MAX_FRAME_DATA_LENGTH))),
+            priority=enums.Priority(cpsacp.priority),
+            high_priority=frame.protocol_id == enums._PROTOCOL_ID_PSACP_HIGH,
         )

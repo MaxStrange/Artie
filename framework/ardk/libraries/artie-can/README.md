@@ -139,10 +139,12 @@ void rx_callback_node2(const artie_can_frame_t *frame)
 
 ### BWACP (Block Write Artie CAN Protocol)
 
-BWACP moves a larger block of data (up to `ARTIE_CAN_BWACP_MAX_PAYLOAD_SIZE`, 64 KB) to a single
-node or to every node matching a class bitmask, writing it directly into a caller-supplied receive
-buffer at a given offset - there's no callback per chunk, just a buffer that fills in as the
-transfer progresses (see `tests/test_bwacp.c`):
+BWACP moves a larger block of data to a single node or to every node matching a class bitmask,
+writing it directly into a caller-supplied receive buffer at a given offset - there's no callback
+per chunk, just a buffer that fills in as the transfer progresses (see `tests/test_bwacp.c`).
+The protocol sets no maximum transfer size; how much a node can receive is simply how big a buffer
+it supplies, and `ARTIE_CAN_BWACP_DEFAULT_BUFFER_SIZE` (64 KB) is only a suggested default. A
+receiver whose buffer is too small to hold the transfer drops out of it and is left behind:
 
 ```c
 #include "artie_can.h"
@@ -312,12 +314,12 @@ second thread and handed to a callback or a queue, so nothing of yours runs in t
 interrupt-context receive callback.
 
 ```python
-from artie_can import Node, NodeClass, Priority, Protocol, UdpMulticastBackend
+from artie_can import backends, enums, node
 
 bus = dict(group="239.0.0.1", port=5000)
-with Node(UdpMulticastBackend(**bus), address=0x01) as sender, \
-     Node(UdpMulticastBackend(**bus), address=0x02) as receiver:
-    sender.rtacp_send(0x02, b"\xde\xad\xbe\xef", priority=Priority.MEDIUM)
+with node.Node(backends.UdpMulticastBackend(**bus), address=0x01) as sender, \
+     node.Node(backends.UdpMulticastBackend(**bus), address=0x02) as receiver:
+    sender.rtacp_send(0x02, b"\xde\xad\xbe\xef", priority=enums.Priority.MEDIUM)
     print(receiver.receive_rtacp(timeout=1.0).data.hex())
 ```
 
@@ -325,11 +327,11 @@ A node takes part only in the protocols you ask for, and the methods for the oth
 `InvalidArgument`:
 
 ```python
-node = Node(
-    UdpMulticastBackend(**bus),
+my_node = node.Node(
+    backends.UdpMulticastBackend(**bus),
     address=0x02,
-    protocols=Protocol.RTACP | Protocol.PSACP | Protocol.BWACP | Protocol.RPCACP,
-    node_class=NodeClass.SENSOR,
+    protocols=enums.Protocol.RTACP | enums.Protocol.PSACP | enums.Protocol.BWACP | enums.Protocol.RPCACP,
+    node_class=enums.NodeClass.SENSOR,
     name="left-eyebrow",          # reported by WHOAMI
     firmware_version="1.0.0",
 )
@@ -343,22 +345,22 @@ dispatcher thread, one at a time, in arrival order, and must not call back into 
 
 ```python
 # RTACP - small real-time messages. Unicast waits for the ACK; broadcast does not.
-node.rtacp_send(0x02, b"\x01\x02")
-node.rtacp_send(BROADCAST_ADDRESS, b"\x01\x02")
-message = node.receive_rtacp(timeout=1.0)
+my_node.rtacp_send(0x02, b"\x01\x02")
+my_node.rtacp_send(enums.BROADCAST_ADDRESS, b"\x01\x02")
+message = my_node.receive_rtacp(timeout=1.0)
 
 # PSACP - fire-and-forget pub/sub.
-node.subscribe(0x0C)
-node.publish(0x0C, b"\xa5", high_priority=False)
-message = node.receive_psacp(timeout=1.0)
+my_node.subscribe(0x0C)
+my_node.publish(0x0C, b"\xa5", high_priority=False)
+message = my_node.receive_psacp(timeout=1.0)
 
 # BWACP - bulk block writes into the receivers' block buffers.
-node.block_write(payload, offset=0x1000, target_class=NodeClass.SENSOR)
-node.block_write(payload, offset=0, target_address=0x02)
-received = bytes(node.block_buffer[0x1000:0x1000 + len(payload)])
+my_node.block_write(payload, offset=0x1000, target_class=enums.NodeClass.SENSOR)
+my_node.block_write(payload, offset=0, target_address=0x02)
+received = bytes(my_node.block_buffer[0x1000:0x1000 + len(payload)])
 
 # RPCACP - remote procedure calls.
-print(node.whoami(0x02), node.node_status(0x02), node.list_procedures(0x02, page=0))
+print(my_node.whoami(0x02), my_node.node_status(0x02), my_node.list_procedures(0x02, page=0))
 ```
 
 Device-specific procedures are described by an `RpcSignature` that both ends share. Parameter
@@ -367,13 +369,13 @@ Python values automatically, and anything else (`"array<uint8_t, 4>"`, `"struct 
 through as raw `bytes` of a size you declare.
 
 ```python
-from artie_can import RpcParam, RpcSignature
+from artie_can import rpc
 
-INCREMENT = RpcSignature(
+INCREMENT = rpc.RpcSignature(
     procedure_id=0x10,
     name="INCREMENT",
-    params=(RpcParam("uint8_t"),),
-    returns=RpcParam("uint8_t"),
+    params=(rpc.RpcParam("uint8_t"),),
+    returns=rpc.RpcParam("uint8_t"),
     function=lambda value: (value + 1) & 0xFF,   # only the answering node needs this
 )
 
@@ -455,7 +457,7 @@ logs from container start, so a marker reused across scenarios could match the w
 To integrate the Artie CAN Library into an application, there are several ways to do it depending
 on the programming language and the hardware.
 
-From Python, install this directory as a package and use `artie_can.Node` - see
+From Python, install this directory as a package and use `artie_can.node.Node` - see
 [the Python API section](#python-api) above. It is not yet wired into Artie Tool or the base
 image's Python environment.
 
