@@ -8,11 +8,11 @@ from then on and it cannot be shared between nodes.
 from __future__ import annotations
 
 import abc
+import traceback
 from typing import Callable
 
 from ._artie_can import ffi, lib
-from .enums import BackendType, Mcp2515Mode
-from .errors import check
+from . import enums, errors
 
 __all__ = ["Backend", "UdpMulticastBackend", "Mcp2515Backend"]
 
@@ -21,7 +21,7 @@ class Backend(abc.ABC):
     """Base class for transports. Subclasses configure a node's context for one bus type."""
 
     #: Which ``artie_can_backend_type_t`` the library should initialize for this transport.
-    backend_type: BackendType
+    backend_type: enums.BackendType
 
     @abc.abstractmethod
     def _configure(self, context) -> None:
@@ -30,20 +30,20 @@ class Backend(abc.ABC):
         Called once, before the protocols are configured and before ``artie_can_init()``. The
         backend must hold on to any cdata it allocates for as long as the node lives.
         """
-
+        pass
 
 class UdpMulticastBackend(Backend):
     """Simulate a CAN bus over UDP multicast.
 
     Every node that joins the same group and port sees every frame, which is close enough to a
     real CAN bus's broadcast semantics for development, tests, and running Artie nodes across
-    containers or a LAN. Not for production hardware - use :class:`Mcp2515Backend` there.
+    containers or a LAN. Not for production hardware.
 
     :param group: Multicast group address, e.g. ``"239.0.0.1"``.
     :param port: Multicast port. Every node on the same simulated bus must agree on it.
     """
 
-    backend_type = BackendType.UDP_MULTICAST
+    backend_type = enums.BackendType.UDP_MULTICAST
 
     def __init__(self, group: str = "239.0.0.1", port: int = 5000):
         self.group = group
@@ -55,10 +55,8 @@ class UdpMulticastBackend(Backend):
 
     def _configure(self, context) -> None:
         self._context = ffi.new("artie_can_udp_mcast_context_t *")
-        check(
-            lib.artie_can_init_context_udp_mcast(
-                context, self._context, self.group.encode("utf-8"), self.port
-            ),
+        errors.check(
+            lib.artie_can_init_context_udp_mcast(context, self._context, self.group.encode("utf-8"), self.port),
             "artie_can_init_context_udp_mcast",
         )
 
@@ -82,21 +80,21 @@ class Mcp2515Backend(Backend):
     :param buffer_full_pin_1_interrupt: Configure the RX1BF pin as an interrupt output.
     """
 
-    backend_type = BackendType.MCP2515
+    backend_type = enums.BackendType.MCP2515
 
     def __init__(
         self,
         transfer_byte: Callable[[int], int],
         select: Callable[[bool], None],
         *,
-        mode: Mcp2515Mode = Mcp2515Mode.NORMAL,
+        mode: enums.Mcp2515Mode = enums.Mcp2515Mode.NORMAL,
         oscillator_freq_hz: int = 16_000_000,
         buffer_full_pin_0_interrupt: bool = False,
         buffer_full_pin_1_interrupt: bool = False,
     ):
         self.transfer_byte = transfer_byte
         self.select = select
-        self.mode = Mcp2515Mode(mode)
+        self.mode = enums.Mcp2515Mode(mode)
         self.oscillator_freq_hz = oscillator_freq_hz
         self.buffer_full_pin_0_interrupt = buffer_full_pin_0_interrupt
         self.buffer_full_pin_1_interrupt = buffer_full_pin_1_interrupt
@@ -123,8 +121,6 @@ class Mcp2515Backend(Backend):
                 self._context.read_byte = self.transfer_byte(value) & 0xFF
                 return lib.ARTIE_CAN_ERR_NONE
             except Exception:
-                import traceback
-
                 traceback.print_exc()
                 return lib.ARTIE_CAN_ERR_DRIVER
 
@@ -133,25 +129,13 @@ class Mcp2515Backend(Backend):
                 self.select(bool(cs_low))
                 return lib.ARTIE_CAN_ERR_NONE
             except Exception:
-                import traceback
-
                 traceback.print_exc()
                 return lib.ARTIE_CAN_ERR_DRIVER
 
-        self._write_byte_callback = ffi.callback(
-            "artie_can_write_byte_t", write_byte, error=lib.ARTIE_CAN_ERR_DRIVER
-        )
-        self._write_cs_pin_callback = ffi.callback(
-            "artie_can_write_cs_pin_t", write_cs_pin, error=lib.ARTIE_CAN_ERR_DRIVER
-        )
+        self._write_byte_callback = ffi.callback("artie_can_write_byte_t", write_byte, error=lib.ARTIE_CAN_ERR_DRIVER)
+        self._write_cs_pin_callback = ffi.callback("artie_can_write_cs_pin_t", write_cs_pin, error=lib.ARTIE_CAN_ERR_DRIVER)
 
-        check(
-            lib.artie_can_init_context_mcp2515(
-                context,
-                self._context,
-                config,
-                self._write_byte_callback,
-                self._write_cs_pin_callback,
-            ),
+        errors.check(
+            lib.artie_can_init_context_mcp2515(context, self._context, config, self._write_byte_callback, self._write_cs_pin_callback),
             "artie_can_init_context_mcp2515",
         )

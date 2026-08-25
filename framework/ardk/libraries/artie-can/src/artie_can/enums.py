@@ -23,7 +23,7 @@ __all__ = [
     "BROADCAST_TOPIC",
     "MAX_FRAME_DATA_LENGTH",
     "MAX_NODES",
-    "MAX_BLOCK_SIZE",
+    "DEFAULT_BLOCK_BUFFER_SIZE",
     "MAX_SUBSCRIPTIONS",
     "MAX_RPC_PARAMS",
     "MAX_RPC_NAME_LENGTH",
@@ -128,8 +128,9 @@ MAX_FRAME_DATA_LENGTH: int = lib.ARTIE_CAN_FRAME_MAX_DATA_LENGTH
 #: Addressable nodes on one bus (the broadcast address is not one of them).
 MAX_NODES: int = lib.ARTIE_CAN_MAX_NODES
 
-#: Largest payload a single BWACP block write can carry.
-MAX_BLOCK_SIZE: int = lib.ARTIE_CAN_BWACP_MAX_PAYLOAD_SIZE
+#: Size of the BWACP receive buffer a :class:`~artie_can.Node` allocates by default. BWACP itself
+#: sets no ceiling on how much a block write can carry - this is a starting allocation, not a limit.
+DEFAULT_BLOCK_BUFFER_SIZE: int = lib.ARTIE_CAN_BWACP_DEFAULT_BUFFER_SIZE
 
 #: PSACP topics a single node can be subscribed to at once.
 MAX_SUBSCRIPTIONS: int = lib.ARTIE_CAN_PSACP_MAX_SUBSCRIPTIONS

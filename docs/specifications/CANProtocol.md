@@ -331,6 +331,9 @@ multiple addresses. The general features of BWACP are:
 * Single address or multicast
 * Ensure data integrity
 * Ensure entire message is received
+* No protocol-imposed limit on transfer size - no frame carries a length, and a transfer runs
+  until the COMPLETE frame, so how much a node can accept is simply how large a receive buffer it
+  provides
 
 ### BWACP Specification
 

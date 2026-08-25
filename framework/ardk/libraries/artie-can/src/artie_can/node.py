@@ -26,36 +26,7 @@ import time
 from typing import Any, Callable
 
 from ._artie_can import ffi, lib
-from .backends import Backend
-from .enums import (
-    BROADCAST_ADDRESS,
-    MAX_BLOCK_SIZE,
-    MAX_FRAME_DATA_LENGTH,
-    MAX_NODES,
-    MULTICAST_ADDRESS,
-    NodeClass,
-    Priority,
-    Protocol,
-    RPC_LIST_PAGE_SIZE,
-    RpcErrno,
-    StandardProcedure,
-    _PROTOCOL_ID_PSACP_HIGH,
-    _PROTOCOL_ID_PSACP_LOW,
-    _PROTOCOL_ID_RTACP,
-)
-from .errors import (
-    ArtieCanError,
-    Busy,
-    ErrorFlag,
-    InvalidArgument,
-    NodeClosed,
-    RemoteError,
-    Timeout,
-    check,
-    to_exception,
-)
-from .frames import Frame, PsacpMessage, RtacpMessage
-from .rpc import NodeStatus, ProcedureInfo, RpcParam, RpcSignature, WhoAmI, _SignatureBinding
+from . import backends, enums, errors, frames, rpc
 
 __all__ = ["Node"]
 
@@ -78,11 +49,33 @@ DEFAULT_ACTIVE_TICK_INTERVAL = 0.0002
 #: sooner than this; it is a backstop against a wedged bus, not the protocol's own timeout.
 DEFAULT_RTACP_TIMEOUT = 5.0
 
-#: Wall-clock ceiling on a BWACP block write, which can be 64 KB moved 8 bytes at a time.
-DEFAULT_BLOCK_TIMEOUT = 120.0
+#: Fixed part of a derived block-write timeout: the READY frame and the ACK accumulation that
+#: precede any payload moving, neither of which scales with how much is being sent.
+BLOCK_TIMEOUT_BASE = 30.0
+
+#: Per-DATA-frame part of a derived block-write timeout. One frame is 8 payload bytes and one
+#: acknowledged round trip. This sits deliberately between the two rates that matter: a healthy
+#: transfer needs a few milliseconds a frame, while the protocol itself will spend up to
+#: ARTIE_CAN_BWACP_ACK_TIMEOUT_MS x ARTIE_CAN_BWACP_MAX_REPEATS - about 12.5 seconds - before it
+#: gives up on a single frame. Being generous costs nothing on a working bus and still bounds a
+#: wedged one, which is all this backstop is for.
+BLOCK_TIMEOUT_PER_FRAME = 0.05
 
 #: Wall-clock ceiling on an RPC call, including the remote's execution time.
 DEFAULT_RPC_TIMEOUT = 30.0
+
+
+def block_write_timeout(payload_size: int) -> float:
+    """Default wall-clock ceiling for a block write carrying ``payload_size`` bytes.
+
+    :meth:`Node.block_write` uses this when no explicit ``timeout`` is given. The deadline covers
+    the transfer end to end and is not extended by progress, so a fixed value would fail large
+    transfers that are proceeding perfectly well - hence scaling it by the number of DATA frames
+    the payload turns into.
+    """
+    frames = -(-payload_size // enums.MAX_FRAME_DATA_LENGTH)
+    return BLOCK_TIMEOUT_BASE + frames * BLOCK_TIMEOUT_PER_FRAME
+
 
 #: Received frames held per protocol before the oldest are dropped.
 DEFAULT_RECEIVE_QUEUE_SIZE = 1024
@@ -95,9 +88,11 @@ _SHUTDOWN = object()
 
 # The standard procedures every node answers internally. These are module-level singletons rather
 # than built per call so that a node's cache of bound C signatures stays bounded.
-_WHOAMI = RpcSignature(int(StandardProcedure.WHOAMI), "WHOAMI")
-_STATUS = RpcSignature(int(StandardProcedure.STATUS), "STATUS")
-_LIST = RpcSignature(int(StandardProcedure.LIST), "LIST", params=(RpcParam("uint8_t"),))
+_WHOAMI = rpc.RpcSignature(int(enums.StandardProcedure.WHOAMI), "WHOAMI")
+_STATUS = rpc.RpcSignature(int(enums.StandardProcedure.STATUS), "STATUS")
+_LIST = rpc.RpcSignature(
+    int(enums.StandardProcedure.LIST), "LIST", params=(rpc.RpcParam("uint8_t"),)
+)
 
 
 def _offer(destination: queue.Queue, item: Any) -> None:
@@ -147,7 +142,7 @@ class _Operation:
         self._retry_delay = retry_delay
         self._retry_at = None
         self._deadline = None
-        self._tick_error = ErrorFlag.NONE
+        self._tick_error = errors.ErrorFlag.NONE
         self._last_error = None
 
     @property
@@ -161,7 +156,7 @@ class _Operation:
         self._deadline = time.monotonic() + self._timeout if self._timeout else None
         return self._attempt()
 
-    def advance(self, tick_error: ErrorFlag) -> bool:
+    def advance(self, tick_error: errors.ErrorFlag) -> bool:
         """Fold in one tick's result. Returns True if the operation is still pending."""
         # Only the latest tick's errors are kept, not the union of every tick this operation
         # lived through. A protocol state machine reports a terminal failure on the same tick
@@ -210,7 +205,7 @@ class _Operation:
         # flight, and a tick is how the state machines report outcomes that the starting call
         # could not know yet - an RTACP ACK timeout never comes back from the send itself.
         if self._check_tick_errors:
-            error = to_exception(self._tick_error, self.description)
+            error = errors.to_exception(self._tick_error, self.description)
             if error is not None:
                 self.future.set_exception(error)
                 return False
@@ -240,7 +235,9 @@ class _Operation:
         # nothing about why a retried operation never got anywhere.
         self.future.set_exception(
             self._last_error
-            or Timeout(f"did not finish within {self._timeout:g}s", self._tick_error, self.description)
+            or errors.Timeout(
+                f"did not finish within {self._timeout:g}s", self._tick_error, self.description
+            )
         )
         return False
 
@@ -263,8 +260,10 @@ class Node:
         RPCACP reports it as part of this node's identity.
     :param name: Human-readable name reported by the standard WHOAMI procedure.
     :param firmware_version: Firmware version reported by the standard WHOAMI procedure.
-    :param block_buffer_size: Size of the buffer incoming BWACP block writes land in. Senders
-        choose the offset they write at, so this needs to cover the largest offset you expect.
+    :param block_buffer_size: Size of the buffer incoming BWACP block writes land in, and so the
+        largest block write this node can accept. Senders choose the offset they write at, so this
+        needs to cover the largest offset plus payload you expect. BWACP sets no upper bound;
+        allocate as much as the transfers you expect to receive need.
     :param on_rtacp: ``on_rtacp(message)``, called for each received :class:`RtacpMessage`. If
         given, RTACP messages go here instead of to :meth:`receive_rtacp`.
     :param on_psacp: ``on_psacp(message)``, called for each received :class:`PsacpMessage`. If
@@ -285,36 +284,36 @@ class Node:
 
     def __init__(
         self,
-        backend: Backend,
+        backend: backends.Backend,
         *,
         address: int,
-        protocols: Protocol = Protocol.RTACP,
-        node_class: NodeClass = NodeClass.SBC,
+        protocols: enums.Protocol = enums.Protocol.RTACP,
+        node_class: enums.NodeClass = enums.NodeClass.SBC,
         name: str | None = None,
         firmware_version: str = "0.0.0",
-        block_buffer_size: int = MAX_BLOCK_SIZE,
-        on_rtacp: Callable[[RtacpMessage], None] | None = None,
-        on_psacp: Callable[[PsacpMessage], None] | None = None,
-        on_frame: Callable[[Frame], None] | None = None,
+        block_buffer_size: int = enums.DEFAULT_BLOCK_BUFFER_SIZE,
+        on_rtacp: Callable[[frames.RtacpMessage], None] | None = None,
+        on_psacp: Callable[[frames.PsacpMessage], None] | None = None,
+        on_frame: Callable[[frames.Frame], None] | None = None,
         tick_interval: float = DEFAULT_TICK_INTERVAL,
         active_tick_interval: float = DEFAULT_ACTIVE_TICK_INTERVAL,
         receive_queue_size: int = DEFAULT_RECEIVE_QUEUE_SIZE,
         auto_open: bool = True,
     ):
-        if not 1 <= address <= MAX_NODES:
-            raise InvalidArgument(
-                f"node address must be between 1 and {MAX_NODES}; 0 is the broadcast address and "
-                f"{MULTICAST_ADDRESS} is BWACP's multicast address"
+        if not 1 <= address <= enums.MAX_NODES:
+            raise errors.InvalidArgument(
+                f"node address must be between 1 and {enums.MAX_NODES}; 0 is the broadcast address "
+                f"and {enums.MULTICAST_ADDRESS} is BWACP's multicast address"
             )
         if not protocols:
-            raise InvalidArgument("a node must take part in at least one protocol")
-        if not 0 < block_buffer_size <= MAX_BLOCK_SIZE:
-            raise InvalidArgument(f"block_buffer_size must be between 1 and {MAX_BLOCK_SIZE}")
+            raise errors.InvalidArgument("a node must take part in at least one protocol")
+        if block_buffer_size <= 0:
+            raise errors.InvalidArgument("block_buffer_size must be at least 1")
 
         self._backend = backend
         self._address = address
-        self._protocols = Protocol(protocols)
-        self._node_class = NodeClass(node_class)
+        self._protocols = enums.Protocol(protocols)
+        self._node_class = enums.NodeClass(node_class)
         self._name = name if name is not None else f"artie-node-{address:#04x}"
         self._firmware_version = firmware_version
         self._block_buffer_size = block_buffer_size
@@ -331,7 +330,7 @@ class Node:
         self._block_buffer = None
         self._rx_callback = None
         self._busy_checks: tuple = ()
-        self._signatures: dict[int, _SignatureBinding] = {}
+        self._signatures: dict[int, rpc._SignatureBinding] = {}
 
         self._pending: queue.Queue[_Operation] = queue.Queue()
         self._current: _Operation | None = None
@@ -340,12 +339,12 @@ class Node:
         self._running = False
         self._lock = threading.Lock()
         self._wake = threading.Event()
-        self._last_background_error = ErrorFlag.NONE
+        self._last_background_error = errors.ErrorFlag.NONE
 
         self._inbox: queue.Queue = queue.Queue(receive_queue_size)
-        self._rtacp_inbox: queue.Queue[RtacpMessage] = queue.Queue(receive_queue_size)
-        self._psacp_inbox: queue.Queue[PsacpMessage] = queue.Queue(receive_queue_size)
-        self._frame_inbox: queue.Queue[Frame] = queue.Queue(receive_queue_size)
+        self._rtacp_inbox: queue.Queue[frames.RtacpMessage] = queue.Queue(receive_queue_size)
+        self._psacp_inbox: queue.Queue[frames.PsacpMessage] = queue.Queue(receive_queue_size)
+        self._frame_inbox: queue.Queue[frames.Frame] = queue.Queue(receive_queue_size)
 
         if auto_open:
             self.open()
@@ -363,17 +362,17 @@ class Node:
         return self._name
 
     @property
-    def node_class(self) -> NodeClass:
+    def node_class(self) -> enums.NodeClass:
         """The class bitmask this node reports and is addressed by."""
         return self._node_class
 
     @property
-    def protocols(self) -> Protocol:
+    def protocols(self) -> enums.Protocol:
         """The protocols this node takes part in."""
         return self._protocols
 
     @property
-    def backend(self) -> Backend:
+    def backend(self) -> backends.Backend:
         """The transport this node runs on."""
         return self._backend
 
@@ -383,7 +382,7 @@ class Node:
         return self._running
 
     @property
-    def last_background_error(self) -> ErrorFlag:
+    def last_background_error(self) -> errors.ErrorFlag:
         """Errors reported by ticks that had no operation to attribute them to.
 
         A node that is only receiving still ticks, and a protocol state machine can report a
@@ -398,13 +397,13 @@ class Node:
         Senders choose the offset within it. The view stays valid for the life of the node and is
         written by the worker thread, so read it when you know a transfer has finished.
         """
-        self._require(Protocol.BWACP, "block_buffer")
+        self._require(enums.Protocol.BWACP, "block_buffer")
         return memoryview(ffi.buffer(self._block_buffer, self._block_buffer_size))
 
     @property
     def block_bytes_received(self) -> int:
         """Bytes written into :attr:`block_buffer` by the block write currently in progress."""
-        self._require(Protocol.BWACP, "block_bytes_received")
+        self._require(enums.Protocol.BWACP, "block_bytes_received")
         return self._context.bwacp_context.receive_bytes_written
 
     # ------------------------------------------------------------------ lifecycle
@@ -467,7 +466,7 @@ class Node:
         target_address: int,
         data: bytes = b"",
         *,
-        priority: Priority = Priority.MEDIUM,
+        priority: enums.Priority = enums.Priority.MEDIUM,
         timeout: float = DEFAULT_RTACP_TIMEOUT,
         wait: bool = True,
     ):
@@ -490,30 +489,31 @@ class Node:
         :param timeout: Wall-clock ceiling, in seconds.
         :param wait: Set False to get a :class:`~concurrent.futures.Future` instead of blocking.
         """
-        self._require(Protocol.RTACP, "rtacp_send")
-        if len(data) > MAX_FRAME_DATA_LENGTH:
-            raise InvalidArgument(
-                f"an RTACP message carries at most {MAX_FRAME_DATA_LENGTH} bytes, got {len(data)}"
+        self._require(enums.Protocol.RTACP, "rtacp_send")
+        if len(data) > enums.MAX_FRAME_DATA_LENGTH:
+            raise errors.InvalidArgument(
+                f"an RTACP message carries at most {enums.MAX_FRAME_DATA_LENGTH} bytes, "
+                f"got {len(data)}"
             )
-        message = RtacpMessage(
+        message = frames.RtacpMessage(
             source_address=self._address,
             target_address=target_address,
             data=bytes(data),
-            priority=Priority(priority),
+            priority=enums.Priority(priority),
         )
         cframe = message._to_frame()._to_c()
         handle = self._handle
 
         operation = _Operation(
             "artie_can_rtacp_send",
-            lambda: check(lib.artie_can_rtacp_send(handle, cframe), "artie_can_rtacp_send"),
+            lambda: errors.check(lib.artie_can_rtacp_send(handle, cframe), "artie_can_rtacp_send"),
             busy=lambda: lib.artie_can_rtacp_is_busy(handle),
             timeout=timeout,
             keepalive=cframe,
         )
         return self._submit(operation, wait)
 
-    def receive_rtacp(self, timeout: float | None = None) -> RtacpMessage:
+    def receive_rtacp(self, timeout: float | None = None) -> frames.RtacpMessage:
         """Wait for the next RTACP message addressed to this node.
 
         Only available when no ``on_rtacp`` callback was given; the two are alternatives.
@@ -521,31 +521,33 @@ class Node:
         :param timeout: Seconds to wait, or None to wait indefinitely.
         :raises Timeout: If nothing arrives in time.
         """
-        self._require(Protocol.RTACP, "receive_rtacp")
+        self._require(enums.Protocol.RTACP, "receive_rtacp")
         return self._receive(self._rtacp_inbox, timeout, "RTACP message", self._on_rtacp, "on_rtacp")
 
     # ------------------------------------------------------------------ PSACP
 
     def subscribe(self, topic: int, *, wait: bool = True):
         """Subscribe this node to a PSACP topic, so publishes to it are delivered here."""
-        self._require(Protocol.PSACP, "subscribe")
+        self._require(enums.Protocol.PSACP, "subscribe")
         context = self._context
         return self._submit(
             _Operation(
                 "artie_can_psacp_subscribe",
-                lambda: check(lib.artie_can_psacp_subscribe(context, topic), "artie_can_psacp_subscribe"),
+                lambda: errors.check(
+                    lib.artie_can_psacp_subscribe(context, topic), "artie_can_psacp_subscribe"
+                ),
             ),
             wait,
         )
 
     def unsubscribe(self, topic: int, *, wait: bool = True):
         """Stop delivering publishes on a PSACP topic to this node."""
-        self._require(Protocol.PSACP, "unsubscribe")
+        self._require(enums.Protocol.PSACP, "unsubscribe")
         context = self._context
         return self._submit(
             _Operation(
                 "artie_can_psacp_unsubscribe",
-                lambda: check(
+                lambda: errors.check(
                     lib.artie_can_psacp_unsubscribe(context, topic), "artie_can_psacp_unsubscribe"
                 ),
             ),
@@ -557,7 +559,7 @@ class Node:
         topic: int,
         data: bytes = b"",
         *,
-        priority: Priority = Priority.MEDIUM,
+        priority: enums.Priority = enums.Priority.MEDIUM,
         high_priority: bool = False,
         wait: bool = True,
     ):
@@ -575,16 +577,17 @@ class Node:
             one during arbitration regardless of ``priority``.
         :param wait: Set False to get a :class:`~concurrent.futures.Future` instead of blocking.
         """
-        self._require(Protocol.PSACP, "publish")
-        if len(data) > MAX_FRAME_DATA_LENGTH:
-            raise InvalidArgument(
-                f"a PSACP message carries at most {MAX_FRAME_DATA_LENGTH} bytes, got {len(data)}"
+        self._require(enums.Protocol.PSACP, "publish")
+        if len(data) > enums.MAX_FRAME_DATA_LENGTH:
+            raise errors.InvalidArgument(
+                f"a PSACP message carries at most {enums.MAX_FRAME_DATA_LENGTH} bytes, "
+                f"got {len(data)}"
             )
-        message = PsacpMessage(
+        message = frames.PsacpMessage(
             source_address=self._address,
             topic=topic,
             data=bytes(data),
-            priority=Priority(priority),
+            priority=enums.Priority(priority),
             high_priority=high_priority,
         )
         cframe = message._to_frame()._to_c()
@@ -593,13 +596,15 @@ class Node:
         return self._submit(
             _Operation(
                 "artie_can_psacp_publish",
-                lambda: check(lib.artie_can_psacp_publish(handle, cframe), "artie_can_psacp_publish"),
+                lambda: errors.check(
+                    lib.artie_can_psacp_publish(handle, cframe), "artie_can_psacp_publish"
+                ),
                 keepalive=cframe,
             ),
             wait,
         )
 
-    def receive_psacp(self, timeout: float | None = None) -> PsacpMessage:
+    def receive_psacp(self, timeout: float | None = None) -> frames.PsacpMessage:
         """Wait for the next PSACP message on a topic this node subscribes to.
 
         Only available when no ``on_psacp`` callback was given; the two are alternatives.
@@ -607,7 +612,7 @@ class Node:
         :param timeout: Seconds to wait, or None to wait indefinitely.
         :raises Timeout: If nothing arrives in time.
         """
-        self._require(Protocol.PSACP, "receive_psacp")
+        self._require(enums.Protocol.PSACP, "receive_psacp")
         return self._receive(self._psacp_inbox, timeout, "PSACP message", self._on_psacp, "on_psacp")
 
     # ------------------------------------------------------------------ BWACP
@@ -617,37 +622,41 @@ class Node:
         data: bytes,
         *,
         offset: int = 0,
-        target_address: int = MULTICAST_ADDRESS,
-        target_class: NodeClass = NodeClass.SBC,
-        priority: Priority = Priority.MEDIUM,
-        timeout: float = DEFAULT_BLOCK_TIMEOUT,
+        target_address: int = enums.MULTICAST_ADDRESS,
+        target_class: enums.NodeClass = enums.NodeClass.SBC,
+        priority: enums.Priority = enums.Priority.MEDIUM,
+        timeout: float | None = None,
         wait: bool = True,
     ):
         """Write a block of data into one or more remote nodes' block buffers.
 
-        This is the bulk transfer protocol: up to 64 KB, chunked across frames, CRC-checked, and
-        retried per frame. It does not return until every participating receiver has acknowledged
-        the whole transfer.
+        This is the bulk transfer protocol: arbitrarily large, chunked across frames,
+        CRC-checked, and retried per frame. It does not return until every participating receiver
+        has acknowledged the whole transfer.
 
         Receivers must have BWACP enabled - their :attr:`block_buffer` is where the data lands,
-        starting at ``offset``.
+        starting at ``offset``. A receiver whose buffer cannot hold ``offset + len(data)`` drops
+        out of the transfer, so size the receivers' buffers before sending something large.
 
-        :param data: The payload, up to :data:`~artie_can.MAX_BLOCK_SIZE` bytes.
+        :param data: The payload. BWACP imposes no maximum; the practical limits are the
+            receivers' buffers and ``timeout``.
         :param offset: Where in each receiver's block buffer to write.
         :param target_address: A single node's address, or :data:`~artie_can.MULTICAST_ADDRESS` to
             address every node whose class overlaps ``target_class``.
         :param target_class: Which classes of node to write to. Ignored unless ``target_address``
             is the multicast address.
         :param priority: Bus arbitration priority for the transfer's frames.
-        :param timeout: Wall-clock ceiling, in seconds.
+        :param timeout: Wall-clock ceiling, in seconds, covering the whole transfer. Defaults to
+            :func:`block_write_timeout` of the payload size, since the deadline does not move as
+            the transfer progresses.
         :param wait: Set False to get a :class:`~concurrent.futures.Future` instead of blocking.
         """
-        self._require(Protocol.BWACP, "block_write")
+        self._require(enums.Protocol.BWACP, "block_write")
         payload = bytes(data)
-        if not 0 < len(payload) <= MAX_BLOCK_SIZE:
-            raise InvalidArgument(
-                f"a block write carries between 1 and {MAX_BLOCK_SIZE} bytes, got {len(payload)}"
-            )
+        if not payload:
+            raise errors.InvalidArgument("a block write must carry at least one byte")
+        if timeout is None:
+            timeout = block_write_timeout(len(payload))
         # The library reads the payload straight out of this buffer across the whole transfer, so
         # it has to stay alive until the operation completes.
         buffer = ffi.new("uint8_t[]", payload)
@@ -655,10 +664,10 @@ class Node:
 
         operation = _Operation(
             "artie_can_bwacp_send",
-            lambda: check(
+            lambda: errors.check(
                 lib.artie_can_bwacp_send(
                     handle, buffer, len(payload), offset, target_address,
-                    int(target_class), int(Priority(priority)),
+                    int(target_class), int(enums.Priority(priority)),
                 ),
                 "artie_can_bwacp_send",
             ),
@@ -670,7 +679,7 @@ class Node:
 
     # ------------------------------------------------------------------ RPCACP
 
-    def register_procedure(self, signature: RpcSignature, *, wait: bool = True):
+    def register_procedure(self, signature: rpc.RpcSignature, *, wait: bool = True):
         """Make a procedure callable on this node by other nodes.
 
         The signature's ``function`` runs on this node's worker thread when a request arrives, so
@@ -680,9 +689,9 @@ class Node:
         :param signature: The procedure to register. Its ``function`` must not be None.
         :param wait: Set False to get a :class:`~concurrent.futures.Future` instead of blocking.
         """
-        self._require(Protocol.RPCACP, "register_procedure")
+        self._require(enums.Protocol.RPCACP, "register_procedure")
         if signature.function is None:
-            raise InvalidArgument(
+            raise errors.InvalidArgument(
                 f"cannot register {signature.name!r} without a function to run when it is called"
             )
         binding = self._bind(signature)
@@ -690,7 +699,7 @@ class Node:
         return self._submit(
             _Operation(
                 "artie_can_rpcacp_register_procedure",
-                lambda: check(
+                lambda: errors.check(
                     lib.artie_can_rpcacp_register_procedure(handle, binding.c_signature),
                     "artie_can_rpcacp_register_procedure",
                 ),
@@ -701,7 +710,7 @@ class Node:
     def call(
         self,
         target_address: int,
-        signature: RpcSignature,
+        signature: rpc.RpcSignature,
         *args: Any,
         timeout: float = DEFAULT_RPC_TIMEOUT,
         retry_if_busy: bool = True,
@@ -732,7 +741,7 @@ class Node:
     def whoami(
         self, target_address: int, *, timeout: float = DEFAULT_RPC_TIMEOUT,
         retry_if_busy: bool = True,
-    ) -> WhoAmI:
+    ) -> rpc.WhoAmI:
         """Ask a remote node to identify itself. Answered internally by every node."""
         return self._call(
             target_address, _WHOAMI, (), timeout, True, self._decode_whoami, retry_if_busy
@@ -741,7 +750,7 @@ class Node:
     def node_status(
         self, target_address: int, *, timeout: float = DEFAULT_RPC_TIMEOUT,
         retry_if_busy: bool = True,
-    ) -> NodeStatus:
+    ) -> rpc.NodeStatus:
         """Ask a remote node for its uptime and error flags. Answered internally by every node."""
         return self._call(
             target_address, _STATUS, (), timeout, True, self._decode_status, retry_if_busy
@@ -750,7 +759,7 @@ class Node:
     def list_procedures(
         self, target_address: int, page: int = 0, *, timeout: float = DEFAULT_RPC_TIMEOUT,
         retry_if_busy: bool = True,
-    ) -> list[ProcedureInfo]:
+    ) -> list[rpc.ProcedureInfo]:
         """Ask a remote node which procedures it exposes.
 
         Results come a page at a time; each page describes
@@ -769,9 +778,9 @@ class Node:
         keeps a single result slot per node, so anything else reaching the worker in between -
         another thread's call, or a request this node is answering - would overwrite it.
         """
-        self._require(Protocol.RPCACP, "call")
-        if target_address == BROADCAST_ADDRESS:
-            raise InvalidArgument("RPCACP has no broadcast; call one node at a time")
+        self._require(enums.Protocol.RPCACP, "call")
+        if target_address == enums.BROADCAST_ADDRESS:
+            raise errors.InvalidArgument("RPCACP has no broadcast; call one node at a time")
 
         binding = self._bind(signature)
         encoded = signature.encode_args(args)
@@ -784,7 +793,7 @@ class Node:
         handle = self._handle
 
         def start():
-            check(
+            errors.check(
                 lib.artie_can_rpcacp_call(
                     handle, target_address, binding.c_signature,
                     values if encoded else ffi.NULL, len(encoded),
@@ -818,7 +827,7 @@ class Node:
         Best effort and locally tracked: set when that node accepts an asynchronous call from
         here, cleared the next time it accepts or definitively rejects another one.
         """
-        self._require(Protocol.RPCACP, "is_remote_busy")
+        self._require(enums.Protocol.RPCACP, "is_remote_busy")
         handle = self._handle
         return self._submit(
             _Operation(
@@ -831,12 +840,12 @@ class Node:
 
     def set_status_error_flags(self, flags: int, *, wait: bool = True):
         """Set the device-specific error bits this node reports through the STATUS procedure."""
-        self._require(Protocol.RPCACP, "set_status_error_flags")
+        self._require(enums.Protocol.RPCACP, "set_status_error_flags")
         context = self._context
         return self._submit(
             _Operation(
                 "artie_can_rpcacp_set_status_err_flags",
-                lambda: check(
+                lambda: errors.check(
                     lib.artie_can_rpcacp_set_status_err_flags(context, flags),
                     "artie_can_rpcacp_set_status_err_flags",
                 ),
@@ -846,7 +855,7 @@ class Node:
 
     # ------------------------------------------------------------------ raw frames
 
-    def receive_frame(self, timeout: float | None = None) -> Frame:
+    def receive_frame(self, timeout: float | None = None) -> frames.Frame:
         """Wait for the next received frame that is neither RTACP nor PSACP.
 
         Frames the higher-level protocols handle themselves do not appear here. Only available
@@ -868,37 +877,37 @@ class Node:
         # Consulted every tick to decide how hard to poll, so it is resolved once here rather than
         # rebuilt each time round the loop.
         self._busy_checks = (
-            (Protocol.RTACP, lib.artie_can_rtacp_is_busy),
-            (Protocol.RPCACP, lib.artie_can_rpcacp_is_busy),
-            (Protocol.BWACP, lib.artie_can_bwacp_is_busy),
+            (enums.Protocol.RTACP, lib.artie_can_rtacp_is_busy),
+            (enums.Protocol.RPCACP, lib.artie_can_rpcacp_is_busy),
+            (enums.Protocol.BWACP, lib.artie_can_bwacp_is_busy),
         )
 
         self._backend._configure(self._context)
 
-        if Protocol.RTACP in self._protocols:
-            check(
+        if enums.Protocol.RTACP in self._protocols:
+            errors.check(
                 lib.artie_can_init_context_rtacp(self._context, self._address),
                 "artie_can_init_context_rtacp",
             )
-        if Protocol.PSACP in self._protocols:
-            check(
+        if enums.Protocol.PSACP in self._protocols:
+            errors.check(
                 lib.artie_can_init_context_psacp(self._context, self._address),
                 "artie_can_init_context_psacp",
             )
-        if Protocol.BWACP in self._protocols:
-            check(
+        if enums.Protocol.BWACP in self._protocols:
+            errors.check(
                 lib.artie_can_init_context_bwacp(self._context, self._address, int(self._node_class)),
                 "artie_can_init_context_bwacp",
             )
             self._block_buffer = ffi.new("uint8_t[]", self._block_buffer_size)
-            check(
+            errors.check(
                 lib.artie_can_bwacp_set_receive_buffer(
                     self._context, self._block_buffer, self._block_buffer_size
                 ),
                 "artie_can_bwacp_set_receive_buffer",
             )
-        if Protocol.RPCACP in self._protocols:
-            check(
+        if enums.Protocol.RPCACP in self._protocols:
+            errors.check(
                 lib.artie_can_init_context_rpcacp(
                     self._context,
                     self._address,
@@ -910,7 +919,7 @@ class Node:
             )
 
         self._rx_callback = ffi.callback("artie_can_rx_callback_t", self._on_frame_received)
-        check(
+        errors.check(
             lib.artie_can_init(
                 self._context,
                 self._handle,
@@ -921,17 +930,17 @@ class Node:
             "artie_can_init",
         )
 
-    def _require(self, protocol: Protocol, what: str) -> None:
+    def _require(self, protocol: enums.Protocol, what: str) -> None:
         """Reject a call the node was not configured for, or is no longer able to serve."""
         if protocol not in self._protocols:
-            raise InvalidArgument(
+            raise errors.InvalidArgument(
                 f"{what} needs Protocol.{protocol.name}, but this node was configured with "
                 f"{self._protocols!r}"
             )
         if not self._running:
-            raise NodeClosed("node is not open", operation=what)
+            raise errors.NodeClosed("node is not open", operation=what)
 
-    def _bind(self, signature: RpcSignature) -> _SignatureBinding:
+    def _bind(self, signature: rpc.RpcSignature) -> rpc._SignatureBinding:
         """Get (or build) the long-lived C signature for an :class:`RpcSignature`.
 
         The library keeps the ``char *`` fields of a registered or in-flight signature, so these
@@ -940,7 +949,7 @@ class Node:
         key = id(signature)
         binding = self._signatures.get(key)
         if binding is None or binding.signature != signature:
-            binding = _SignatureBinding(signature)
+            binding = rpc._SignatureBinding(signature)
             self._signatures[key] = binding
         return binding
 
@@ -949,7 +958,7 @@ class Node:
     def _submit(self, operation: _Operation, wait: bool):
         """Hand an operation to the worker thread, optionally waiting for its result."""
         if not self._running:
-            raise NodeClosed("node is not open", operation=operation.description)
+            raise errors.NodeClosed("node is not open", operation=operation.description)
         self._pending.put(operation)
         self._wake.set()
         if not wait:
@@ -957,12 +966,12 @@ class Node:
         # The operation enforces its own deadline on the worker; this is only here so a wedged or
         # dead worker surfaces as an error instead of hanging the caller forever. Waiting is split
         # from collecting deliberately: Future.result(timeout=...) signals its own expiry by
-        # raising TimeoutError, which our Timeout is a subclass of, so catching that would swallow
-        # and reword the operation's real failure.
+        # raising TimeoutError, which our errors.Timeout is a subclass of, so catching that would
+        # swallow and reword the operation's real failure.
         grace = (operation.timeout or DEFAULT_RPC_TIMEOUT) + 10.0
         concurrent.futures.wait([operation.future], timeout=grace)
         if not operation.future.done():
-            raise Timeout(
+            raise errors.Timeout(
                 "the node's worker thread did not finish this operation",
                 operation=operation.description,
             )
@@ -1020,7 +1029,7 @@ class Node:
             if candidate.begin():
                 self._current = candidate
 
-        error = ErrorFlag(lib.artie_can_tick(self._handle))
+        error = errors.ErrorFlag(lib.artie_can_tick(self._handle))
         if self._current is not None:
             if not self._current.advance(error):
                 self._current = None
@@ -1029,7 +1038,7 @@ class Node:
 
     def _teardown(self) -> None:
         """Fail anything still outstanding, then close the library from this same thread."""
-        closed = NodeClosed("node was closed while this operation was in flight")
+        closed = errors.NodeClosed("node was closed while this operation was in flight")
         if self._current is not None:
             self._current.abandon(closed)
             self._current = None
@@ -1039,8 +1048,8 @@ class Node:
             except queue.Empty:
                 break
         try:
-            check(lib.artie_can_close(self._handle), "artie_can_close")
-        except ArtieCanError as exc:
+            errors.check(lib.artie_can_close(self._handle), "artie_can_close")
+        except errors.ArtieCanError as exc:
             self._last_background_error = exc.flags
 
     # ------------------------------------------------------------------ receive path
@@ -1051,7 +1060,7 @@ class Node:
         Copy the frame and get out; parsing and user code happen on the dispatcher thread.
         """
         try:
-            _offer(self._inbox, Frame._from_c(cframe))
+            _offer(self._inbox, frames.Frame._from_c(cframe))
             # The library has already staged whatever this frame obliges us to do - an ACK to
             # send, a block to write - behind a flag that only a tick acts on. Wake the worker so
             # that happens now rather than at the end of its idle interval.
@@ -1073,12 +1082,12 @@ class Node:
 
                 traceback.print_exc()
 
-    def _dispatch(self, frame: Frame) -> None:
+    def _dispatch(self, frame: frames.Frame) -> None:
         protocol_id = frame.protocol_id
-        if protocol_id == _PROTOCOL_ID_RTACP:
-            self._deliver(RtacpMessage._from_frame(frame), self._on_rtacp, self._rtacp_inbox)
-        elif protocol_id in (_PROTOCOL_ID_PSACP_HIGH, _PROTOCOL_ID_PSACP_LOW):
-            self._deliver(PsacpMessage._from_frame(frame), self._on_psacp, self._psacp_inbox)
+        if protocol_id == enums._PROTOCOL_ID_RTACP:
+            self._deliver(frames.RtacpMessage._from_frame(frame), self._on_rtacp, self._rtacp_inbox)
+        elif protocol_id in (enums._PROTOCOL_ID_PSACP_HIGH, enums._PROTOCOL_ID_PSACP_LOW):
+            self._deliver(frames.PsacpMessage._from_frame(frame), self._on_psacp, self._psacp_inbox)
         else:
             self._deliver(frame, self._on_frame, self._frame_inbox)
 
@@ -1093,7 +1102,7 @@ class Node:
     def _receive(inbox: queue.Queue, timeout: float | None, what: str,
                  handler: Callable[[Any], None] | None, handler_name: str) -> Any:
         if handler is not None:
-            raise InvalidArgument(
+            raise errors.InvalidArgument(
                 f"this node delivers each {what} to its {handler_name} callback, so there is "
                 "nothing to receive here; use one or the other"
             )
@@ -1101,66 +1110,66 @@ class Node:
         try:
             return inbox.get(timeout=timeout)
         except queue.Empty:
-            raise Timeout(f"no {what} arrived within {timeout:g}s") from None
+            raise errors.Timeout(f"no {what} arrived within {timeout:g}s") from None
 
     # ------------------------------------------------------------------ RPC result decoding
 
-    def _raise_rpc_error(self, signature: RpcSignature) -> None:
+    def _raise_rpc_error(self, signature: rpc.RpcSignature) -> None:
         """Turn the just-completed call's recorded outcome into an exception, if it failed."""
         errno_out = ffi.new("uint8_t *")
-        code = ErrorFlag(lib.artie_can_rpcacp_get_last_error(self._handle, errno_out))
+        code = errors.ErrorFlag(lib.artie_can_rpcacp_get_last_error(self._handle, errno_out))
         if not code:
             return
         # A NACK from the remote is recorded as INVALID_ARG plus the errno byte it sent;
         # everything else is a local or transport failure with no errno to report.
-        if code == ErrorFlag.INVALID_ARG:
-            raise RemoteError(
+        if code == errors.ErrorFlag.INVALID_ARG:
+            raise errors.RemoteError(
                 f"node rejected {signature.name}", errno_out[0], code, "artie_can_rpcacp_call"
             )
-        check(int(code), "artie_can_rpcacp_call")
+        errors.check(int(code), "artie_can_rpcacp_call")
 
-    def _decode_result(self, signature: RpcSignature, binding: _SignatureBinding) -> Any:
+    def _decode_result(self, signature: rpc.RpcSignature, binding: rpc._SignatureBinding) -> Any:
         if signature.returns is None:
             return None
 
         size = signature.returns.native_size
         out = ffi.new("char[]", max(size, 1))
-        check(
+        errors.check(
             lib.artie_can_rpcacp_get_result(self._handle, binding.c_signature, out, size),
             "artie_can_rpcacp_get_result",
         )
         return signature.returns.decode(bytes(ffi.buffer(out, size)))
 
-    def _decode_whoami(self) -> WhoAmI:
+    def _decode_whoami(self) -> rpc.WhoAmI:
         response = ffi.new("artie_can_whoami_response_t *")
-        check(
+        errors.check(
             lib.artie_can_rpcacp_get_whoami_result(self._handle, response),
             "artie_can_rpcacp_get_whoami_result",
         )
         # node_name and fw_version point into library storage that the next call overwrites, so
         # copy them out now, while we are still the operation that produced them.
-        return WhoAmI(
+        return rpc.WhoAmI(
             node_address=response.node_address,
             node_name=_as_str(response.node_name),
             firmware_version=_as_str(response.fw_version),
         )
 
-    def _decode_status(self) -> NodeStatus:
+    def _decode_status(self) -> rpc.NodeStatus:
         response = ffi.new("artie_can_status_response_t *")
-        check(
+        errors.check(
             lib.artie_can_rpcacp_get_status_result(self._handle, response),
             "artie_can_rpcacp_get_status_result",
         )
-        return NodeStatus(uptime_ms=response.uptime_ms, error_flags=response.err_flags)
+        return rpc.NodeStatus(uptime_ms=response.uptime_ms, error_flags=response.err_flags)
 
-    def _decode_list(self) -> list[ProcedureInfo]:
-        entries = ffi.new("artie_can_rpc_signature_t[]", RPC_LIST_PAGE_SIZE)
-        check(
+    def _decode_list(self) -> list[rpc.ProcedureInfo]:
+        entries = ffi.new("artie_can_rpc_signature_t[]", enums.RPC_LIST_PAGE_SIZE)
+        errors.check(
             lib.artie_can_rpcacp_get_list_result(self._handle, entries),
             "artie_can_rpcacp_get_list_result",
         )
         return [
-            ProcedureInfo(
+            rpc.ProcedureInfo(
                 procedure_id=entry.procedure_id,
                 name=_as_str(entry.name),
                 synchronous=bool(entry.synchronous),
@@ -1188,8 +1197,8 @@ def _rejected_as_busy(exc: BaseException) -> bool:
     Nothing else is retried, least of all a timeout, which leaves it genuinely unknown whether the
     remote ran the procedure.
     """
-    return isinstance(exc, Busy) or (
-        isinstance(exc, RemoteError) and exc.errno == RpcErrno.EAGAIN
+    return isinstance(exc, errors.Busy) or (
+        isinstance(exc, errors.RemoteError) and exc.errno == enums.RpcErrno.EAGAIN
     )
 
 
