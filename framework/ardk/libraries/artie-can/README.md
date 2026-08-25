@@ -337,9 +337,15 @@ my_node = node.Node(
 )
 ```
 
-Pass `on_rtacp=`, `on_psacp=` or `on_frame=` to have messages delivered to a callback instead of
-queued for `receive_rtacp()` / `receive_psacp()` / `receive_frame()`. Callbacks run on the node's
-dispatcher thread, one at a time, in arrival order, and must not call back into the same node.
+Pass `on_rtacp=`, `on_psacp=`, `on_block_write=` or `on_frame=` to have messages delivered to a
+callback instead of queued for `receive_rtacp()` / `receive_psacp()` / `receive_block()` /
+`receive_frame()`. Callbacks run on the node's dispatcher thread, one at a time, in arrival order,
+and must not call back into the same node.
+
+BWACP is the odd one out among those. A block write spans many frames and the protocol has no
+completion callback - the data simply appears in the receiver's `block_buffer` - so the node
+watches the state machine for a finished transfer and reports it as a `BlockWrite`, carrying a copy
+of the payload taken before a later transfer can overwrite it.
 
 ### Each protocol
 
@@ -357,7 +363,8 @@ message = my_node.receive_psacp(timeout=1.0)
 # BWACP - bulk block writes into the receivers' block buffers.
 my_node.block_write(payload, offset=0x1000, target_class=enums.NodeClass.SENSOR)
 my_node.block_write(payload, offset=0, target_address=0x02)
-received = bytes(my_node.block_buffer[0x1000:0x1000 + len(payload)])
+block = my_node.receive_block(timeout=30.0)     # blocks until a whole transfer has landed
+received = bytes(my_node.block_buffer[block.offset:block.offset + len(block)])
 
 # RPCACP - remote procedure calls.
 print(my_node.whoami(0x02), my_node.node_status(0x02), my_node.list_procedures(0x02, page=0))
@@ -414,35 +421,51 @@ select - since the library has no way to reach your SPI peripheral itself.
 
 ## Testing
 
-There are two suites, and they test different things.
-
-The **unit tests** (`tests/`) are Unity tests that stand several nodes up inside a single process
-on the UDP multicast backend. Run them locally with `build_and_test_c.ps1`, or in a container via
-`artie-tool test artie-can-unit-tests`. Because every node shares one process, frames never actually
-leave it - what these cover is the protocol state machines.
-
-The **integration tests** (`itest/`) close that gap by putting each node in its own container, so
-frames really do cross a network. `itest/itest_node.c` builds a single binary with two roles: a
-long-lived `peer` that answers whatever it is sent (echoing RTACP frames, acknowledging PSACP
-publishes and completed BWACP blocks, and servicing an ECHO RPC), and a one-shot `driver` that runs
-one scenario, decides pass/fail, and prints `ITEST <scenario>:PASS`. Docker compose hosts two peers
-(addresses `0x02` and `0x03`) and each test step runs a driver as node `0x01`:
+There are four suites: unit and integration, for each of the two APIs. All four are artie-tool
+tasks and all four run out of the same `artie-can-test` image, which carries the built C library,
+its test binaries, the installed Python package and pytest.
 
 ```bash
-artie-tool test can-integration-tests
+artie-tool test artie-can-unit-tests            # C, in one process
+artie-tool test artie-can-python-unit-tests     # Python, in one process
+artie-tool test can-integration-tests           # C, across containers
+artie-tool test can-python-integration-tests    # Python, across containers
 ```
 
-To drive it by hand instead - useful when adding a scenario:
+The **unit tests** stand several nodes up inside a single process on the UDP multicast backend.
+Because every node shares one process, frames never actually leave it - what these cover is the
+protocol state machines, and for Python the bindings on top of them.
+
+* C (`tests/*.c`): Unity tests, run by CTest. Locally: `build_and_test_c.ps1`.
+* Python (`tests/python`): pytest. Locally: `python run_tests.py`, which is also what the task runs
+  inside the container.
+
+The **integration tests** close that gap by putting each node in its own container, so frames
+really do cross a network. `itest/itest_node.c` and `itest/itest_node.py` are the same program in
+the two languages: each has a long-lived `peer` role that answers whatever it is sent (echoing
+RTACP payloads, acknowledging PSACP publishes and completed BWACP blocks, and servicing an ECHO
+RPC), and a one-shot `driver` role that runs one scenario, decides pass/fail, and prints
+`ITEST <scenario>:PASS` (C) or `PYITEST <scenario>:PASS` (Python). Docker compose hosts two peers
+(addresses `0x02` and `0x03`) and each test step runs a driver as node `0x01`.
+
+The two integration suites use separate Docker networks *and* separate multicast groups - the C
+node's bus is `239.0.0.10:7100`, the Python node's is `239.0.0.11:7101` - so they cannot hear each
+other even when they run at the same time on one host. The Python unit tests use a third group
+again (`239.0.0.21`), with a fresh port per test.
+
+To drive the Python integration node by hand - useful when adding a scenario:
 
 ```bash
-docker network create can-itest
-docker run -d --name can-itest-node-2 --network can-itest <image> \
-    /artie-can/build/itest/itest_node --role peer --address 0x02
-docker run -d --name can-itest-node-3 --network can-itest <image> \
-    /artie-can/build/itest/itest_node --role peer --address 0x03
-docker run --rm --network can-itest <image> \
-    /artie-can/build/itest/itest_node --role driver --address 0x01 --scenario rtacp-unicast
+docker network create can-python-itest
+docker run -d --name can-python-itest-node-2 --network can-python-itest <image> \
+    python /artie-can/itest/itest_node.py --role peer --address 0x02
+docker run -d --name can-python-itest-node-3 --network can-python-itest <image> \
+    python /artie-can/itest/itest_node.py --role peer --address 0x03
+docker run --rm --network can-python-itest <image> \
+    python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario rtacp-unicast
 ```
+
+The C node works the same way, with `/artie-can/build/itest/itest_node` and the `can-itest` network.
 
 Two things to know before adding scenarios. Every node needs a **unique address**, because the UDP
 multicast backend filters out its own traffic by comparing each frame's source address to its own -
@@ -450,16 +473,21 @@ two nodes sharing an address silently discard each other's frames. And each scen
 **payload marker**, because the peers outlive every individual test while the task streams their
 logs from container start, so a marker reused across scenarios could match the wrong test's line.
 
-`itest_node` is deliberately not registered with CTest, so `ctest` still runs only the unit tests.
+Neither `itest_node` is registered with CTest, so `ctest` still runs only the C unit tests.
+
+Both unit-test tasks name every test individually, so that each shows up separately in the test
+report. That means `tasks/test-tasks/libraries/artie-can-python-unit-tests.yaml` has to be updated
+whenever a test is added to or removed from `tests/python`; its last step checks the suite's own
+verdict line, which catches a test the task has not been told about failing anyway.
 
 ## Integrating
 
 To integrate the Artie CAN Library into an application, there are several ways to do it depending
 on the programming language and the hardware.
 
-From Python, install this directory as a package and use `artie_can.node.Node` - see
-[the Python API section](#python-api) above. It is not yet wired into Artie Tool or the base
-image's Python environment.
+From Python, use `artie_can.node.Node` - see [the Python API section](#python-api) above. Every
+Artie container already has the package: the base image installs this directory, and rebuilds
+whenever it changes. `artie-cli can` exposes the same operations from a shell.
 
 From C, build the library with CMake and link against `artie_can` (shared) or `artie_can_static`,
 with `include/`, `include/backend/`, `include/protocol/` and `include/util/` on the include path.

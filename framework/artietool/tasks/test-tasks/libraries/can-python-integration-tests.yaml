@@ -1,0 +1,114 @@
+# Integration tests for the Artie CAN library's Python bindings.
+#
+# The Python twin of can-integration-tests. Where artie-can-python-unit-tests runs every node
+# inside a single process (so frames never leave it), these run three nodes in three containers,
+# talking over the UDP multicast backend across a Docker network. That is what exercises the wire
+# format, the multicast join, and the backend's receiver thread between real peers - through the
+# bindings rather than the C API.
+#
+# Compose hosts the two long-lived peer nodes (0x02 and 0x03); each test step below runs the same
+# image as a one-shot driver node (0x01) that performs one scenario and decides its own pass/fail.
+#
+# Each step asserts twice: once on the driver's own verdict, and once on a peer's log, which is what
+# proves the traffic actually crossed the container boundary rather than the driver passing itself.
+name: can-python-integration-tests
+labels:
+  - docker-image
+  - integration
+  - library
+dependencies:
+  - artie-can-test-image: docker-image
+type: test
+steps:
+  - job: docker-compose-test-suite
+    compose-fname: compose.can-python.yaml
+    compose-docker-image-variables:
+      - ARTIE_CAN_TEST_IMAGE:
+          dependency:
+            name: docker-image
+            producing-task: artie-can-test-image
+    # The "CLI" image here is the CAN test image itself - the thing we run per step is the scenario
+    # driver, not artie-cli.
+    cli-image:
+      dependency:
+        name: docker-image
+        producing-task: artie-can-test-image
+    steps:
+      # Warm-up: proves both peers are on the bus before anything else is asserted. The driver
+      # retries its scenario internally until --timeout-s, so this also absorbs the gap between
+      # compose reporting the containers as up and the nodes actually having joined the multicast
+      # group.
+      - test-name: python-nodes-ready
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario ping"
+        expected-outputs:
+          # Only the first artie-cli expectation is checked by the framework, so there is exactly
+          # one per step; everything else is asserted in the peers' logs.
+          - what: "PYITEST ping:PASS"
+            where: artie-cli
+          - what: "NODE 0x02 RTACP RX from 0x01: PYPING01"
+            where: can-python-itest-node-2
+          - what: "NODE 0x03 RTACP RX from 0x01: PYPING01"
+            where: can-python-itest-node-3
+
+      # A unicast must reach its target and no one else. The negative half is checked inside the
+      # driver (it listens for a stray answer from 0x03 and fails if one arrives) because
+      # container-scoped unexpected-outputs are not wired up by artietool.
+      - test-name: python-rtacp-unicast
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario rtacp-unicast"
+        expected-outputs:
+          - what: "PYITEST rtacp-unicast:PASS"
+            where: artie-cli
+          - what: "NODE 0x02 RTACP RX from 0x01: PYRTU01"
+            where: can-python-itest-node-2
+
+      - test-name: python-rtacp-broadcast
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario rtacp-broadcast"
+        expected-outputs:
+          - what: "PYITEST rtacp-broadcast:PASS"
+            where: artie-cli
+          - what: "NODE 0x02 RTACP RX from 0x01: PYRTB01"
+            where: can-python-itest-node-2
+          - what: "NODE 0x03 RTACP RX from 0x01: PYRTB01"
+            where: can-python-itest-node-3
+
+      # A 1 KB block spans many frames, so this covers the multi-frame READY/DATA/COMPLETE sequence
+      # and its CRC check across the network, plus the bindings' own completion tracking - BWACP
+      # has no completion callback, so Node watches the state machine for a finished transfer and
+      # hands it to receive_block(), which is what produces the peer's log line below.
+      - test-name: python-bwacp-block-transfer
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario bwacp-block-transfer"
+        expected-outputs:
+          - what: "PYITEST bwacp-block-transfer:PASS"
+            where: artie-cli
+          - what: "NODE 0x02 BWACP RX 1024 bytes from 0x01 at offset 0"
+            where: can-python-itest-node-2
+
+      - test-name: python-psacp-publish-subscribe
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario psacp-publish-subscribe"
+        expected-outputs:
+          - what: "PYITEST psacp-publish-subscribe:PASS"
+            where: artie-cli
+          - what: "NODE 0x02 PSACP RX topic 0x10 from 0x01: PYPS01"
+            where: can-python-itest-node-2
+          - what: "NODE 0x03 PSACP RX topic 0x10 from 0x01: PYPS01"
+            where: can-python-itest-node-3
+
+      # The peer's registered ECHO procedure returns its argument plus one; the driver checks the
+      # returned value, so this covers the full request/return round trip, including marshalling
+      # the argument out of Python and the result back into it.
+      - test-name: python-rpcacp-call
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario rpcacp-call"
+        expected-outputs:
+          - what: "PYITEST rpcacp-call:PASS"
+            where: artie-cli
+          - what: "NODE 0x02 RPC ECHO(0x41) -> 0x42"
+            where: can-python-itest-node-2
+
+      # WHOAMI is answered inside the library rather than by a registered procedure, so the peer
+      # logs nothing for it - the driver checks the name and address it got back instead, which is
+      # why this step asserts only on the driver's verdict.
+      - test-name: python-rpcacp-whoami
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario rpcacp-whoami"
+        expected-outputs:
+          - what: "PYITEST rpcacp-whoami:PASS"
+            where: artie-cli

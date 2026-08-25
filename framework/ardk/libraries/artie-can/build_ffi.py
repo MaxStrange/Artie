@@ -103,11 +103,16 @@ typedef enum {
     ...
 } artie_can_protocol_t;
 
-/* Partially declared: only the fields Python reads back out are named. */
+/* Partially declared: only the fields Python reads back out are named. The last_completed_*
+   trio is how a receiver notices an inbound block write finished - BWACP has no completion
+   callback, so the state machine records the transfer here and the node watches it. */
 typedef struct {
     uint32_t receive_bytes_written;
     uint32_t receive_address;
     uint32_t receive_buffer_size;
+    uint8_t last_completed_sender_address;
+    uint32_t last_completed_receive_address;
+    uint64_t last_completed_timestamp_ms;
     ...;
 } bwacp_context_t;
 
