@@ -21,12 +21,16 @@ RUN cmake -S . -B build \
         -DBUILD_DOCS=OFF \
     && cmake --build build --parallel
 
-# The Python package (src/artie_can) is already installed by the base image, so there is
-# nothing else to install here.
+# The Python package (src/artie_can) is already installed by the base image - the base image
+# rebuilds whenever this library changes - so only the test runner is missing.
+RUN --mount=type=cache,target=/root/.cache/pip pip install "pytest>=7.0"
 
 WORKDIR /artie-can/build
 
 # Default command runs the whole C test suite. -V is what makes each Unity test's
 # '<file>:<line>:<test-name>:PASS' line show up in the container's logs, which is what
 # the artie-can-unit-tests task greps for on a per-test basis.
+#
+# The Python suites override this: artie-can-python-unit-tests runs '/artie-can/run_tests.py',
+# and can-python-integration-tests runs '/artie-can/itest/itest_node.py'.
 CMD ["ctest", "-V"]

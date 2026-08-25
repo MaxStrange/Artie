@@ -275,9 +275,11 @@ A sanity test job looks like this:
 ### Pytest Test Job
 
 A pytest test job runs a whole test suite once inside a Docker container and then checks that container's
-output for each individual test's pass/fail status. Despite the name, the suite doesn't have to be a pytest
-suite - anything that runs the tests and prints a recognizable line per test works, such as `ctest -V` over a
-Unity suite (see [artie-can-unit-tests](./test-tasks/libraries/artie-can-unit-tests.yaml)):
+output for each individual test's pass/fail status
+(see [artie-can-python-unit-tests](./test-tasks/libraries/artie-can-python-unit-tests.yaml)). Despite the
+name, the suite doesn't have to be a pytest suite - anything that runs the tests and prints a recognizable
+line per test works, such as `ctest -V` over a Unity suite
+(see [artie-can-unit-tests](./test-tasks/libraries/artie-can-unit-tests.yaml)):
 
 - *job*: single-container-pytest-suite; this runs the suite once inside a Docker container,
          then checks the container's output for each individual test result. Each test is tracked separately in the final test report.

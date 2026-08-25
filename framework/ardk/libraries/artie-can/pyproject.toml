@@ -20,7 +20,9 @@ dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# tests/ also holds the C library's Unity suite, which CTest runs - the Python suite is the
+# python/ subdirectory of it. run_tests.py is the entry point the artie-tool task uses.
+testpaths = ["tests/python"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

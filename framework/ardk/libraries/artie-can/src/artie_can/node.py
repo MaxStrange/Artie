@@ -13,7 +13,8 @@ node owns two threads:
 * a *dispatcher*, which turns received frames into messages and hands them to your callbacks or
   queues. The library's own receive callback fires on its internal receiver thread (an interrupt
   handler on real hardware), so all it does here is copy the frame and hand it over - no user code
-  runs in that context.
+  runs in that context. Completed BWACP transfers, which the worker notices rather than the
+  receive callback, are delivered down the same path so that user code always runs here.
 
 None of that leaks into the API: you construct a node, call methods on it, and close it.
 """
@@ -268,6 +269,9 @@ class Node:
         given, RTACP messages go here instead of to :meth:`receive_rtacp`.
     :param on_psacp: ``on_psacp(message)``, called for each received :class:`PsacpMessage`. If
         given, PSACP messages go here instead of to :meth:`receive_psacp`.
+    :param on_block_write: ``on_block_write(block)``, called once per completed inbound BWACP
+        transfer with the :class:`BlockWrite` that landed. If given, transfers go here instead of
+        to :meth:`receive_block`.
     :param on_frame: ``on_frame(frame)``, called for each received frame that is neither RTACP nor
         PSACP. If given, those frames go here instead of to :meth:`receive_frame`.
     :param tick_interval: Longest the worker goes without ticking while idle. This is what paces
@@ -294,6 +298,7 @@ class Node:
         block_buffer_size: int = enums.DEFAULT_BLOCK_BUFFER_SIZE,
         on_rtacp: Callable[[frames.RtacpMessage], None] | None = None,
         on_psacp: Callable[[frames.PsacpMessage], None] | None = None,
+        on_block_write: Callable[[frames.BlockWrite], None] | None = None,
         on_frame: Callable[[frames.Frame], None] | None = None,
         tick_interval: float = DEFAULT_TICK_INTERVAL,
         active_tick_interval: float = DEFAULT_ACTIVE_TICK_INTERVAL,
@@ -322,6 +327,7 @@ class Node:
 
         self._on_rtacp = on_rtacp
         self._on_psacp = on_psacp
+        self._on_block_write = on_block_write
         self._on_frame = on_frame
 
         # Owned cdata. Every one of these must outlive the library's use of it.
@@ -331,6 +337,8 @@ class Node:
         self._rx_callback = None
         self._busy_checks: tuple = ()
         self._signatures: dict[int, rpc._SignatureBinding] = {}
+        # Timestamp of the newest completed inbound block write the worker has already reported.
+        self._last_block_write_ms = 0
 
         self._pending: queue.Queue[_Operation] = queue.Queue()
         self._current: _Operation | None = None
@@ -344,6 +352,7 @@ class Node:
         self._inbox: queue.Queue = queue.Queue(receive_queue_size)
         self._rtacp_inbox: queue.Queue[frames.RtacpMessage] = queue.Queue(receive_queue_size)
         self._psacp_inbox: queue.Queue[frames.PsacpMessage] = queue.Queue(receive_queue_size)
+        self._block_inbox: queue.Queue[frames.BlockWrite] = queue.Queue(receive_queue_size)
         self._frame_inbox: queue.Queue[frames.Frame] = queue.Queue(receive_queue_size)
 
         if auto_open:
@@ -677,6 +686,21 @@ class Node:
         )
         return self._submit(operation, wait)
 
+    def receive_block(self, timeout: float | None = None) -> frames.BlockWrite:
+        """Wait for the next inbound BWACP transfer to finish arriving at this node.
+
+        BWACP does not announce a completed transfer the way RTACP and PSACP announce a frame -
+        the data simply appears in :attr:`block_buffer` - so this is the only way to know a block
+        landed without polling. Only available when no ``on_block_write`` callback was given.
+
+        :param timeout: Seconds to wait, or None to wait indefinitely.
+        :raises Timeout: If no transfer completes in time.
+        """
+        self._require(enums.Protocol.BWACP, "receive_block")
+        return self._receive(
+            self._block_inbox, timeout, "block write", self._on_block_write, "on_block_write"
+        )
+
     # ------------------------------------------------------------------ RPCACP
 
     def register_procedure(self, signature: rpc.RpcSignature, *, wait: bool = True):
@@ -900,6 +924,7 @@ class Node:
                 "artie_can_init_context_bwacp",
             )
             self._block_buffer = ffi.new("uint8_t[]", self._block_buffer_size)
+            self._last_block_write_ms = self._context.bwacp_context.last_completed_timestamp_ms
             errors.check(
                 lib.artie_can_bwacp_set_receive_buffer(
                     self._context, self._block_buffer, self._block_buffer_size
@@ -1030,11 +1055,42 @@ class Node:
                 self._current = candidate
 
         error = errors.ErrorFlag(lib.artie_can_tick(self._handle))
+        self._collect_block_writes()
         if self._current is not None:
             if not self._current.advance(error):
                 self._current = None
         elif error:
             self._last_background_error = error
+
+    def _collect_block_writes(self) -> None:
+        """Report an inbound block write that finished on the tick just taken.
+
+        BWACP has no completion callback: the state machine only records the finished transfer in
+        its context, so the worker compares that record against the newest one it has already
+        reported. The payload is copied out here, while it is still intact - the next transfer to
+        the same offset overwrites it in place.
+        """
+        if enums.Protocol.BWACP not in self._protocols:
+            return
+
+        bwacp = self._context.bwacp_context
+        completed_ms = bwacp.last_completed_timestamp_ms
+        if completed_ms == self._last_block_write_ms:
+            return
+        self._last_block_write_ms = completed_ms
+
+        # Both of these come off the wire, so clamp them to the buffer we actually allocated
+        # rather than letting them index it.
+        offset = min(bwacp.last_completed_receive_address, self._block_buffer_size)
+        size = min(bwacp.receive_bytes_written, self._block_buffer_size - offset)
+        _offer(
+            self._inbox,
+            frames.BlockWrite(
+                source_address=bwacp.last_completed_sender_address,
+                offset=offset,
+                data=bytes(ffi.buffer(self._block_buffer, self._block_buffer_size)[offset:offset + size]),
+            ),
+        )
 
     def _teardown(self) -> None:
         """Fail anything still outstanding, then close the library from this same thread."""
@@ -1082,7 +1138,14 @@ class Node:
 
                 traceback.print_exc()
 
-    def _dispatch(self, frame: frames.Frame) -> None:
+    def _dispatch(self, frame: frames.Frame | frames.BlockWrite) -> None:
+        # A completed block write is not a frame - the worker builds it out of the state machine's
+        # record of the transfer - but it takes the same route so that it reaches user code on the
+        # dispatcher thread like everything else.
+        if isinstance(frame, frames.BlockWrite):
+            self._deliver(frame, self._on_block_write, self._block_inbox)
+            return
+
         protocol_id = frame.protocol_id
         if protocol_id == enums._PROTOCOL_ID_RTACP:
             self._deliver(frames.RtacpMessage._from_frame(frame), self._on_rtacp, self._rtacp_inbox)

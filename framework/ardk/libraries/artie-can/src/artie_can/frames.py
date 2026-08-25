@@ -4,6 +4,8 @@ Frame and message types.
 :class:`Frame` is the raw 29-bit-ID CAN frame the bus actually carries. :class:`RtacpMessage` and
 :class:`PsacpMessage` are the parsed, protocol-level views of one - the same split the C library
 makes between ``artie_can_frame_t`` and ``artie_can_frame_rtacp_t`` / ``artie_can_frame_psacp_t``.
+:class:`BlockWrite` is the odd one out: a BWACP transfer spans many frames, so it is only ever
+reported once the whole thing has landed.
 
 Conversion in both directions goes through the C library's own pack/parse functions rather than
 re-implementing the bit layout here, so the Python side cannot disagree with the wire format.
@@ -15,7 +17,7 @@ import dataclasses
 from ._artie_can import ffi, lib
 from . import enums, errors
 
-__all__ = ["Frame", "RtacpMessage", "PsacpMessage"]
+__all__ = ["Frame", "RtacpMessage", "PsacpMessage", "BlockWrite"]
 
 _PROTOCOL_SHIFT = lib.ARTIE_CAN_FRAME_ID_PROTOCOL_LOCATION
 _PROTOCOL_MASK = lib.ARTIE_CAN_FRAME_ID_PROTOCOL_MASK
@@ -153,4 +155,28 @@ class PsacpMessage:
             data=bytes(ffi.buffer(cpsacp.data, min(cpsacp.nbytes, enums.MAX_FRAME_DATA_LENGTH))),
             priority=enums.Priority(cpsacp.priority),
             high_priority=frame.protocol_id == enums._PROTOCOL_ID_PSACP_HIGH,
+        )
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class BlockWrite:
+    """A Block Write Artie CAN Protocol transfer that finished arriving at this node.
+
+    Reported once per completed transfer, after every frame of it has been received and its CRC
+    checked. :attr:`data` is a copy taken at that moment, so it stays correct even once a later
+    transfer overwrites the same region of the node's block buffer.
+    """
+
+    source_address: int
+    offset: int
+    """Where in the receiving node's block buffer the sender asked for the data to go."""
+    data: bytes = b""
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __repr__(self) -> str:
+        return (
+            f"BlockWrite(source_address={self.source_address:#04x}, offset={self.offset}, "
+            f"{len(self.data)} bytes)"
         )
