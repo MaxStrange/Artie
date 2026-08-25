@@ -33,7 +33,7 @@ def _open_node(args):
     from artie_can import backends, enums, node
 
     return node.Node(
-        backends.UdpMulticastBackend(group=args.group, port=args.port),
+        backends.UdpMulticastBackend(group=args.group, port=args.bus_port),
         address=args.node_address,
         protocols=(
             enums.Protocol.RTACP | enums.Protocol.PSACP
@@ -60,7 +60,7 @@ def _cmd_can_info(args):
     info = {
         "transport": "udp-multicast",
         "group": args.group,
-        "port": args.port,
+        "port": args.bus_port,
         "node_address": f"0x{args.node_address:02X}",
         "node_name": args.name,
         "max_nodes": enums.MAX_NODES,
@@ -238,7 +238,7 @@ def fill_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentPar
     group.add_argument("--node-address", type=lambda x: int(x, 0), default=0x01, help="The address this CLI takes on the bus (0x01-0x3E). Must not clash with a node that is already there. Default: 0x01")
     group.add_argument("--name", type=str, default="artie-cli", help="The name this CLI reports through WHOAMI. Default: artie-cli")
     group.add_argument("--group", type=str, default=DEFAULT_GROUP, help=f"Multicast group the bus runs on. Default: {DEFAULT_GROUP}")
-    group.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Multicast port the bus runs on. Default: {DEFAULT_PORT}")
+    group.add_argument("--bus-port", type=int, default=DEFAULT_PORT, help=f"Multicast port the bus runs on. Default: {DEFAULT_PORT}")
 
     priorities = ["HIGHEST", "HIGH", "MEDIUM", "LOW"]
 
