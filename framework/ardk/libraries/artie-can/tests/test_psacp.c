@@ -65,7 +65,11 @@
 #define RECEIVE_BUFFER_SIZE 65536
 
 // Multicast configuration for all test nodes
-static const char *multicast_group = "239.0.0.1";
+// Each test process gets its own multicast group, so two runs on one host - two CI jobs on
+// Docker's shared default bridge, or a developer running this while a job runs - do not end
+// up sharing a simulated bus. See test_multicast_group() in util.c.
+static char _multicast_group_buffer[16];
+static const char *multicast_group = NULL; // set in main() via test_multicast_group(), suite 3
 static const uint16_t multicast_port = 6001; // Different port from other test suites
 
 // Node addresses
@@ -804,6 +808,11 @@ void test_publish_message_high_priority_multi_frame_is_rejected(void)
  */
 int main(void)
 {
+    multicast_group = test_multicast_group(_multicast_group_buffer, sizeof(_multicast_group_buffer), 3);
+    // Printed so a CI log says which bus this run used; the group is per-process, so it is
+    // the first thing worth knowing if a run ever does look like it heard someone else.
+    printf("Test bus: %s:%u\n", multicast_group, (unsigned int)multicast_port);
+
     UNITY_BEGIN();
 
     RUN_TEST(test_publish_to_non_subscribed_topic);

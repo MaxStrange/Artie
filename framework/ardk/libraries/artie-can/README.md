@@ -495,8 +495,18 @@ RPC), and a one-shot `driver` role that runs one scenario, decides pass/fail, an
 
 The two integration suites use separate Docker networks *and* separate multicast groups - the C
 node's bus is `239.0.0.10:7100`, the Python node's is `239.0.0.11:7101` - so they cannot hear each
-other even when they run at the same time on one host. The Python unit tests use a third group
-again (`239.0.0.21`), with a fresh port per test.
+other even when they run at the same time on one host.
+
+The unit tests go further and pick their multicast group **per test process**, hashing the
+hostname, PID and a high-resolution clock into a `239.x.y.z` address (`test_multicast_group()` in
+`tests/util.c`, and the same scheme in `tests/python/conftest.py`). Each suite prints the bus it
+chose as its first line of output. This is not belt-and-braces: multicast ignores process and
+container boundaries, so a fixed group makes two concurrent runs one shared bus, and because every
+suite uses the same node addresses, each run then sees the other's frames as its own. That shows up
+as NACK storms and aborted transfers - a red test with nothing wrong with it. The artie-tool task
+runs the suite on Docker's *default bridge* network, which is shared, so two CI jobs on one host,
+or a developer running the suite while a job runs, hit it. Set `ARTIE_CAN_TEST_MCAST_GROUP` to pin
+the group when you want to watch traffic with an external tool.
 
 To drive the Python integration node by hand - useful when adding a scenario:
 

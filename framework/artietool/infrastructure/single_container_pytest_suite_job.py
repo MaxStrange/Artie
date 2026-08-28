@@ -1,3 +1,5 @@
+import uuid
+
 from . import dependency
 from . import result
 from . import test_job
@@ -96,12 +98,25 @@ class SingleContainerPytestSuiteJob(test_job.TestJob):
 
     This job type is designed for Python projects with pytest-based unit tests.
     It runs the entire test suite in one container and reports the results.
+
+    The DUT gets a freshly created Docker network to itself, rather than the default bridge that
+    every container shares. A suite that talks over the network to itself - the Artie CAN suites
+    simulate a CAN bus over UDP multicast, for instance - is otherwise audible to every other
+    container on the host, so two runs at once become one shared bus and corrupt each other's
+    traffic. That reads as a failing test with nothing wrong with it. Isolating the DUT means two
+    jobs on one machine, or a developer running a suite while CI runs, cannot interfere.
+
+    The flip side is that a suite run by this job cannot reach anything outside its own container.
+    That suits a unit-test suite, which is what this job is for; a suite that needs to talk to
+    another container wants the docker-compose job instead.
     """
 
     def __init__(self, steps: list[PytestTest], docker_image_under_test: str | dependency.Dependency, cmd_to_run_in_dut: str|None) -> None:
         super().__init__(artifacts=[], steps=steps)
         self.dut = docker_image_under_test
         self.cmd_to_run_in_dut = cmd_to_run_in_dut
+        self._dut_container = None
+        self._network_name = None
 
     def setup(self, args):
         """
@@ -113,8 +128,22 @@ class SingleContainerPytestSuiteJob(test_job.TestJob):
         else:
             docker_image_name = str(docker.construct_docker_image_name(args, self.dut, common.host_platform()))
 
-        kwargs = {'environment': {'ARTIE_RUN_MODE': 'unit'}}
-        self._dut_container = docker.start_docker_container(docker_image_name, self.cmd_to_run_in_dut, remove=False, **kwargs)
+        # A random name rather than one derived from the task, because the whole point is that two
+        # runs of the same task on one host stay apart - and add_network() refuses a name that is
+        # already taken, so a fixed name would turn a collision into a hard failure instead.
+        self._network_name = f"artie-pytest-{uuid.uuid4().hex[:12]}"
+        common.info(f"Creating an isolated Docker network for the DUT: {self._network_name}")
+        docker.add_network(self._network_name)
+
+        kwargs = {'environment': {'ARTIE_RUN_MODE': 'unit'}, 'network': self._network_name}
+        try:
+            self._dut_container = docker.start_docker_container(docker_image_name, self.cmd_to_run_in_dut, remove=False, **kwargs)
+        except Exception:
+            # teardown() does not run if setup() raises, so the network would be left behind.
+            docker.remove_network(self._network_name)
+            self._network_name = None
+            raise
+
         for step in self.steps:
             step.link_pids_to_expected_outs(args, {docker_image_name: self._dut_container.id})
 
@@ -126,21 +155,34 @@ class SingleContainerPytestSuiteJob(test_job.TestJob):
 
     def teardown(self, args, results: list[result.TestResult]):
         """
-        Shutdown any Docker containers still at large.
+        Shutdown any Docker containers still at large, and remove the DUT's network.
         """
         if args.skip_teardown:
-            common.info(f"--skip-teardown detected. You will need to manually clean up the Docker containers.")
+            common.info(f"--skip-teardown detected. You will need to manually clean up the Docker container and the network {self._network_name}.")
             return
 
         super().teardown(args, results)
         common.info(f"Tearing down. Stopping (and removing) docker container...")
         try:
-            self._dut_container.stop()
-        except docker.docker_errors.NotFound:
-            common.info(f"Container not found. Possibly it has already stopped.")
-            pass  # Container already stopped
+            # The network is removed in the finally block rather than after this: a container that
+            # cannot be stopped or removed would otherwise leave its network behind too, and those
+            # accumulate silently until something runs out of address space. remove_network() stops
+            # whatever is still attached, so it copes with the container outliving this.
+            if self._dut_container is not None:
+                try:
+                    self._dut_container.stop()
+                except docker.docker_errors.NotFound:
+                    common.info(f"Container not found. Possibly it has already stopped.")
+                    pass  # Container already stopped
 
-        try:
-            self._dut_container.remove()
-        except docker.docker_errors.NotFound:
-            pass
+                try:
+                    self._dut_container.remove()
+                except docker.docker_errors.NotFound:
+                    pass
+        finally:
+            if self._network_name is not None:
+                try:
+                    docker.remove_network(self._network_name)
+                except Exception as e:
+                    common.error(f"Could not remove Docker network {self._network_name}; you may need to clean it up by hand: {e}")
+                self._network_name = None
