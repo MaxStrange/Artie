@@ -77,7 +77,12 @@ MARKER_RTACP_UNICAST = b"PYRTU01"
 MARKER_RTACP_BROADCAST = b"PYRTB01"
 MARKER_PSACP = b"PYPS01"
 MARKER_PSACP_ACK = b"PYPSOK1"
+MARKER_PSACP_LARGE_ACK = b"PYPSL01"
 MARKER_BWACP_ACK = b"PYBW01"
+
+#: Size of the multi-frame PSACP message the large-message scenario publishes. Big enough to need
+#: a long run of PUB_MORE frames (300 bytes is 38 frames) while keeping the suite quick.
+PSACP_LARGE_PAYLOAD_SIZE = 300
 
 ALL_PROTOCOLS = (
     enums.Protocol.RTACP | enums.Protocol.PSACP | enums.Protocol.BWACP | enums.Protocol.RPCACP
@@ -94,6 +99,16 @@ def log(message: str) -> None:
 def readable(payload: bytes) -> str:
     """Render a payload the way the C node's log lines do, so both suites read the same."""
     return "".join(chr(byte) if 0x20 <= byte < 0x7F else "." for byte in payload)
+
+
+def large_psacp_payload() -> bytes:
+    """The payload the large-message scenario publishes, built the same way on both sides.
+
+    Varied rather than a repeated byte, so a fragment that arrives at the wrong offset or gets
+    duplicated shows up as a mismatch instead of passing by luck. The C node builds the identical
+    pattern, so either language's driver can be checked against either language's peer.
+    """
+    return bytes(((index * 7) + 3) % 256 for index in range(PSACP_LARGE_PAYLOAD_SIZE))
 
 
 def open_node(address: int, group: str, port: int) -> node.Node:
@@ -172,9 +187,19 @@ def run_peer(address: int, group: str, port: int) -> int:
             except errors.Timeout:
                 pass
             else:
-                log(f"NODE {address:#04x} PSACP RX topic {message.topic:#04x} from "
-                    f"{message.source_address:#04x}: {readable(message.data)}")
-                _reply(peer, address, message.source_address, MARKER_PSACP_ACK)
+                if len(message.data) > enums.MAX_FRAME_DATA_LENGTH:
+                    # A multi-frame message. Checking the content matters as much as the length:
+                    # the length alone would pass even if fragments landed at the wrong offsets.
+                    intact = message.data == large_psacp_payload()
+                    log(f"NODE {address:#04x} PSACP RX topic {message.topic:#04x} from "
+                        f"{message.source_address:#04x}: {len(message.data)} bytes, "
+                        f"{'intact' if intact else 'CORRUPT'}")
+                    if intact:
+                        _reply(peer, address, message.source_address, MARKER_PSACP_LARGE_ACK)
+                else:
+                    log(f"NODE {address:#04x} PSACP RX topic {message.topic:#04x} from "
+                        f"{message.source_address:#04x}: {readable(message.data)}")
+                    _reply(peer, address, message.source_address, MARKER_PSACP_ACK)
 
             try:
                 block = peer.receive_block(timeout=0.01)
@@ -268,6 +293,18 @@ def _scenario_psacp(driver: node.Node) -> str | None:
     return f"no ack from {absent}" if absent else None
 
 
+def _scenario_psacp_large(driver: node.Node) -> str | None:
+    """A message far larger than one CAN frame, fragmented out and reassembled by each peer.
+
+    The peers only answer once they have checked the payload byte for byte, so a reply here means
+    the whole message survived the trip across the container boundary intact - not merely that
+    something of the right length arrived.
+    """
+    driver.publish(TOPIC, large_psacp_payload())
+    absent = _missing(_collect_replies(driver, MARKER_PSACP_LARGE_ACK, PEERS), PEERS)
+    return f"no intact-message ack from {absent}" if absent else None
+
+
 def _scenario_bwacp(driver: node.Node) -> str | None:
     """A 1 KB block spans many frames, so this covers READY/DATA/COMPLETE and the CRC over the wire."""
     payload = bytes(index & 0xFF for index in range(BLOCK_PAYLOAD_SIZE))
@@ -318,6 +355,7 @@ SCENARIOS = {
     "rtacp-broadcast": _scenario_rtacp_broadcast,
     "bwacp-block-transfer": _scenario_bwacp,
     "psacp-publish-subscribe": _scenario_psacp,
+    "psacp-large-message": _scenario_psacp_large,
     "rpcacp-call": _scenario_rpcacp,
     "rpcacp-whoami": _scenario_whoami,
 }

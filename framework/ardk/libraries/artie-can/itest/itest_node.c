@@ -32,6 +32,9 @@
 
 #ifdef _WIN32
     #include <windows.h>
+    #ifdef _DEBUG
+        #include <crtdbg.h>
+    #endif
     #define SLEEP_MS(ms) Sleep(ms)
 #else
     #include <time.h>
@@ -92,6 +95,15 @@
 #define MARKER_RTACP_BROADCAST "RTBC01"
 #define MARKER_PSACP "PSPUB01"
 #define MARKER_PSACP_ACK "PSOK01"
+#define MARKER_PSACP_LARGE_ACK "PSL01"
+
+/**
+ * Size of the multi-frame PSACP message the large-message scenario publishes. Big enough to need a
+ * long run of PUB_MORE frames (300 bytes is 38 frames) while keeping the suite quick. Kept in step
+ * with PSACP_LARGE_PAYLOAD_SIZE in itest_node.py so either language's driver can be checked
+ * against either language's peer.
+ */
+#define ITEST_PSACP_LARGE_SIZE 300U
 #define MARKER_BWACP_ACK "BWOK01"
 
 // ---------------------------------------------------------------------------
@@ -303,6 +315,23 @@ static artie_can_error_t _send_rtacp(uint8_t target, const char *payload)
 }
 
 /** Publishes a PSACP message to `topic`. */
+/**
+ * @brief Build the payload the large-message scenario publishes.
+ *
+ * Varied rather than a repeated byte, so a fragment that arrives at the wrong offset or gets
+ * duplicated shows up as a mismatch instead of passing by luck. itest_node.py builds the identical
+ * pattern.
+ *
+ * @param out Buffer of at least ITEST_PSACP_LARGE_SIZE bytes.
+ */
+static void _fill_large_psacp_payload(uint8_t *out)
+{
+    for (uint16_t i = 0; i < ITEST_PSACP_LARGE_SIZE; i++)
+    {
+        out[i] = (uint8_t)(((i * 7U) + 3U) % 256U);
+    }
+}
+
 static artie_can_error_t _publish_psacp(uint8_t topic, const char *payload)
 {
     artie_can_frame_psacp_t psacp_frame;
@@ -496,6 +525,36 @@ static int _run_peer(void)
             }
         }
 
+        // Multi-frame PSACP messages do not reach the rx callback - they are not a frame - so they
+        // are collected from the library once it has reassembled them.
+        artie_can_psacp_message_t large_message;
+        while (artie_can_psacp_get_message(&_context, &large_message) == ARTIE_CAN_ERR_NONE)
+        {
+            static uint8_t expected[ITEST_PSACP_LARGE_SIZE];
+            _fill_large_psacp_payload(expected);
+
+            bool intact = (large_message.nbytes == ITEST_PSACP_LARGE_SIZE) &&
+                          (memcmp(large_message.data, expected, ITEST_PSACP_LARGE_SIZE) == 0);
+
+            // The length alone would pass even with fragments at the wrong offsets, so the peer
+            // only acknowledges after checking the payload byte for byte.
+            printf("NODE 0x%02X PSACP RX topic 0x%02X from 0x%02X: %u bytes, %s\n",
+                   _node_address, large_message.topic, large_message.source_address,
+                   (unsigned int)large_message.nbytes, intact ? "intact" : "CORRUPT");
+            fflush(stdout);
+
+            if (intact)
+            {
+                err = _send_rtacp(large_message.source_address, MARKER_PSACP_LARGE_ACK);
+                if (err != ARTIE_CAN_ERR_NONE)
+                {
+                    printf("NODE 0x%02X failed to ack large PSACP to 0x%02X: %d\n",
+                           _node_address, large_message.source_address, (int)err);
+                    fflush(stdout);
+                }
+            }
+        }
+
         // BWACP has no completion callback, so watch the context for a newly finished transfer.
         if (_context.bwacp_context.last_completed_timestamp_ms != last_bwacp_completion)
         {
@@ -661,6 +720,56 @@ static bool _scenario_psacp(char *reason, size_t reason_size)
     return true;
 }
 
+/**
+ * @brief Publish a message far larger than one CAN frame and check both peers reassemble it whole.
+ *
+ * The peers only answer once they have compared the payload byte for byte, so an acknowledgement
+ * means the message survived the trip across the container boundary intact, not merely that
+ * something of the right length turned up.
+ */
+static bool _scenario_psacp_large(char *reason, size_t reason_size)
+{
+    static const uint8_t expect[] = {0x02U, 0x03U};
+    bool seen[ADDRESS_COUNT] = {false};
+    static uint8_t payload[ITEST_PSACP_LARGE_SIZE];
+
+    _fill_large_psacp_payload(payload);
+
+    artie_can_error_t err = artie_can_psacp_publish_message(&_node, ITEST_TOPIC, payload, ITEST_PSACP_LARGE_SIZE,
+                                                            ARTIE_CAN_FRAME_PRIORITY_PSACP_MEDIUM_LOW, false);
+    if (err != ARTIE_CAN_ERR_NONE)
+    {
+        snprintf(reason, reason_size, "publish returned %d", (int)err);
+        return false;
+    }
+
+    // The message is emitted across ticks rather than inside the call, so let it drain first.
+    for (uint32_t elapsed = 0; artie_can_psacp_is_busy(&_node) && (elapsed < ATTEMPT_WAIT_MS); elapsed++)
+    {
+        (void)artie_can_tick(&_node);
+        SLEEP_MS(1);
+    }
+
+    if (artie_can_psacp_is_busy(&_node))
+    {
+        snprintf(reason, reason_size, "the publish never finished sending");
+        return false;
+    }
+
+    _collect_responses(MARKER_PSACP_LARGE_ACK, ATTEMPT_WAIT_MS, seen, expect,
+                       (uint8_t)(sizeof(expect) / sizeof(expect[0])));
+
+    for (uint8_t i = 0; i < (uint8_t)(sizeof(expect) / sizeof(expect[0])); i++)
+    {
+        if (!seen[expect[i]])
+        {
+            snprintf(reason, reason_size, "subscriber 0x%02X did not report an intact message", expect[i]);
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool _scenario_bwacp(char *reason, size_t reason_size)
 {
     static const uint8_t expect[] = {0x02U};
@@ -769,6 +878,7 @@ static const scenario_t _scenarios[] = {
     {"rtacp-broadcast", _scenario_rtacp_broadcast},
     {"bwacp-block-transfer", _scenario_bwacp},
     {"psacp-publish-subscribe", _scenario_psacp},
+    {"psacp-large-message", _scenario_psacp_large},
     {"rpcacp-call", _scenario_rpcacp},
 };
 
@@ -839,6 +949,19 @@ int main(int argc, char **argv)
     uint16_t port = (uint16_t)DEFAULT_MCAST_PORT;
     uint32_t timeout_ms = DEFAULT_DRIVER_TIMEOUT_MS;
 
+#if defined(_WIN32) && defined(_DEBUG)
+    // A debug-CRT assertion opens a modal dialog by default, which is useless in the container this
+    // node is built to run in - the process just hangs with nobody to click OK - and worse than
+    // useless when running it by hand on a Windows box, where the dialog steals focus and the
+    // message is gone before it can be read. Send the report to stderr instead, where it lands in
+    // the container logs the test task already collects.
+    for (int report_type = 0; report_type < _CRT_ERRCNT; report_type++)
+    {
+        _CrtSetReportMode(report_type, _CRTDBG_MODE_FILE);
+        _CrtSetReportFile(report_type, _CRTDBG_FILE_STDERR);
+    }
+#endif
+
     for (int i = 1; i < argc; i++)
     {
         bool has_value = (i + 1) < argc;
@@ -884,8 +1007,10 @@ int main(int argc, char **argv)
     signal(SIGTERM, _handle_signal);
 
     // Line buffering keeps the log readable when stdout is a pipe, which is how the test task
-    // reads it.
-    setvbuf(stdout, NULL, _IOLBF, 0);
+    // reads it. The size has to be a real one even though the buffer is left to the CRT to
+    // allocate: glibc quietly picks a default when passed 0, but the Windows UCRT asserts that it
+    // is at least 2, which killed this process before its first line of output.
+    setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
     printf("NODE 0x%02X starting: role=%s group=%s port=%u\n", _node_address, role, group, (unsigned int)port);
     fflush(stdout);

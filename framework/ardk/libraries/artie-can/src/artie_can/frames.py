@@ -123,6 +123,10 @@ class PsacpMessage:
     """A Pub/Sub Artie CAN Protocol message - published to a topic, fire-and-forget.
 
     Topic 0 (:data:`~artie_can.BROADCAST_TOPIC`) reaches every subscriber.
+
+    A message carries up to :data:`~artie_can.MAX_PSACP_MESSAGE_SIZE` bytes. Anything over one
+    frame's worth is fragmented on the wire and reassembled by the receiver, which is invisible
+    here: what arrives is either the whole payload that was published or nothing at all.
     """
 
     source_address: int
@@ -155,6 +159,23 @@ class PsacpMessage:
             data=bytes(ffi.buffer(cpsacp.data, min(cpsacp.nbytes, enums.MAX_FRAME_DATA_LENGTH))),
             priority=enums.Priority(cpsacp.priority),
             high_priority=frame.protocol_id == enums._PROTOCOL_ID_PSACP_HIGH,
+        )
+
+    @classmethod
+    def _from_message(cls, cmessage) -> "PsacpMessage":
+        """Build from an ``artie_can_psacp_message_t`` the library reassembled.
+
+        Priority is not recoverable here the way it is from a raw frame: the library keeps the
+        payload of a multi-frame message, not the IDs of the frames it arrived in. Multi-frame
+        messages only ever travel on the low-priority protocol, so ``high_priority`` is False, and
+        ``priority`` reports the default rather than what the publisher chose.
+        """
+        return cls(
+            source_address=cmessage.source_address,
+            topic=cmessage.topic,
+            data=bytes(ffi.buffer(cmessage.data, cmessage.nbytes)),
+            priority=enums.Priority.MEDIUM,
+            high_priority=False,
         )
 
 

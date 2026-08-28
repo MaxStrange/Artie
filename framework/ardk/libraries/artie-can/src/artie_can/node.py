@@ -65,6 +65,11 @@ BLOCK_TIMEOUT_PER_FRAME = 0.05
 #: Wall-clock ceiling on an RPC call, including the remote's execution time.
 DEFAULT_RPC_TIMEOUT = 30.0
 
+#: Wall-clock ceiling on a multi-frame PSACP publish. A maximum-size message is 66 frames, emitted
+#: a few per tick, so a healthy one finishes in well under a second; this is a backstop against a
+#: wedged bus rather than the expected duration. Single-frame publishes never wait on it.
+DEFAULT_PSACP_TIMEOUT = 10.0
+
 
 def block_write_timeout(payload_size: int) -> float:
     """Default wall-clock ceiling for a block write carrying ``payload_size`` bytes.
@@ -335,6 +340,9 @@ class Node:
         self._handle = None
         self._block_buffer = None
         self._rx_callback = None
+        # Scratch space the worker reuses to pull reassembled PSACP messages out of the library,
+        # rather than allocating a 527-byte struct on every tick.
+        self._psacp_message = None
         self._busy_checks: tuple = ()
         self._signatures: dict[int, rpc._SignatureBinding] = {}
         # Timestamp of the newest completed inbound block write the worker has already reported.
@@ -398,6 +406,22 @@ class Node:
         problem there - a failed ACK send, say. Those have nowhere to be raised, so they land here.
         """
         return self._last_background_error
+
+    @property
+    def psacp_messages_dropped(self) -> int:
+        """Inbound PSACP messages discarded rather than delivered incomplete.
+
+        Counts a message whose fragments went missing or arrived out of order, one larger than this
+        node can reassemble, one whose remaining fragments stopped arriving, and one that turned up
+        with every reassembly slot already busy. Single-frame publishes are never counted here:
+        they either arrive whole or not at all.
+
+        A count that climbs steadily means this node is not draining the bus fast enough. Since
+        PSACP has no ACK, no amount of retrying on the publishing side would fix that - the answer
+        is a shorter ``tick_interval``, less traffic, or fewer subscriptions on this node.
+        """
+        self._require(enums.Protocol.PSACP, "psacp_messages_dropped")
+        return lib.artie_can_psacp_dropped_count(self._context)
 
     @property
     def block_buffer(self) -> memoryview:
@@ -570,6 +594,7 @@ class Node:
         *,
         priority: enums.Priority = enums.Priority.MEDIUM,
         high_priority: bool = False,
+        timeout: float = DEFAULT_PSACP_TIMEOUT,
         wait: bool = True,
     ):
         """Publish a message to a PSACP topic.
@@ -579,36 +604,57 @@ class Node:
         guaranteed. Publishing to :data:`~artie_can.BROADCAST_TOPIC` reaches every subscriber
         whatever they subscribed to, and this node receives its own publish if it is subscribed.
 
+        A payload over one frame's worth is fragmented across frames and reassembled by each
+        receiver. There is still no ACK, so a receiver that misses a fragment discards the whole
+        message rather than delivering part of one - what arrives is always exactly what was
+        published.
+
         :param topic: The topic to publish on.
-        :param data: Up to 8 bytes of payload.
+        :param data: Up to :data:`~artie_can.MAX_PSACP_MESSAGE_SIZE` bytes of payload.
         :param priority: Bus arbitration priority within the chosen PSACP protocol.
         :param high_priority: Use the high-priority PSACP protocol ID, which beats the low-priority
-            one during arbitration regardless of ``priority``.
+            one during arbitration regardless of ``priority``. Only available for payloads that fit
+            in a single frame: high-priority PSACP arbitrates above BWACP, so a multi-frame burst
+            there would stall block transfers such as firmware updates.
+        :param timeout: Wall-clock ceiling, in seconds, for a multi-frame publish. Ignored for
+            payloads that fit in one frame, which are sent immediately.
         :param wait: Set False to get a :class:`~concurrent.futures.Future` instead of blocking.
         """
         self._require(enums.Protocol.PSACP, "publish")
-        if len(data) > enums.MAX_FRAME_DATA_LENGTH:
+        payload = bytes(data)
+        if len(payload) > enums.MAX_PSACP_MESSAGE_SIZE:
             raise errors.InvalidArgument(
-                f"a PSACP message carries at most {enums.MAX_FRAME_DATA_LENGTH} bytes, "
-                f"got {len(data)}"
+                f"a PSACP message carries at most {enums.MAX_PSACP_MESSAGE_SIZE} bytes, "
+                f"got {len(payload)}"
             )
-        message = frames.PsacpMessage(
-            source_address=self._address,
-            topic=topic,
-            data=bytes(data),
-            priority=enums.Priority(priority),
-            high_priority=high_priority,
-        )
-        cframe = message._to_frame()._to_c()
+        if high_priority and len(payload) > enums.MAX_FRAME_DATA_LENGTH:
+            raise errors.InvalidArgument(
+                f"high-priority PSACP carries at most {enums.MAX_FRAME_DATA_LENGTH} bytes, got "
+                f"{len(payload)}; a multi-frame message at high priority would arbitrate above "
+                "BWACP and stall block transfers, so publish it at normal priority instead"
+            )
+
         handle = self._handle
+        # The library reads the payload out of this buffer across every frame of the message, so
+        # it has to outlive the operation.
+        buffer = ffi.new("uint8_t[]", payload) if payload else ffi.NULL
+        multi_frame = len(payload) > enums.MAX_FRAME_DATA_LENGTH
 
         return self._submit(
             _Operation(
-                "artie_can_psacp_publish",
+                "artie_can_psacp_publish_message",
                 lambda: errors.check(
-                    lib.artie_can_psacp_publish(handle, cframe), "artie_can_psacp_publish"
+                    lib.artie_can_psacp_publish_message(
+                        handle, topic, buffer, len(payload),
+                        int(enums.Priority(priority)), high_priority,
+                    ),
+                    "artie_can_psacp_publish_message",
                 ),
-                keepalive=cframe,
+                # A single frame is away by the time the call returns; a fragmented message is
+                # emitted across subsequent ticks, so it needs polling like a block write does.
+                busy=(lambda: lib.artie_can_psacp_is_busy(handle)) if multi_frame else None,
+                timeout=timeout if multi_frame else None,
+                keepalive=buffer,
             ),
             wait,
         )
@@ -918,6 +964,7 @@ class Node:
                 lib.artie_can_init_context_psacp(self._context, self._address),
                 "artie_can_init_context_psacp",
             )
+            self._psacp_message = ffi.new("artie_can_psacp_message_t *")
         if enums.Protocol.BWACP in self._protocols:
             errors.check(
                 lib.artie_can_init_context_bwacp(self._context, self._address, int(self._node_class)),
@@ -1056,6 +1103,7 @@ class Node:
 
         error = errors.ErrorFlag(lib.artie_can_tick(self._handle))
         self._collect_block_writes()
+        self._collect_psacp_messages()
         if self._current is not None:
             if not self._current.advance(error):
                 self._current = None
@@ -1091,6 +1139,26 @@ class Node:
                 data=bytes(ffi.buffer(self._block_buffer, self._block_buffer_size)[offset:offset + size]),
             ),
         )
+
+    def _collect_psacp_messages(self) -> None:
+        """Take any multi-frame PSACP messages that finished reassembling.
+
+        A message that fit in one frame reaches the dispatcher through the library's rx callback,
+        like it always has. A fragmented one cannot: it is not a frame, and it only exists once the
+        library has stitched it back together, so the worker collects it here and sends it down the
+        same path. Either way the user sees a :class:`PsacpMessage`.
+        """
+        if enums.Protocol.PSACP not in self._protocols:
+            return
+
+        # Bounded so that a flood of messages cannot keep the worker out of its tick loop; whatever
+        # is left over is collected on the next tick.
+        for _ in range(enums.PSACP_REASSEMBLY_SLOTS):
+            if lib.artie_can_psacp_get_message(self._context, self._psacp_message) != int(
+                errors.ErrorFlag.NONE
+            ):
+                return
+            _offer(self._inbox, frames.PsacpMessage._from_message(self._psacp_message))
 
     def _teardown(self) -> None:
         """Fail anything still outstanding, then close the library from this same thread."""
@@ -1138,12 +1206,18 @@ class Node:
 
                 traceback.print_exc()
 
-    def _dispatch(self, frame: frames.Frame | frames.BlockWrite) -> None:
+    def _dispatch(self, frame: frames.Frame | frames.BlockWrite | frames.PsacpMessage) -> None:
         # A completed block write is not a frame - the worker builds it out of the state machine's
         # record of the transfer - but it takes the same route so that it reaches user code on the
         # dispatcher thread like everything else.
         if isinstance(frame, frames.BlockWrite):
             self._deliver(frame, self._on_block_write, self._block_inbox)
+            return
+
+        # Likewise a reassembled multi-frame PSACP message: already parsed by the time the worker
+        # hands it over, so it goes straight to the same place a single-frame publish ends up.
+        if isinstance(frame, frames.PsacpMessage):
+            self._deliver(frame, self._on_psacp, self._psacp_inbox)
             return
 
         protocol_id = frame.protocol_id

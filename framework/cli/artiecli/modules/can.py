@@ -263,9 +263,13 @@ def fill_subparser(parser: argparse.ArgumentParser, parent: argparse.ArgumentPar
     # Publish command
     publish_parser = subparsers.add_parser("publish", parents=[option_parser], help="Publish to a topic")
     publish_parser.add_argument("--topic", type=lambda x: int(x, 0), required=True, help="Topic ID (0x0B-0xF4, or 0x00 to reach every subscriber)")
-    publish_parser.add_argument("--data", type=str, default="", help="Payload as a hex string, up to 8 bytes")
+    # The sizes here are spelled out rather than read from artie_can.enums, because this module
+    # imports the library lazily inside each command so that the CLI still parses arguments on a
+    # host that does not have it installed. They mirror ARTIE_CAN_PSACP_MAX_MESSAGE_SIZE and
+    # ARTIE_CAN_FRAME_MAX_DATA_LENGTH.
+    publish_parser.add_argument("--data", type=str, default="", help="Payload as a hex string, up to 527 bytes (anything over 8 is fragmented across frames and reassembled by the receiver)")
     publish_parser.add_argument("--priority", type=str, default="MEDIUM", choices=priorities, help="Bus arbitration priority within the chosen PSACP protocol")
-    publish_parser.add_argument("--high-priority", action="store_true", help="Use the high-priority PSACP protocol, which wins arbitration against the low-priority one")
+    publish_parser.add_argument("--high-priority", action="store_true", help="Use the high-priority PSACP protocol, which wins arbitration against the low-priority one. Only for payloads of at most 8 bytes: high-priority PSACP arbitrates above BWACP, so a multi-frame burst would stall block transfers")
     publish_parser.set_defaults(cmd=_cmd_can_publish)
 
     # Subscribe command

@@ -285,9 +285,14 @@ of this protocol are:
 * High priority topics and low priority topics split the CAN priority space around BWACP
   so that logging doesn't drown out large data transfers like firmware upgrades.
 * No ACK, missed data is simply lost.
-* A published message can be up to 8 bytes. For longer messages, additional protocols must be
-  placed on top of this.
-* A node can be subscribed to up to 32 topics simultaneously.
+* A published message can be up to 527 bytes.
+* Messages are guaranteed to be delivered completely or dropped completely,
+  no partial messages will be passed up the stack to a receiving application.
+* Messages larger than a single frame must use Low Priority Pub/Sub. High Priority Pub/Sub
+  arbitrates above BWACP, so a multi-frame burst there would stall block transfers such as
+  firmware updates.
+* A node can be subscribed to up to 32 topics simultaneously (though
+  for MCUs, this may be limited by available RAM).
 
 ### PSACP Specification
 
@@ -299,12 +304,44 @@ The ID field looks like this:
 
 ```
 [100 OR 110] - specifies PSACP. When 100, it is High Priority Pub/Sub, when 110, it is Low Priority Pub/Sub.
-[0001] - Always a PUB frame.
+[0001] - PUB: A complete <= 8 byte message
+[0010] - PUB_START: First fragment of a multi-frame message
+[0011] - PUB_MORE: Continuation of a multi-frame message
+[0100] - PUB_END: Final fragment of a multi-frame message
 [pp] - 2 bits of user-assigned priority: LOW (11), MED-LOW (10), MED-HIGH (01), HIGH (00)
 [ssssss] - 6 bits of sender address, which must be unique among all nodes on the CAN bus
 [tttttttt] - 8 bits of topic, see below for reserved topic values
-1 for rest of ID field (6 bits)
+[iiiiii] - 6 bits of fragmentation index. Only meaningful in a PUB_MORE frame, where it starts at 0
+           for the first PUB_MORE and increments by one for each subsequent one. Reserved (set to 0)
+           in PUB, PUB_START and PUB_END frames.
 ```
+
+Maximum message size follows from the index space: 7 payload bytes in PUB_START (the eighth is the
+fragment count, see Data below), 8 bytes in each of up to 2^6 = 64 PUB_MORE frames, and up to 8
+bytes in PUB_END, for 7 + 512 + 8 = 527 bytes.
+
+#### Detecting a Damaged Message
+
+PSACP has no ACK and no retransmission, so a lost fragment cannot be recovered. What the format
+guarantees instead is that a damaged message is always *detectable*, and therefore always dropped
+whole rather than passed up incomplete. Every way a multi-frame message can be damaged is caught:
+
+| Failure | Caught by |
+| --- | --- |
+| An interior PUB_MORE is lost, or frames are reordered | The fragment index does not match the one expected next |
+| The **last** PUB_MORE is lost | Fewer PUB_MORE frames arrived than PUB_START promised |
+| PUB_START is lost | A continuation arrives with no message open for that sender and topic |
+| PUB_END is lost | The partial message is discarded, either when the receiver's reassembly timeout expires or when the next PUB_START from that sender and topic reclaims it |
+
+The count in PUB_START is what makes the second row work, and is the reason a byte is spent on it.
+PUB_END carries no fragment index, so on its own it is indistinguishable from a legitimately
+shorter message: a receiver missing the final PUB_MORE would append PUB_END's payload where the
+lost fragment's bytes belonged and deliver a message 8 bytes short, with no error raised.
+
+A receiver must key its reassembly state on the **combination of sender address and topic**, not on
+the topic alone. Two nodes publishing to the same topic at once will have their frames interleaved
+by CAN arbitration, and a receiver matching only on topic would splice the two into one corrupt
+message.
 
 Reserved topic values:
 
@@ -316,10 +353,43 @@ Reserved topic values:
 #### DLC
 
 The data length code field should specify the number of bytes in the data field (0 to 8 bytes).
+For a PUB_START and PUB_MORE, this value should always be 8. For a PUB_END it is between 1 and 8 -
+a PUB_END always carries at least one byte, so a message never ends with an empty frame. For a PUB
+frame it can be anywhere between 0 and 8.
 
 #### Data
 
-Application-specified.
+Application-specified data, laid out across the frames as follows.
+
+*PUB frame*:
+The entire message, 0 to 8 bytes.
+
+*PUB_START frame*:
+
+```
+[8 bits] - the number of PUB_MORE frames that follow, 0 to 64
+[56 bits] - the first 7 bytes of the message
+```
+
+*PUB_MORE frame*:
+The next 8 bytes of the message. The frame's fragmentation index gives its position: the PUB_MORE
+with index `i` carries the message's bytes `7 + 8i` through `7 + 8i + 7`.
+
+*PUB_END frame*:
+The final 1 to 8 bytes of the message.
+
+A publisher splits a message of `L` bytes, where `L` is greater than 8, like this:
+
+```
+remaining  = L - 7
+more_count = (remaining - 1) / 8         (integer division; 0 to 64)
+end_bytes  = remaining - more_count * 8  (1 to 8)
+```
+
+A message of 8 bytes or fewer is sent as a single PUB frame and is not fragmented at all, which is
+also what makes this scheme backwards compatible on the wire: nothing about an existing single-frame
+publish changes. A node that predates multi-frame support does not recognise the new frame types
+and ignores them, rather than mistaking a fragment for a whole message.
 
 ## Block Write Artie CAN Protocol (BWACP)
 

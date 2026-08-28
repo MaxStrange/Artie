@@ -222,6 +222,9 @@ bool artie_can_rtacp_is_busy(artie_can_backend_t *handle);
 #define ARTIE_CAN_PSACP_MAX_DATA_BYTES ...
 #define ARTIE_CAN_PSACP_TOPIC_BROADCAST ...
 #define ARTIE_CAN_PSACP_MAX_SUBSCRIPTIONS ...
+#define ARTIE_CAN_PSACP_MAX_MESSAGE_SIZE ...
+#define ARTIE_CAN_PSACP_MAX_MORE_FRAMES ...
+#define ARTIE_CAN_PSACP_REASSEMBLY_SLOTS ...
 
 typedef enum {
     ARTIE_CAN_FRAME_PRIORITY_PSACP_LOW,
@@ -241,12 +244,24 @@ typedef struct {
     ...;
 } artie_can_frame_psacp_t;
 
+typedef struct {
+    uint8_t source_address;
+    uint8_t topic;
+    uint16_t nbytes;
+    uint8_t data[...];
+    ...;
+} artie_can_psacp_message_t;
+
 artie_can_error_t artie_can_init_context_psacp(artie_can_context_t *ctx, uint8_t node_address);
 artie_can_error_t artie_can_psacp_subscribe(artie_can_context_t *ctx, uint8_t topic);
 artie_can_error_t artie_can_psacp_unsubscribe(artie_can_context_t *ctx, uint8_t topic);
 artie_can_error_t artie_can_psacp_init_frame(artie_can_frame_t *out, const artie_can_frame_psacp_t *in);
 artie_can_error_t artie_can_psacp_parse_frame(const artie_can_frame_t *in, artie_can_frame_psacp_t *out);
 artie_can_error_t artie_can_psacp_publish(artie_can_backend_t *handle, const artie_can_frame_t *frame);
+artie_can_error_t artie_can_psacp_publish_message(artie_can_backend_t *handle, uint8_t topic, const uint8_t *data, uint16_t nbytes, artie_can_frame_priority_psacp_t priority, bool high_priority);
+bool artie_can_psacp_is_busy(artie_can_backend_t *handle);
+artie_can_error_t artie_can_psacp_get_message(artie_can_context_t *context, artie_can_psacp_message_t *out);
+uint32_t artie_can_psacp_dropped_count(const artie_can_context_t *context);
 
 /* -------------------------------------------------------------- bwacp.h */
 

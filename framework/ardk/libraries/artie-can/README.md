@@ -183,7 +183,14 @@ To send to one specific node instead of a whole class, pass that node's address 
 
 PSACP is fire-and-forget publish/subscribe: nodes subscribe to topics, and a publish is delivered
 to every subscriber of that topic (topic `0x00` is broadcast to all subscribers). There's no ACK
-and no retry - if you need guaranteed delivery, use RTACP or BWACP instead (see `tests/test_psacp.c`):
+and no retry - if you need guaranteed delivery, use RTACP or BWACP instead (see `tests/test_psacp.c`).
+
+A message can be up to `ARTIE_CAN_PSACP_MAX_MESSAGE_SIZE` (527) bytes. Anything over one frame's
+worth is fragmented across frames by `artie_can_psacp_publish_message()` and reassembled by the
+receiver. Still no ACK: a receiver that misses a fragment discards the whole message rather than
+delivering part of one, so what arrives is always exactly what was published. Multi-frame messages
+must go out at normal priority - high-priority PSACP arbitrates above BWACP, so a long burst there
+would stall firmware updates, and `high_priority` is rejected for payloads over 8 bytes.
 
 ```c
 #include "artie_can.h"
@@ -221,6 +228,40 @@ void rx_callback_node2(const artie_can_frame_t *frame)
 // Later, if node2 no longer cares about this topic:
 artie_can_psacp_unsubscribe(&node2_context, TOPIC_TEMPERATURE);
 ```
+
+For a message of any size, use `artie_can_psacp_publish_message()` instead of building a frame by
+hand. It queues the message and emits its frames across subsequent `artie_can_tick()` calls, so
+drive the loop until it reports it is no longer busy:
+
+```c
+uint8_t reading[64];
+artie_can_psacp_publish_message(&node1, TOPIC_TEMPERATURE, reading, sizeof(reading),
+                                ARTIE_CAN_FRAME_PRIORITY_PSACP_MEDIUM_LOW, false);
+while (artie_can_psacp_is_busy(&node1))
+{
+    artie_can_tick(&node1);
+    artie_can_tick(&node2);
+}
+```
+
+Receiving a multi-frame message works differently from receiving a single-frame one, and
+deliberately so. A message that fits in one frame *is* a frame, so it reaches your `rx_callback`
+the moment it arrives, on the same low-latency path it always had. A longer one is not a frame and
+does not exist until the library has stitched it back together, so it is collected from the context
+instead:
+
+```c
+artie_can_psacp_message_t message;
+while (artie_can_psacp_get_message(&node2_context, &message) == ARTIE_CAN_ERR_NONE)
+{
+    // message.data[0 .. message.nbytes) is the whole payload, from message.source_address.
+}
+```
+
+So a node that wants every published message reads both. `artie_can_psacp_dropped_count()` reports
+how many inbound messages were discarded rather than delivered incomplete - a count that climbs
+steadily means this node is not draining the bus fast enough, which no amount of publisher-side
+retry would fix.
 
 ### RPCACP (Remote Procedure Call Artie CAN Protocol)
 
@@ -355,10 +396,14 @@ my_node.rtacp_send(0x02, b"\x01\x02")
 my_node.rtacp_send(enums.BROADCAST_ADDRESS, b"\x01\x02")
 message = my_node.receive_rtacp(timeout=1.0)
 
-# PSACP - fire-and-forget pub/sub.
+# PSACP - fire-and-forget pub/sub. A payload over 8 bytes is fragmented across frames and
+# reassembled by the receiver; nothing about the API changes, and what arrives is either the whole
+# message or nothing. Up to MAX_PSACP_MESSAGE_SIZE (527) bytes, normal priority only.
 my_node.subscribe(0x0C)
 my_node.publish(0x0C, b"\xa5", high_priority=False)
+my_node.publish(0x0C, imu_sample)                   # 12 bytes, 2 frames, still one call
 message = my_node.receive_psacp(timeout=1.0)
+print(my_node.psacp_messages_dropped)               # messages dropped rather than delivered short
 
 # BWACP - bulk block writes into the receivers' block buffers.
 my_node.block_write(payload, offset=0x1000, target_class=enums.NodeClass.SENSOR)

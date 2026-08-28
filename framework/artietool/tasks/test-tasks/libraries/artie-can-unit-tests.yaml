@@ -138,6 +138,80 @@ steps:
           - what: "test_unsubscribe:IGNORE"
             where: ${DUT}
 
+      # PSACP multi-frame messages: a payload larger than one CAN frame is fragmented across
+      # PUB_START/PUB_MORE/PUB_END and reassembled by the receiver. The sizes below sit on the
+      # boundaries the fragmentation arithmetic turns on.
+      - test-name: test_publish_message_single_frame
+        expected-outputs:
+          - what: "test_publish_message_single_frame:PASS"
+            where: ${DUT}
+      - test-name: test_publish_message_nine_bytes
+        expected-outputs:
+          - what: "test_publish_message_nine_bytes:PASS"
+            where: ${DUT}
+      - test-name: test_publish_message_fifteen_bytes
+        expected-outputs:
+          - what: "test_publish_message_fifteen_bytes:PASS"
+            where: ${DUT}
+      - test-name: test_publish_message_sixteen_bytes
+        expected-outputs:
+          - what: "test_publish_message_sixteen_bytes:PASS"
+            where: ${DUT}
+      - test-name: test_publish_message_one_hundred_bytes
+        expected-outputs:
+          - what: "test_publish_message_one_hundred_bytes:PASS"
+            where: ${DUT}
+      - test-name: test_publish_message_max_size
+        expected-outputs:
+          - what: "test_publish_message_max_size:PASS"
+            where: ${DUT}
+      - test-name: test_publish_message_too_large_is_rejected
+        expected-outputs:
+          - what: "test_publish_message_too_large_is_rejected:PASS"
+            where: ${DUT}
+      - test-name: test_publish_message_high_priority_multi_frame_is_rejected
+        expected-outputs:
+          - what: "test_publish_message_high_priority_multi_frame_is_rejected:PASS"
+            where: ${DUT}
+
+      # PSACP frame loss (test_psacp_frame_loss.c): PSACP has no ACK, so a lost fragment cannot be
+      # recovered - what these pin down is that a damaged message is always *dropped* rather than
+      # delivered short. test_lost_final_fragment_drops_the_message is the one the wire format
+      # turns on: PUB_END carries no fragment index, so only the count PUB_START promises catches a
+      # missing last fragment.
+      - test-name: test_intact_message_is_delivered
+        expected-outputs:
+          - what: "test_intact_message_is_delivered:PASS"
+            where: ${DUT}
+      - test-name: test_lost_interior_fragment_drops_the_message
+        expected-outputs:
+          - what: "test_lost_interior_fragment_drops_the_message:PASS"
+            where: ${DUT}
+      - test-name: test_lost_final_fragment_drops_the_message
+        expected-outputs:
+          - what: "test_lost_final_fragment_drops_the_message:PASS"
+            where: ${DUT}
+      - test-name: test_lost_start_drops_the_message
+        expected-outputs:
+          - what: "test_lost_start_drops_the_message:PASS"
+            where: ${DUT}
+      - test-name: test_lost_end_drops_the_message
+        expected-outputs:
+          - what: "test_lost_end_drops_the_message:PASS"
+            where: ${DUT}
+      - test-name: test_slot_recovers_after_a_timeout
+        expected-outputs:
+          - what: "test_slot_recovers_after_a_timeout:PASS"
+            where: ${DUT}
+      - test-name: test_new_message_reclaims_an_abandoned_slot
+        expected-outputs:
+          - what: "test_new_message_reclaims_an_abandoned_slot:PASS"
+            where: ${DUT}
+      - test-name: test_single_frame_publish_is_unaffected
+        expected-outputs:
+          - what: "test_single_frame_publish_is_unaffected:PASS"
+            where: ${DUT}
+
       # RPCACP: remote procedure calls (test_rpcacp.c)
       - test-name: test_rpcacp_whoami_function
         expected-outputs:

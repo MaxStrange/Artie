@@ -25,6 +25,8 @@ __all__ = [
     "MAX_NODES",
     "DEFAULT_BLOCK_BUFFER_SIZE",
     "MAX_SUBSCRIPTIONS",
+    "MAX_PSACP_MESSAGE_SIZE",
+    "PSACP_REASSEMBLY_SLOTS",
     "MAX_RPC_PARAMS",
     "MAX_RPC_NAME_LENGTH",
     "MAX_REGISTERED_PROCEDURES",
@@ -134,6 +136,14 @@ DEFAULT_BLOCK_BUFFER_SIZE: int = lib.ARTIE_CAN_BWACP_DEFAULT_BUFFER_SIZE
 
 #: PSACP topics a single node can be subscribed to at once.
 MAX_SUBSCRIPTIONS: int = lib.ARTIE_CAN_PSACP_MAX_SUBSCRIPTIONS
+
+#: Largest payload a single PSACP publish can carry. Anything over
+#: :data:`MAX_FRAME_DATA_LENGTH` is fragmented across frames and reassembled by the receiver.
+MAX_PSACP_MESSAGE_SIZE: int = lib.ARTIE_CAN_PSACP_MAX_MESSAGE_SIZE
+
+#: Multi-frame PSACP messages a node can be reassembling at once, one per (publisher, topic) pair.
+#: A message arriving when all of them are busy is dropped and counted.
+PSACP_REASSEMBLY_SLOTS: int = lib.ARTIE_CAN_PSACP_REASSEMBLY_SLOTS
 
 #: Parameters allowed in one RPC signature.
 MAX_RPC_PARAMS: int = lib.ARTIE_CAN_RPCACP_MAX_PARAMS
