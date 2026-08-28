@@ -93,6 +93,20 @@ steps:
           - what: "NODE 0x03 PSACP RX topic 0x10 from 0x01: PYPS01"
             where: can-python-itest-node-3
 
+      # A 300 byte publish spans 38 frames, so this covers the PUB_START/PUB_MORE/PUB_END sequence
+      # and the receivers' reassembly across the network. The peers compare the payload byte for
+      # byte and only log 'intact' when it matches, so these expectations prove the message
+      # survived the container boundary whole rather than merely arriving at the right length.
+      - test-name: python-psacp-large-message
+        cmd-to-run-in-cli: "python /artie-can/itest/itest_node.py --role driver --address 0x01 --scenario psacp-large-message"
+        expected-outputs:
+          - what: "PYITEST psacp-large-message:PASS"
+            where: artie-cli
+          - what: "NODE 0x02 PSACP RX topic 0x10 from 0x01: 300 bytes, intact"
+            where: can-python-itest-node-2
+          - what: "NODE 0x03 PSACP RX topic 0x10 from 0x01: 300 bytes, intact"
+            where: can-python-itest-node-3
+
       # The peer's registered ECHO procedure returns its argument plus one; the driver checks the
       # returned value, so this covers the full request/return round trip, including marshalling
       # the argument out of Python and the result back into it.

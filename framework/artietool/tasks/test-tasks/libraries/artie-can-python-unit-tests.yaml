@@ -284,9 +284,58 @@ steps:
         expected-outputs:
           - what: "test_publish_is_handed_to_the_callback PASSED"
             where: ${DUT}
-      - test-name: test_publish_rejects_more_than_one_frame_of_data
+      - test-name: test_publish_rejects_more_than_a_whole_message
         expected-outputs:
-          - what: "test_publish_rejects_more_than_one_frame_of_data PASSED"
+          - what: "test_publish_rejects_more_than_a_whole_message PASSED"
+            where: ${DUT}
+
+      # PSACP multi-frame messages: a payload over one frame's worth is fragmented on the wire and
+      # reassembled by the receiver, which the Node API hides entirely - publish() and
+      # receive_psacp() look the same whatever the size. The parametrised sizes sit on the
+      # boundaries of the fragmentation arithmetic, 527 being the largest the protocol allows.
+      - test-name: test_message_of_any_size_survives_the_round_trip[8]
+        expected-outputs:
+          - what: "test_message_of_any_size_survives_the_round_trip[8] PASSED"
+            where: ${DUT}
+      - test-name: test_message_of_any_size_survives_the_round_trip[9]
+        expected-outputs:
+          - what: "test_message_of_any_size_survives_the_round_trip[9] PASSED"
+            where: ${DUT}
+      - test-name: test_message_of_any_size_survives_the_round_trip[15]
+        expected-outputs:
+          - what: "test_message_of_any_size_survives_the_round_trip[15] PASSED"
+            where: ${DUT}
+      - test-name: test_message_of_any_size_survives_the_round_trip[16]
+        expected-outputs:
+          - what: "test_message_of_any_size_survives_the_round_trip[16] PASSED"
+            where: ${DUT}
+      - test-name: test_message_of_any_size_survives_the_round_trip[100]
+        expected-outputs:
+          - what: "test_message_of_any_size_survives_the_round_trip[100] PASSED"
+            where: ${DUT}
+      - test-name: test_message_of_any_size_survives_the_round_trip[526]
+        expected-outputs:
+          - what: "test_message_of_any_size_survives_the_round_trip[526] PASSED"
+            where: ${DUT}
+      - test-name: test_message_of_any_size_survives_the_round_trip[527]
+        expected-outputs:
+          - what: "test_message_of_any_size_survives_the_round_trip[527] PASSED"
+            where: ${DUT}
+      - test-name: test_multi_frame_message_is_handed_to_the_callback
+        expected-outputs:
+          - what: "test_multi_frame_message_is_handed_to_the_callback PASSED"
+            where: ${DUT}
+      - test-name: test_multi_frame_publish_is_rejected_at_high_priority
+        expected-outputs:
+          - what: "test_multi_frame_publish_is_rejected_at_high_priority PASSED"
+            where: ${DUT}
+      - test-name: test_concurrent_publishers_on_one_topic_are_not_spliced
+        expected-outputs:
+          - what: "test_concurrent_publishers_on_one_topic_are_not_spliced PASSED"
+            where: ${DUT}
+      - test-name: test_publisher_subscribed_to_its_own_topic_receives_its_message
+        expected-outputs:
+          - what: "test_publisher_subscribed_to_its_own_topic_receives_its_message PASSED"
             where: ${DUT}
 
       # BWACP: bulk block writes, which span many frames and are only reported once

@@ -648,6 +648,158 @@ void test_unsubscribe(void)
 }
 
 /**
+ * @brief Publish a message of a given size from node 1 to topic 0x10 and check node 2 gets it whole.
+ *
+ * Node 2 subscribes to 0x10 and node 1 does not, so this also confirms the publisher does not
+ * deliver a message to itself when it is not subscribed.
+ *
+ * Which channel the message arrives on depends on its size, and deliberately so. A message that
+ * fits in one frame is a frame, so it reaches the rx_callback the moment it is received, exactly
+ * as it did before fragmentation existed. A longer one is not a frame and does not exist until the
+ * library has stitched it back together, so it is collected from artie_can_psacp_get_message()
+ * instead. Both are checked here so the split stays honest.
+ *
+ * @param nbytes Size of the payload to publish.
+ */
+static void _publish_and_verify_size(uint16_t nbytes)
+{
+    static uint8_t payload[ARTIE_CAN_PSACP_MAX_MESSAGE_SIZE];
+
+    // A varied pattern rather than a constant, so a fragment landing at the wrong offset shows up.
+    for (uint16_t i = 0; i < nbytes; i++)
+    {
+        payload[i] = (uint8_t)(((i * 7U) + nbytes) & 0xFFU);
+    }
+
+    _reset_psacp_flags();
+
+    artie_can_error_t err = artie_can_psacp_publish_message(&_node1, TOPIC_0x10, payload, nbytes,
+                                                            ARTIE_CAN_FRAME_PRIORITY_PSACP_MEDIUM_LOW, false);
+    TEST_ASSERT_EQUAL_INT(ARTIE_CAN_ERR_NONE, err);
+
+    bool single_frame = (nbytes <= ARTIE_CAN_PSACP_MAX_DATA_BYTES);
+
+    // Drive every node's event loop until the whole message has been emitted and reassembled.
+    artie_can_psacp_message_t message;
+    bool received = false;
+    for (int elapsed = 0; (elapsed < DEFAULT_TIMEOUT_MS) && !received; elapsed++)
+    {
+        _run_event_loops();
+        if (single_frame)
+        {
+            received = _psacp_received_node2;
+        }
+        else if (artie_can_psacp_get_message(&_node2_context, &message) == ARTIE_CAN_ERR_NONE)
+        {
+            received = true;
+        }
+        SLEEP_MS(1);
+    }
+
+    TEST_ASSERT_TRUE_MESSAGE(received, "Node 2 never received the message");
+
+    if (single_frame)
+    {
+        TEST_ASSERT_EQUAL_UINT8(nbytes, _psacp_frame_node2.nbytes);
+        TEST_ASSERT_EQUAL_UINT8(NODE1_ADDR, _psacp_frame_node2.source_address);
+        TEST_ASSERT_EQUAL_UINT8(TOPIC_0x10, _psacp_frame_node2.topic);
+        TEST_ASSERT_EQUAL_UINT8_ARRAY(payload, (const uint8_t *)_psacp_frame_node2.data, nbytes);
+    }
+    else
+    {
+        TEST_ASSERT_EQUAL_UINT16(nbytes, message.nbytes);
+        TEST_ASSERT_EQUAL_UINT8(NODE1_ADDR, message.source_address);
+        TEST_ASSERT_EQUAL_UINT8(TOPIC_0x10, message.topic);
+        TEST_ASSERT_EQUAL_UINT8_ARRAY(payload, message.data, nbytes);
+    }
+
+    TEST_ASSERT_EQUAL_UINT32(0U, artie_can_psacp_dropped_count(&_node2_context));
+}
+
+/**
+ * @brief A message that still fits in one frame goes out as a plain PUB, as it always has.
+ */
+void test_publish_message_single_frame(void)
+{
+    _publish_and_verify_size(ARTIE_CAN_PSACP_MAX_DATA_BYTES);
+}
+
+/**
+ * @brief The smallest message that has to be fragmented: one byte past a single frame.
+ *
+ * At this size PUB_START carries 7 bytes and PUB_END carries the remaining 2, with no PUB_MORE
+ * frames at all - the edge of the fragmentation arithmetic.
+ */
+void test_publish_message_nine_bytes(void)
+{
+    _publish_and_verify_size(9U);
+}
+
+/**
+ * @brief The largest message needing no PUB_MORE frames (7 in PUB_START, 8 in PUB_END).
+ */
+void test_publish_message_fifteen_bytes(void)
+{
+    _publish_and_verify_size(15U);
+}
+
+/**
+ * @brief The smallest message that needs a PUB_MORE frame.
+ */
+void test_publish_message_sixteen_bytes(void)
+{
+    _publish_and_verify_size(16U);
+}
+
+/**
+ * @brief A mid-sized message, of the order a real sensor reading would be.
+ */
+void test_publish_message_one_hundred_bytes(void)
+{
+    _publish_and_verify_size(100U);
+}
+
+/**
+ * @brief The largest message the protocol can express - every fragment index in use.
+ */
+void test_publish_message_max_size(void)
+{
+    _publish_and_verify_size(ARTIE_CAN_PSACP_MAX_MESSAGE_SIZE);
+}
+
+/**
+ * @brief A message larger than the protocol allows is refused rather than truncated.
+ */
+void test_publish_message_too_large_is_rejected(void)
+{
+    static uint8_t payload[ARTIE_CAN_PSACP_MAX_MESSAGE_SIZE + 1U];
+
+    artie_can_error_t err = artie_can_psacp_publish_message(&_node1, TOPIC_0x10, payload, sizeof(payload),
+                                                            ARTIE_CAN_FRAME_PRIORITY_PSACP_MEDIUM_LOW, false);
+    TEST_ASSERT_EQUAL_INT(ARTIE_CAN_ERR_INVALID_ARG, err);
+}
+
+/**
+ * @brief Multi-frame messages are not allowed on the high-priority PSACP protocol ID.
+ *
+ * High-priority PSACP arbitrates above BWACP, so a long burst there would stall block transfers -
+ * firmware updates above all. Single-frame publishes at high priority stay allowed, which is what
+ * makes this a size limit rather than a ban.
+ */
+void test_publish_message_high_priority_multi_frame_is_rejected(void)
+{
+    static uint8_t payload[64];
+
+    artie_can_error_t err = artie_can_psacp_publish_message(&_node1, TOPIC_0x10, payload, ARTIE_CAN_PSACP_MAX_DATA_BYTES,
+                                                            ARTIE_CAN_FRAME_PRIORITY_PSACP_MEDIUM_LOW, true);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(ARTIE_CAN_ERR_NONE, err, "A single-frame high-priority publish should be allowed");
+
+    err = artie_can_psacp_publish_message(&_node1, TOPIC_0x10, payload, sizeof(payload),
+                                          ARTIE_CAN_FRAME_PRIORITY_PSACP_MEDIUM_LOW, true);
+    TEST_ASSERT_EQUAL_INT_MESSAGE(ARTIE_CAN_ERR_INVALID_ARG, err, "A multi-frame high-priority publish should be refused");
+}
+
+/**
  * @brief Main function - runs all tests.
  */
 int main(void)
@@ -660,6 +812,14 @@ int main(void)
     RUN_TEST(test_psacp_high_priority_during_bwacp);
     RUN_TEST(test_bwacp_unaffected_by_low_priority_psacp_noise);
     RUN_TEST(test_unsubscribe);
+    RUN_TEST(test_publish_message_single_frame);
+    RUN_TEST(test_publish_message_nine_bytes);
+    RUN_TEST(test_publish_message_fifteen_bytes);
+    RUN_TEST(test_publish_message_sixteen_bytes);
+    RUN_TEST(test_publish_message_one_hundred_bytes);
+    RUN_TEST(test_publish_message_max_size);
+    RUN_TEST(test_publish_message_too_large_is_rejected);
+    RUN_TEST(test_publish_message_high_priority_multi_frame_is_rejected);
 
     return UNITY_END();
 }
