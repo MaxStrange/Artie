@@ -6,17 +6,38 @@ frames even though they all run in one process. The nodes themselves are real ``
 running the real C library - what these tests do not cover is frames crossing a machine boundary,
 which is what the container-based integration tests in ``itest/`` are for.
 """
+import hashlib
 import itertools
+import os
+import socket
 import time
 
 import pytest
 
 from artie_can import backends, enums, errors, node
 
-#: Multicast group the Python unit tests run on. Deliberately different from the group the C
-#: Unity suite uses and from the integration tests' group, so a run of one can never be mistaken
-#: for bus traffic belonging to another.
-MULTICAST_GROUP = "239.0.0.21"
+#: Multicast group this test process runs on.
+#:
+#: Derived from the process ID rather than fixed, because multicast does not respect process or
+#: container boundaries: every listener joined to a group and port sees every frame sent to it,
+#: whoever sent it. Two concurrent runs of this suite on one host - two CI jobs, or a developer
+#: running the suite while a job runs - would otherwise share one simulated bus, and since every
+#: test uses the same node addresses, each run would see the other's frames as its own. The
+#: artie-tool task runs this on Docker's shared default bridge network, so that is a real
+#: configuration, not a hypothetical one.
+#:
+#: The 239.0.0.0/8 block is administratively scoped, so anything in it is safe to make up. Set
+#: ARTIE_CAN_TEST_MCAST_GROUP to override, which the C suite honours too.
+#:
+#: The hostname is what carries this between containers - Docker sets it to the container ID -
+#: because the process ID does not: every container has its own PID namespace, so pytest is the
+#: same PID in all of them. The PID and clock separate two runs inside one container.
+_UNIQUE = f"{socket.gethostname()}-{os.getpid()}-{time.monotonic_ns()}"
+_DIGEST = hashlib.sha256(_UNIQUE.encode()).digest()
+MULTICAST_GROUP = os.environ.get(
+    "ARTIE_CAN_TEST_MCAST_GROUP",
+    f"239.{_DIGEST[0] % 254 + 1}.{_DIGEST[1] % 254 + 1}.10",
+)
 
 #: A fresh port per bus. Nodes only ever hear each other when the group *and* port match, so this
 #: is what isolates one test's nodes from the next's.
