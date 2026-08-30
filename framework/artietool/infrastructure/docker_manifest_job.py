@@ -42,7 +42,7 @@ class DockerManifestJob(job.Job):
         # Turn all the images we need into real images from dependencies
         evaluated_images = self._evaluate_images(args, self.images)
 
-        manifest_name = str(docker.construct_docker_image_name(args, self.img_base_name))
+        manifest_name = str(docker.construct_docker_image_name(args, self.img_base_name, repo=getattr(self.parent_task, 'repo', None)))
 
         if args.insecure_docker_repo:
             # 'buildx imagetools' has no --insecure support, so use the legacy manifest flow here.

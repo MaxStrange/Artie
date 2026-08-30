@@ -32,7 +32,7 @@ spec:
             claimName: metrics-collector-pvc
       containers:
         - name: metrics-collector
-          image: "{{ .Values.repository }}/artie-metrics-collector:{{ .Values.imageTag }}"
+          image: "{{ .Values.repository }}/artie-metrics-collector:{{ index .Values.imageTags "artie-metrics-collector" | default .Values.imageTag }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           volumeMounts:
             - name: metrics-storage

@@ -32,7 +32,7 @@ spec:
             claimName: broker-cache-pvc
       containers:
         - name: service-broker
-          image: "{{ .Values.repository }}/artie-service-broker:{{ .Values.imageTag }}"
+          image: "{{ .Values.repository }}/artie-service-broker:{{ index .Values.imageTags "artie-service-broker" | default .Values.imageTag }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           volumeMounts:
             - name: broker-cache

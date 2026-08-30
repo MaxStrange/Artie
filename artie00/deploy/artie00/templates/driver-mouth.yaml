@@ -37,7 +37,7 @@ spec:
       restartPolicy: {{ .Values.driverRestartPolicy }}
       containers:
         - name: mouth-driver
-          image: "{{ .Values.repository }}/artie-mouth-driver:{{ .Values.imageTag }}-arm64"
+          image: "{{ .Values.repository }}/artie-mouth-driver:{{ index .Values.imageTags "artie-mouth-driver" | default .Values.imageTag }}-arm64"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           command: ["python", "-m", "src.main", "/conf/mcu-fw.elf", "--port", "{{ .Values.ports.mouthDriver }}"]
           env:

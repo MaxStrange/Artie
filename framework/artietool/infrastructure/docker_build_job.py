@@ -91,7 +91,7 @@ class DockerBuildJob(job.Job):
 
 
         # Create the name object from the Docker repo, name, and tag
-        docker_image_name = docker.construct_docker_image_name(args, self.img_base_name, self.platform)
+        docker_image_name = docker.construct_docker_image_name(args, self.img_base_name, self.platform, repo=getattr(self.parent_task, 'repo', None))
 
         # If --force, we have to remove the image first
         if args.force_build:

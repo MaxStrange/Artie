@@ -81,9 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument("--docker-logs", action='store_true', help="If given, we print Docker logs as we receive them (normally they are hidden).")
     group.add_argument("--docker-no-cache", action='store_true', help="If given, we pass --no-cache to Docker builds.")
     group.add_argument("--docker-repo", default=None, type=str, help="Docker repository for pushing/pulling.")
-    # Derived from Artie Tool's own checkout rather than the current directory, so that an
-    # installed `artie-tool` produces the same tag wherever it is invoked from.
-    group.add_argument("--docker-tag", default=common.git_tag("artietool"), type=str, help="The tag (not name) of the Docker images we build (if any). If not given, we use the git hash.")
+    group.add_argument("--docker-tag", default=None, type=str, help="Stamp every image built in this run with this tag. If not given, each image is tagged with the version of the component it is built from (see the VERSION file in each component).")
     group.add_argument("--docker-password", default=None, type=str, help="The password to use for docker login. For CI, please use the environment variable ARTIE_TOOL_DOCKER_PASSWORD. If both are given, we use this arg instead of the env variable.")
     group.add_argument("--docker-username", default=None, type=str, help="The username for docker login. If not given, we do not attempt to login before pushing images.")
     group.add_argument("--insecure-docker-repo", action='store_true', help="(Experimental) If you are pushing a multiarch image to an insecure repo, you will need this flag.")
@@ -93,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument("--workspace", default=None, type=str, help=f"Directory that Artie's repositories are cloned into. Overrides ARTIE_WORKSPACE and the config file. Default: {workspace.DEFAULT_WORKSPACE}")
     group.add_argument("--repo", action='append', default=None, metavar="NAME=PATH", help=f"Use an existing checkout for one component instead of cloning it, as in --repo ardk=~/repos/ArDK. May be given more than once. Known components: {', '.join(workspace.known_repo_names())}")
     group.add_argument("--channel", default=None, type=str, help="Release channel to resolve prebuilt artifacts from. Overrides ARTIE_CHANNEL and the config file.")
+    group.add_argument("--release-file", default=None, type=str, help="Path to a release manifest. Pins every component to the version that manifest names, so a build or deployment reproduces exactly that combination. Generate one with 'artie-tool release manifest'.")
 
     # Parser for build command
     parser_build = subparsers.add_parser("build", parents=[option_parser])
@@ -162,7 +161,9 @@ def main():
     # Resolve the workspace configuration once, folding in any command line overrides, so
     # that everything downstream - including ${REPO:<name>} substitution in task
     # definitions - sees the same view of where each component's source lives.
-    workspace.config(args)
+    # Resolve the workspace configuration and any release manifest. Task processes do
+    # the same for themselves, since they cannot inherit it.
+    workspace.initialize(args)
 
     # Try to close gracefully with CTRL-C
     signal.signal(signal.SIGINT, handle_sigint)

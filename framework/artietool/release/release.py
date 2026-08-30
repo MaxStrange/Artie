@@ -2,6 +2,7 @@
 All machinery pertaining to release work.
 """
 from .. import common
+from . import manifest
 from ..build import build
 import argparse
 import subprocess
@@ -70,7 +71,13 @@ def release(args):
     return retcode
 
 def fill_subparser(parser_release: argparse.ArgumentParser, parent: argparse.ArgumentParser):
-    parser_release.add_argument("--skip-checkout", action='store_true', help="If given, we skip checking out a branch.")
-    parser_release.add_argument("-b", "--branch", default="main", type=str, help="The branch of the repository to release. We will attempt to checkout to this branch.")
-    parser_release.add_argument("--remote", action='store_true', help="If given, we attempt to first pull the branch from origin.")
-    parser_release.set_defaults(cmd=release, module="release-artie")
+    subparsers = parser_release.add_subparsers(title="Release Command", description="Release subcommand")
+
+    parser_build = subparsers.add_parser("build", parents=[parent], help="Build and push every image for a release.")
+    parser_build.add_argument("--skip-checkout", action='store_true', help="If given, we skip checking out a branch.")
+    parser_build.add_argument("-b", "--branch", default="main", type=str, help="The branch of the repository to release. We will attempt to checkout to this branch.")
+    parser_build.add_argument("--remote", action='store_true', help="If given, we attempt to first pull the branch from origin.")
+    parser_build.set_defaults(cmd=release, module="release-artie")
+
+    parser_manifest = subparsers.add_parser("manifest", parents=[parent], help="Record the current component versions as a release manifest.")
+    manifest.fill_subparser(parser_manifest, parent)

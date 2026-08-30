@@ -93,7 +93,10 @@ class DockerImageArtifact(Artifact):
         else:
             platform = producing_job.platform
 
-        self._docker_image = docker.construct_docker_image_name(args, producing_job.img_base_name, platform)
+        # Tag with the version of the component this image is built from, so that an
+        # ArDK image carries ArDK's version and an Artie00 image carries Artie00's.
+        repo = getattr(getattr(producing_job, 'parent_task', None), 'repo', None)
+        self._docker_image = docker.construct_docker_image_name(args, producing_job.img_base_name, platform, repo=repo)
         self.item = str(self._docker_image)
 
     def mark_if_cached(self, args):

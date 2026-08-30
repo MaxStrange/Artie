@@ -98,6 +98,119 @@ def monorepo_root() -> str:
     return os.path.abspath(root)
 
 
+def component_version(name: str) -> str:
+    """
+    Return the version of one Artie component.
+
+    Components version independently, so an image built from ArDK is tagged with ArDK's
+    version and one built from Artie00 with Artie00's. Which combination of those versions
+    makes a working Artie is stated by a release manifest, not inferred from the build.
+
+    Resolved in this order:
+      1. a release manifest, if one is in force - it states the combination being built
+         or deployed, and overrides what the checkouts happen to say
+      2. a VERSION file at the component's root - the release version
+      3. an exact git tag on HEAD, with any leading 'v' stripped
+      4. the short git hash, which is what a development build gets
+    """
+    key = name.strip().lower()
+    if key in _PINNED_VERSIONS:
+        return _PINNED_VERSIONS[key]
+
+    path = repo_path(name)
+
+    version_file = os.path.join(path, "VERSION")
+    if os.path.isfile(version_file):
+        try:
+            declared = pathlib.Path(version_file).read_text(encoding="utf-8").strip()
+            if declared:
+                return declared
+        except OSError as e:
+            LOGGER.warning(f"{name}: could not read {version_file}: {e}")
+
+    described = _git(["describe", "--tags", "--exact-match"], cwd=path)
+    if described.returncode == 0 and described.stdout.strip():
+        return described.stdout.strip().lstrip("v")
+
+    head = _git(["rev-parse", "--short", "HEAD"], cwd=path)
+    if head.returncode == 0 and head.stdout.strip():
+        return head.stdout.strip()
+
+    # No VERSION file, no tag, not a git checkout. Mirrors the placeholder the Dockerfiles
+    # default to rather than failing a build over a label.
+    return "unversioned"
+
+
+# Component versions pinned by a release manifest, when one has been loaded. A manifest
+# states which combination of component versions is known to work together; while one is
+# in force it overrides whatever each component's own VERSION file happens to say.
+_PINNED_VERSIONS: Dict[str, str] = {}
+
+
+def load_release_manifest(path: str) -> dict:
+    """
+    Load a release manifest and pin every component version it names.
+
+    Returns the parsed manifest.
+    """
+    p = pathlib.Path(os.path.expanduser(path))
+    try:
+        manifest = yaml.safe_load(p.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as e:
+        raise ValueError(f"Could not read release manifest {p}: {e}") from e
+
+    if not manifest or "components" not in manifest:
+        raise ValueError(f"Release manifest {p} has no 'components' section")
+
+    pins = {}
+    for name, entry in manifest["components"].items():
+        key = name.strip().lower()
+        version = entry.get("version") if isinstance(entry, dict) else entry
+        if not version:
+            raise ValueError(f"Release manifest {p}: component '{name}' has no version")
+        pins[key] = str(version)
+
+    # Every task process loads the manifest, so only announce it when it actually changes
+    # something - otherwise the same line appears once per task.
+    changed = pins != _PINNED_VERSIONS
+    _PINNED_VERSIONS.clear()
+    _PINNED_VERSIONS.update(pins)
+
+    summary = ", ".join(f"{k} {v}" for k, v in sorted(_PINNED_VERSIONS.items()))
+    if changed:
+        LOGGER.info(f"Pinned to release '{manifest.get('release', p.name)}': {summary}")
+    else:
+        LOGGER.debug(f"Release '{manifest.get('release', p.name)}' already pinned: {summary}")
+
+    return manifest
+
+
+def pinned_versions() -> Dict[str, str]:
+    """
+    The component versions currently pinned by a release manifest, if any.
+    """
+    return dict(_PINNED_VERSIONS)
+
+
+def initialize(args) -> None:
+    """
+    Establish this process's workspace configuration and release pinning from `args`.
+
+    Artie Tool runs tasks in separate processes. On platforms that spawn rather than fork
+    - Windows, and Python's default on macOS - a child re-imports this module with none of
+    the parent's module-level state, so it has to rebuild it. `args` is what does get
+    handed across, so it is the only reliable source. Call this once per process, early.
+
+    Without it a child resolves component versions from the checkouts while the parent
+    resolved them from a release manifest, and an image gets built under one tag but
+    recorded under another.
+    """
+    config(args)
+
+    if getattr(args, "release_file", None):
+        load_release_manifest(args.release_file)
+
+
 def artifacts_root() -> str:
     """
     Where build artifacts, test results and scratch space go.
@@ -368,15 +481,21 @@ def repo_status(name: str, cfg: Config) -> dict:
         "dirty": None,
     }
 
-    if info["exists"] and _is_git_checkout(path):
-        info["git"] = True
+    if info["exists"]:
+        # Ask git rather than looking for a .git directory: while the components still
+        # live in one repository each of them is a subdirectory of it, and git resolves
+        # that perfectly well by walking up. `_is_git_checkout` only tells us whether this
+        # path is a repository root, which is a different question.
         head = _git(["rev-parse", "--short", "HEAD"], cwd=path)
-        if head.returncode == 0:
+        if head.returncode == 0 and head.stdout.strip():
+            info["git"] = True
             info["head"] = head.stdout.strip()
 
-        dirty = _git(["status", "--porcelain"], cwd=path)
-        if dirty.returncode == 0:
-            info["dirty"] = bool(dirty.stdout.strip())
+            # Scope the dirty check to this component, so that unrelated changes elsewhere
+            # in a monorepo checkout do not make every component look dirty.
+            dirty = _git(["status", "--porcelain", "--", "."], cwd=path)
+            if dirty.returncode == 0:
+                info["dirty"] = bool(dirty.stdout.strip())
 
     return info
 

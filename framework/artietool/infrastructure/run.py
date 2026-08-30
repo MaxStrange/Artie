@@ -5,6 +5,7 @@ from . import artifact
 from . import result
 from . import task
 from .. import common
+from .. import workspace
 from typing import List
 import multiprocessing
 import pickle
@@ -18,6 +19,9 @@ class TaskWrapper:
 
     def __call__(self, args):
         common.set_up_logging(args)
+        # A spawned child re-imports every module with none of the parent's state, so it
+        # has to rebuild the workspace configuration and release pinning from args.
+        workspace.initialize(args)
         try:
             res = self._func(args)
         except Exception as e:

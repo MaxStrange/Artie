@@ -32,7 +32,7 @@ spec:
             claimName: log-collector-pvc
       containers:
         - name: log-collector
-          image: "{{ .Values.repository }}/artie-log-collector:{{ .Values.imageTag }}"
+          image: "{{ .Values.repository }}/artie-log-collector:{{ index .Values.imageTags "artie-log-collector" | default .Values.imageTag }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           volumeMounts:
             - name: log-storage

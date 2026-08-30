@@ -103,6 +103,15 @@ ports:
 
 # --------------- Stuff the user is expected to override --------------------
 
+# imageTags: per-image tags, keyed by image name so that the keys match the `images`
+# section of a release manifest exactly. Components version independently, so the images
+# in one deployment do not all carry the same tag. Anything not listed here falls back to
+# imageTag below, which is what a hand-set deployment uses.
+#
+# Artie Tool fills these in from a release manifest at install time:
+#   artie-tool --release-file artie-release.yaml deploy artie
+imageTags: {}
+
 # imageTag: The tag we use for all the images in this deployment. Images are only guaranteed to work with other images of the same tag, so we do not provide a means by which to mix tags.
 imageTag: 3d23200b
 

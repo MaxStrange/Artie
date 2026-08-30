@@ -117,6 +117,7 @@ These directories contain items corresponding to actual Artie bots.
 Please read the following documents for more information on contributing:
 
 1. [Release process](./docs/contributing/release-process.md)
+1. [Versioning and releases](./docs/contributing/versioning.md)
 1. [Pull request process](./docs/contributing/pull-request-process.md)
 1. [Overall architecture](./docs/contributing/overall-architecture.md)
 1. [Setting up a development environment](./docs/contributing/development-environment.md)

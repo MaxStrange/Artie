@@ -1,11 +1,32 @@
 from typing import List
 from .. import common
+from .. import workspace
 from .. import kube
 from . import artifact
 from . import job
 from . import result
 import datetime
 import enum
+
+def _release_image_tags(args) -> dict:
+    """
+    The per-image tags implied by the release manifest in force, if there is one.
+
+    Reads the manifest's `images` section, which already records which version each image
+    was built with, rather than re-deriving it from the component versions here.
+    """
+    release_file = getattr(args, 'release_file', None)
+    if not release_file:
+        return {}
+
+    try:
+        manifest = workspace.load_release_manifest(release_file)
+    except ValueError as e:
+        common.error(f"Could not apply release manifest: {e}")
+        return {}
+
+    return manifest.get('images') or {}
+
 
 class DeploymentConfigurations(enum.StrEnum):
     """
@@ -72,6 +93,12 @@ class AddDeployJob(job.Job):
         if self.chart_version:
             sets['appVersion'] = self.chart_version
             sets['imageTag'] = self.chart_version
+
+        # Under a release manifest the images do not share a tag: each carries the version
+        # of the component that produced it. Pass them through per image, keyed by image
+        # name, which is exactly how the charts look them up.
+        for image_name, version in _release_image_tags(args).items():
+            sets[f'imageTags.{image_name}'] = version
 
         if self.deployment_repo:
             sets['repository'] = self.deployment_repo

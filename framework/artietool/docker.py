@@ -2,6 +2,7 @@
 Machinery for handling Docker containers.
 """
 from . import common
+from . import workspace
 from typing import Any, Dict, List
 import json
 import logging
@@ -382,15 +383,24 @@ def parse_docker_image_name(fully_qualified_name: str):
 
     return DockerImageName(repo, image, tag)
 
-def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag=None) -> DockerImageName:
+def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag=None, repo=None) -> DockerImageName:
     """
     Returns a DockerImageName object.
 
     `repo_prefix` defaults to "".
-    `tag` defaults to git tag.
+    `repo`, if given, names the Artie component this image is built from. Components
+    version independently, so an image is tagged with the version of the component it
+    came from - ArDK's images carry ArDK's version, Artie00's carry Artie00's. An
+    explicit --docker-tag still overrides everything, which is what CI and one-off
+    development builds use to stamp a whole run with a single label.
     """
     if tag is None:
-        tag = common.git_tag() if not hasattr(args, 'docker_tag') or args.docker_tag is None else args.docker_tag
+        if getattr(args, 'docker_tag', None):
+            tag = args.docker_tag
+        elif repo:
+            tag = workspace.component_version(repo)
+        else:
+            tag = common.git_tag()
 
     if repo_prefix is None:
         repo_prefix = "" if not hasattr(args, 'docker_repo') or args.docker_repo is None else args.docker_repo
