@@ -17,9 +17,8 @@ class DockerComposeTestSuiteJob(test_job.TestJob):
         super().__init__(artifacts=[], steps=steps)
         self.compose_fname = compose_fname
         self.compose_variables = compose_docker_image_variables  # List of (key, value) pairs; gets transformed into dict[str: str] when setup() is called
-        # Compose files ship with Artie Tool itself, so resolve them through the
-        # component rather than assuming Artie Tool sits inside a larger tree.
-        self.compose_dpath = os.path.join(workspace.repo_path("artietool"), "compose-files")
+        # Compose files ship inside the artietool package as package data.
+        self.compose_dpath = os.path.join(common.package_root(), "compose-files")
         self.docker_network_name = docker_network_name
         self.project_name = os.path.splitext(self.compose_fname)[0].replace('.', '-')
         self._dut_pids = {}

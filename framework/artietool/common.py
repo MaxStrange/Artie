@@ -189,6 +189,17 @@ def find_task_from_name(name: str, tasks):
             return t
     return None
 
+def package_root() -> str:
+    """
+    The directory of the artietool package itself.
+
+    Files that ship with Artie Tool - the compose files, the test output interpreter -
+    live inside the package and are declared as package data, so they are found relative
+    to it rather than by looking for a repository around it. That keeps them findable
+    when Artie Tool is pip-installed and there is no checkout at all.
+    """
+    return os.path.dirname(os.path.abspath(__file__))
+
 def get_scratch_location():
     """
     Return a location we can use for scratch stuff.
