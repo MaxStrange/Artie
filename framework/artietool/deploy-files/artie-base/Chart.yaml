@@ -1,6 +1,6 @@
 apiVersion: v2
 name: artie-base
-description: Artie's Base Kubernetes configuration.
+description: Artie's platform services - API server, RPC broker and telemetry. Robot-specific hardware drivers belong in the chart for that robot (see artie00).
 type: application
 
 # This is the chart version. This version number should be incremented each time you make changes

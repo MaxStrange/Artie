@@ -21,7 +21,8 @@
 .idea/
 *.tmproj
 .vscode/
-# Helm dependency artifacts
-charts/
-Chart.lock
 README.md
+# NOTE: do not add charts/ here. .helmignore is applied by Helm's chart *loader*, not
+# just when packaging, so ignoring charts/ makes any resolved subchart invisible to
+# `helm template`/`helm install` and the chart silently fails to render. artie00 has no
+# subcharts today, but this is an easy trap to fall back into.

@@ -7,11 +7,18 @@ from artie_tooling import artie_profile
 from artie_tooling import hw_config
 import datetime
 import json
-import pathlib
 import subprocess
+import sys
 
-# Path to artie-tool.py
-ARTIE_TOOL_PATH = pathlib.Path(__file__).parent.parent.parent.parent / "artie-tool.py"
+# Command prefix used to invoke Artie Tool.
+#
+# artietool is a declared dependency of Workbench, so it is always importable from the
+# environment Workbench itself is running in. Invoking it via that same interpreter is
+# therefore guaranteed to find it, and works equally well for a pip install and for an
+# editable checkout. Deliberately not a PATH lookup for `artie-tool`: PATH could resolve
+# to a console script belonging to some other environment, with a different Artie Tool
+# version than the one Workbench was installed against.
+ARTIE_TOOL_CMD = [sys.executable, "-m", "artietool.cli"]
 
 class ArtieToolInvoker(base.ArtieCommsBase):
     """
@@ -43,9 +50,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def deploy(self, configuration: str) -> Exception|None:
         """Run the deploy command asynchronously, returning an error if something goes wrong launching it."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "deploy",
             configuration
         ]
@@ -54,9 +59,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def get_hw_config(self) -> tuple[Exception|None, hw_config.HWConfig|None]:
         """Get hardware configuration synchronously, returning an error if something goes wrong."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "get",
             "hw-config",
             "--json"
@@ -75,9 +78,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def install(self, hw_config_fpath: str) -> Exception|None:
         """Run the install command asynchronously, returning an error if something goes wrong launching it."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "install",
             "--username", self.config.credentials.username,
             "--artie-ip", self.config.controller_node_ip,
@@ -123,9 +124,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def list_deployments(self) -> tuple[Exception|None, list[str]]:
         """List deployments, returning an error if something goes wrong, otherwise a list of deployment names."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "deploy",
             "list",
             "--loglevel", "error"
@@ -171,9 +170,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def status_actuators(self, actuator: str = "all") -> tuple[Exception|None, dict|None]:
         """Get actuator status as JSON dict (see the artie-tool status API document), returning an error if something goes wrong."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "status",
             "actuators",
             "--actuator", actuator,
@@ -188,9 +185,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def status_mcus(self, mcu: str = "all") -> tuple[Exception|None, dict|None]:
         """Get MCU status as JSON dict (see the artie-tool status API document), returning an error if something goes wrong."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "status",
             "mcus",
             "--mcu", mcu,
@@ -205,9 +200,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def status_nodes(self, node: str = "all") -> tuple[Exception|None, dict|None]:
         """Get node status as JSON dict (see the artie-tool status API document), returning an error if something goes wrong."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "status",
             "nodes",
             "--node", node,
@@ -222,9 +215,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def status_pods(self, pod: str = "all") -> tuple[Exception|None, dict|None]:
         """Get pod status as JSON dict (see the artie-tool status API document), returning an error if something goes wrong."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "status",
             "pods",
             "--pod", pod,
@@ -239,9 +230,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def status_sensors(self, sensor: str = "all") -> tuple[Exception|None, dict|None]:
         """Get sensor status as JSON dict (see the artie-tool status API document), returning an error if something goes wrong."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "status",
             "sensors",
             "--sensor", sensor,
@@ -256,9 +245,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
 
     def test(self, test_type: str) -> Exception|None:
         """Run the test command asynchronously, returning an error if something goes wrong."""
-        cmd = [
-            "python",
-            "artie-tool.py",
+        cmd = ARTIE_TOOL_CMD + [
             "test",
             test_type
         ]
@@ -268,7 +255,7 @@ class ArtieToolInvoker(base.ArtieCommsBase):
     def _run_cmd(self, cmd: list[str]) -> Exception|None:
         """Run the command in a subprocess asynchronously."""
         try:
-            self._process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ARTIE_TOOL_PATH.parent, text=False)
+            self._process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False)
         except OSError as err:
             return err
 

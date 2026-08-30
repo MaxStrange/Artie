@@ -20,14 +20,6 @@ namespace: artie
 # minReadySeconds: The default minimum number of seconds a pod should run without crashing for it to be considered working.
 minReadySeconds: 10
 
-# driverUpdateStrategy: The default update strategy for drivers is to take down the current running driver, then start the new one.
-# It is important not to have more than one copy running at the same time.
-driverUpdateStrategy:
-  type: RollingUpdate
-  rollingUpdate:
-    maxSurge: 0
-    maxUnavailable: 1
-
 # brokerUpdateStrategy: The default update strategy for the brokers.
 # For this, it is important to always have at least one running, so don't remove the old one until the new one is in place.
 brokerUpdateStrategy:
@@ -44,7 +36,9 @@ telemetryUpdateStrategy:
     maxSurge: 25%
     maxUnavailable: 0
 
-# driverPriorityClass: The priority class for drivers.
+# driverPriorityClass: The priority class for drivers. The driver workloads themselves
+# live in each robot's own chart (see artie00), but the PriorityClass object is
+# cluster-scoped, so artie-base creates it once for every robot on the cluster to share.
 driverPriorityClass: driver-priority-level
 
 # brokerPriorityClass: The priority class for the brokers.
@@ -52,9 +46,6 @@ brokerPriorityClass: broker-priority-level
 
 # telemetryPriorityClass: The priority class for telemetry deployments.
 telemetryPriorityClass: telemetry-priority-level
-
-# driverRestartPolicy: The restart policy for drivers.
-driverRestartPolicy: Always
 
 # brokerRestartPolicy: The restart policy for the brokers.
 brokerRestartPolicy: Always

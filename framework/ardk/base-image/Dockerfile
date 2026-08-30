@@ -10,8 +10,13 @@ RUN apt-get update && apt-get install -y \
     openssl \
     cmake \
     build-essential
+# Pre-installed in their own layer so that a change to any ardk library below does not
+# invalidate them. The ardk libraries now declare both of these themselves; the versions
+# here must match those declarations, or the ardk install step will downgrade them and
+# waste this layer. rpyc was 6.0.2 here while artie-service-client pinned 6.0.1, so every
+# build silently downgraded it.
 RUN --mount=type=cache,target=/root/.cache/pip pip install \
-    rpyc==6.0.2 \
+    rpyc==6.0.1 \
     kafka-python==3.0.11
 
 # Build the ardk libraries. They all go in one layer so that a change to any

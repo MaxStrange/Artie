@@ -1,6 +1,6 @@
 apiVersion: v2
 name: artie00
-description: Artie00 - A specific instance of an Artie robot based on artie-base
+description: Artie00 - a specific Artie robot. Adds Artie00's hardware drivers on top of the artie-base platform services.
 type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
@@ -16,8 +16,8 @@ appVersion: "3d23200b"
 
 icon: https://github.com/MaxStrange/artie-controller-node/blob/dev/assets/splash.png
 
-# Dependencies - artie00 depends on artie-base
-dependencies:
-  - name: artie-base
-    version: "0.1.0"
-    repository: "file://../artie-base"
+# No chart dependencies on purpose. artie00 is deployed as its own release alongside the
+# artie-base release, rather than pulling artie-base in as a subchart. That keeps the two
+# charts independently ownable once they live in separate repositories - artie-base with
+# ArDK, artie00 with the robot - and avoids needing a cross-repository chart reference.
+# Artie Tool installs both and keeps the shared overridable values consistent.

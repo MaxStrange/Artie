@@ -1,27 +1,113 @@
-# Values for artie00 - overrides and extends artie-base values
+# Values for artie00.
+#
+# artie00 is a specific Artie robot. It holds the workloads specific to this robot's
+# hardware - currently the mouth and eyebrows drivers.
+#
+# artie00 is deployed as its own Helm release, alongside (not underneath) the artie-base
+# release that provides the platform services. Artie Tool installs both and keeps the
+# overridable values - artieId, imageTag, repository - consistent across them via --set.
+#
+# The values below the "platform contract" heading must match artie-base's. They are the
+# wire contract between this robot's drivers and the platform services they talk to, and
+# they are also mirrored in artie-tooling/kubespec.py and artie-util/constants.py.
+replicaCount: 1
 
-# Override the artie-base values with artie00-specific configuration
-artie-base:
-  # Artie00-specific ID
-  artieId: artie00
+# Labels. Make sure these match those in artie-tooling/kubespec.py
+labels:
+  helm.sh/chart: '{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}'
+  app.kubernetes.io/name: artie
+  app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+  app.kubernetes.io/instance: "{{ .Release.Name }}"
+  app.kubernetes.io/version: "{{ .Chart.AppVersion }}"
+  app.kubernetes.io/part-of: artie
+  artie/artie-id: "{{ .Values.artieId }}"
 
-  # Image tag for this deployment
-  imageTag: 3d23200b
+# imagePullPolicy: The default imagePullPolicy. TODO: Replace this with IfNotPresent for release.
+imagePullPolicy: Always
 
-  # Repository for images
-  repository: maxfieldstrange
+# minReadySeconds: The default minimum number of seconds a pod should run without crashing for it to be considered working.
+minReadySeconds: 10
 
-  # You can override any artie-base values here
-  # For example, if artie00 needs different ports or settings:
-  # ports:
-  #   resetDriver: 18861
-  #   mouthDriver: 18862
+# driverUpdateStrategy: The update strategy for drivers is to take down the current running driver, then start the new one.
+# It is important not to have more than one copy running at the same time.
+driverUpdateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
 
-  # Add any artie00-specific environment variables
-  # baseEnvironment:
-  #   - name: ARTIE00_SPECIFIC_VAR
-  #     value: "some-value"
+# driverRestartPolicy: The restart policy for drivers.
+driverRestartPolicy: Always
 
-# Add artie00-specific values that don't exist in artie-base
-# artie00SpecificConfig:
-#   someFeature: enabled
+# --------------------------- Platform contract -----------------------------
+# These must match artie-base's values of the same name.
+
+# namespace: The namespace that we deploy to
+namespace: artie
+
+# driverPriorityClass: The priority class for drivers. The PriorityClass object itself is
+# cluster-scoped and is created by artie-base, so that multiple robot charts on one
+# cluster share it rather than colliding over it.
+driverPriorityClass: driver-priority-level
+
+# constantKeys: A list of constants for label or annotation keys. Make sure these match those in artie-tooling/kubespec.py
+constantKeys:
+  artieId: artie/artie-id
+  controllerNodeTaint: artie/controller-node
+  nodeRole: artie/node-role
+  physicalBotNodeTaint: artie/physical-bot-node
+
+# baseEnvironment: Common env variables for most of the containers. Make sure these match those in artie-util/constants.py
+# These can be found in artie-util/constants.py as DEFAULT_ENV_VARS
+# and should be kept up to date with that file.
+baseEnvironment:
+  - name: ARTIE_RUN_MODE
+    value: production
+  - name: ARTIE_ID
+    value: "{{ .Values.artieId }}"
+  - name: ARTIE_GIT_TAG
+    value: "{{ .Values.imageTag }}"
+  - name: ARTIE_LOG_LEVEL
+    value: INFO
+  - name: LOG_COLLECTOR_HOSTNAME
+    value: "{{ .Values.logCollectorHostName }}-{{ .Values.artieId }}"
+  - name: LOG_COLLECTOR_PORT
+    value: "{{ .Values.ports.logCollector }}"
+  - name: METRICS_SERVER_PORT
+    value: "{{ .Values.ports.metricsCollector }}"
+  - name: ARTIE_SERVICE_BROKER_HOSTNAME
+    value: "{{ .Values.serviceBrokerHostName }}-{{ .Values.artieId }}"
+  - name: ARTIE_SERVICE_BROKER_PORT
+    value: "{{ .Values.ports.serviceBroker }}"
+
+# controllerNodeName: The name of the controller node in the Artie bot. Defined in artie-tooling/kubespec.py
+controllerNodeName: "controller-node"
+
+# logCollectorHostName: The hostname of the log collector service.
+# Make sure this matches those found in all the Docker compose files for testing.
+logCollectorHostName: "log-collector"
+
+# serviceBrokerHostName: The hostname of the service broker service.
+# Make sure this matches those found in all the Docker compose files for testing.
+serviceBrokerHostName: "service-broker-service"
+
+# ports: The various ports we need
+# Make sure these match those found in all the Docker compose files for testing.
+ports:
+  mouthDriver: 18862
+  eyebrowsDriver: 18863
+  logCollector: 5170
+  metricsCollector: 8090
+  serviceBroker: 18864
+  artieApiServer: 8782
+
+# --------------- Stuff the user is expected to override --------------------
+
+# imageTag: The tag we use for all the images in this deployment. Images are only guaranteed to work with other images of the same tag, so we do not provide a means by which to mix tags.
+imageTag: 3d23200b
+
+# artieId: The ID of the Artie we are deploying to.
+artieId: artie00
+
+# repository: The repository we use for the images.
+repository: maxfieldstrange

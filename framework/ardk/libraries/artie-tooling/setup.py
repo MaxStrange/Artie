@@ -13,6 +13,8 @@ setup(
         "artie_tooling.api_clients": "src/artie_tooling/api_clients",
     },
     install_requires=[
-        "pyyaml>=6.0"
+        "pyyaml>=6.0",
+        "requests>=2.28.0",
+        "artie-service-client>=0.0.1",
     ]
 )

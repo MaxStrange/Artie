@@ -1,7 +1,13 @@
-docker>=7.1.0
-requests
-rpyc==6.0.1
-pyyaml
-kubernetes==28.*
-fabric
+# Artie Tool's dependencies now live in pyproject.toml. This file remains as the
+# developer/CI bootstrap, because the ardk libraries are not published to a package
+# index yet and so cannot be resolved by name.
+#
+# Listed in dependency order: artie-tooling needs artie-service-client, which needs
+# artie-util. Once ArDK publishes to PyPI, everything above `-e .` goes away and
+# `pip install artietool` resolves the whole graph by name.
+./ardk/libraries/artie-util
+./ardk/libraries/artie-service-client
 ./ardk/libraries/artie-tooling
+
+# Artie Tool itself, installed editable so that a checkout stays the source of truth.
+-e .

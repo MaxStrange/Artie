@@ -10,6 +10,9 @@ requires-python = ">=3.10"
 license = { text = "LGPL-3.0-or-later" }
 dependencies = [
     "artie-tooling>=0.0.1",
+    # Workbench drives Artie Tool under the hood, invoking the `artie-tool` console
+    # script that this dependency installs.
+    "artietool>=0.0.1",
     "PyQt6>=6.7.1",
     "pyserial>=3.5",
 ]

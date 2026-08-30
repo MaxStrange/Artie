@@ -8,6 +8,7 @@ before deployment.
 import subprocess
 import sys
 import pathlib
+import yaml
 
 
 def update_chart_dependencies(chart_path: pathlib.Path) -> bool:
@@ -31,10 +32,10 @@ def update_chart_dependencies(chart_path: pathlib.Path) -> bool:
         )
         
         if result.returncode == 0:
-            print(f"✓ Successfully updated dependencies for {chart_path.name}")
+            print(f"[OK] Successfully updated dependencies for {chart_path.name}")
             return True
         else:
-            print(f"✗ Failed to update dependencies for {chart_path.name}")
+            print(f"[FAIL] Failed to update dependencies for {chart_path.name}")
             print(f"Error: {result.stderr}")
             return False
             
@@ -56,32 +57,34 @@ def main():
         print(f"Error: deploy-files directory not found at {deploy_files_dir}")
         sys.exit(1)
     
-    # Charts that have dependencies
-    dependent_charts = ["artie00"]
-    
+    # Find the charts that actually declare dependencies, rather than hard-coding a
+    # list. As charts move out to their own repositories, whichever ones need a
+    # 'helm dependency update' should be discovered from their Chart.yaml.
+    dependent_charts = []
+    for chart_yaml in sorted(deploy_files_dir.glob("*/Chart.yaml")):
+        try:
+            chart = yaml.safe_load(chart_yaml.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as e:
+            print(f"Warning: could not read {chart_yaml}: {e}, skipping...")
+            continue
+
+        if chart and chart.get("dependencies"):
+            dependent_charts.append(chart_yaml.parent)
+
+    if not dependent_charts:
+        print("No charts declare dependencies; nothing to update.")
+
     success = True
-    for chart_name in dependent_charts:
-        chart_path = deploy_files_dir / chart_name
-        
-        if not chart_path.exists():
-            print(f"Warning: Chart directory {chart_path} not found, skipping...")
-            continue
-        
-        # Check if Chart.yaml has dependencies
-        chart_yaml = chart_path / "Chart.yaml"
-        if not chart_yaml.exists():
-            print(f"Warning: {chart_yaml} not found, skipping...")
-            continue
-        
+    for chart_path in dependent_charts:
         # Update dependencies
         if not update_chart_dependencies(chart_path):
             success = False
     
     if success:
-        print("\n✓ All chart dependencies updated successfully!")
+        print("\n[OK] All chart dependencies updated successfully!")
         sys.exit(0)
     else:
-        print("\n✗ Some chart dependencies failed to update.")
+        print("\n[FAIL] Some chart dependencies failed to update.")
         sys.exit(1)
 
 

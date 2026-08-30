@@ -9,4 +9,4 @@ type: deploy
 steps:
   - job: add
     what: artie-reference
-    chart: deploy-files/artie-reference
+    chart: deploy-files/artie00

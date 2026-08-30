@@ -1,0 +1,16 @@
+# Runtime dependencies for the mouth and eyebrows drivers.
+#
+# The ArDK libraries below are already present in the Artie base image, but they are
+# declared here so that this driver states its own requirements rather than silently
+# inheriting whatever the base image happens to ship. Installing them is a no-op when
+# the base image already satisfies them.
+artie-util>=0.0.1
+artie-i2c>=0.0.1
+artie-service-client>=0.0.1
+
+# Imported directly at the top level of main.py/fw.py. Deliberately unpinned: the exact
+# version is pinned by artie-service-client, and a second pin here would compete with it.
+rpyc
+
+# Used by src-eyebrows (graphics/servo math). The mouth driver shares this Dockerfile.
+numpy==1.24.3

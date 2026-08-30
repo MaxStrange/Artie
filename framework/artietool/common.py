@@ -111,17 +111,6 @@ def argparse_file_path_type(arg: str) -> str:
     else:
         return arg
 
-def register_task(choices):
-    """
-    Decorator to add a Task to the given list, for registering with argparse.
-    """
-    def decorator(cls):
-        instantiated_task = cls()
-        choices.append(instantiated_task)
-        debug(f"Registered {instantiated_task.name} task with argparse choices")
-        return cls
-    return decorator
-
 def clean_tmp(builddpath: str):
     """
     Removes the 'tmp' directory if there is one under the given `builddpath`.
@@ -158,22 +147,6 @@ def clean():
     if os.path.isdir(scratch):
         shutil.rmtree(scratch)
 
-def copy_artie_libs(dest):
-    """
-    Copy all the Artie Libraries into the given folder.
-    """
-    libpath = os.path.join(repo_root(), "framework", "libraries")
-    libs = [os.path.join(libpath, d) for d in os.listdir(libpath) if os.path.isdir(os.path.join(libpath, d)) and d != "base-image"]
-    for lib in libs:
-        destpath = os.path.join(dest, os.path.basename(lib))
-        if not os.path.exists(destpath):
-            info(f"Trying to copy {lib} to {destpath}")
-            try:
-                shutil.copytree(lib, destpath)
-            except FileExistsError:
-                # Race condition - someone beat us to it
-                pass
-
 def default_build_location():
     """
     Get the default build (artifacts) location.
@@ -191,13 +164,6 @@ def get_random_dirname() -> str:
     Get a random string suitable for a temporary directory.
     """
     return "tempdir-" + "".join(random.choices(string.ascii_letters, k=8))
-
-def get_task_modules():
-    """
-    Get the file names (without .py) of all the task modules for dynamic import.
-    """
-    task_folder = os.path.join(repo_root(), "framework", "artietool", "tasks")
-    return [os.path.splitext(fname)[0] for fname in os.listdir(task_folder) if os.path.splitext(fname)[-1] == ".py"]
 
 def find_task_from_name(name: str, tasks):
     """

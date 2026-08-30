@@ -1,8 +1,11 @@
 ARG ARTIE_BASE_IMG=artie/ardk-base:latest
 FROM ${ARTIE_BASE_IMG}
 
-# Pip requirements
-RUN --mount=type=cache,target=/root/.cache/pip pip install numpy==1.24.3
+# Pip requirements. The ArDK entries are already satisfied by the base image, so pip
+# treats them as no-ops; declaring them here keeps this driver's requirements explicit
+# rather than implicit in whatever the base image happens to ship.
+COPY ./requirements.txt /tmp/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip pip install -r /tmp/requirements.txt
 
 # Copy in the FW
 ARG FW_FILE_NAME

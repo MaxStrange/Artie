@@ -15,5 +15,8 @@ setup(
     install_requires=[
         "artie-util",
         "rpyc==6.0.1",
+        # Imported directly at the top level of pubsub.py. Previously supplied only by the
+        # Artie base image, so anything installing this package outside that image broke.
+        "kafka-python==3.0.11",
     ]
 )
