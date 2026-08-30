@@ -20,22 +20,34 @@
 # By default this only writes to $WORKSPACE: it sets each repository's 'origin' remote
 # but does NOT push. Pushing is opt-in with --push, because it publishes.
 #
+# IMPORTANT: this is a one-time migration. filter-repo rewrites history, so every run
+# produces a fresh history with different commit ids, unrelated to any previous run. A
+# plain --push therefore fails once the component repositories have been published, and
+# re-publishing means discarding what is already there (--force-push).
+#
+# Once the components are published, change them in their own repositories. Re-running
+# this script is only appropriate while the split is still being shaken out and nobody
+# has pulled the results.
+#
 # Usage:
-#   ./split-repos.sh [workspace-directory] [--push]
+#   ./split-repos.sh [workspace-directory] [--push | --force-push]
 #
 # Examples:
 #   ./split-repos.sh                      # extract into ~/artie-workspace, no push
 #   ./split-repos.sh ~/tmp/ws             # extract elsewhere, no push
 #   ./split-repos.sh ~/artie-workspace --push
+#   ./split-repos.sh ~/artie-workspace --force-push   # discards published history
 #
 set -euo pipefail
 
 WORKSPACE="$HOME/artie-workspace"
 PUSH=0
+FORCE=0
 for arg in "$@"; do
   case "$arg" in
-    --push) PUSH=1 ;;
-    *)      WORKSPACE="$arg" ;;
+    --push)       PUSH=1 ;;
+    --force-push) PUSH=1; FORCE=1 ;;
+    *)            WORKSPACE="$arg" ;;
   esac
 done
 
@@ -97,6 +109,7 @@ extract ArtieTool \
   --path docs/contributing/chart-contributions.md \
   --path docs/contributing/release-process.md \
   --path-rename 'framework/artietool/.artie/:.artie/' \
+  --path-rename 'framework/artietool/VERSION:VERSION' \
   --path-rename 'framework/artietool/:artietool/' \
   --path-rename 'framework/artie-tool.py:artie-tool.py' \
   --path-rename 'framework/pyproject.toml:pyproject.toml' \
@@ -165,10 +178,22 @@ done
 
 if [ "$PUSH" -eq 1 ]; then
   echo
-  echo "Pushing $PUBLISH_BRANCH to each origin..."
+  if [ "$FORCE" -eq 1 ]; then
+    echo "Force-pushing $PUBLISH_BRANCH to each origin - this DISCARDS the published history."
+  else
+    echo "Pushing $PUBLISH_BRANCH to each origin..."
+  fi
   for r in $REPOS; do
     echo "  $r"
-    git -C "$WORKSPACE/$r" push -u origin "$PUBLISH_BRANCH"
+    if [ "$FORCE" -eq 1 ]; then
+      # --force-with-lease needs a remote-tracking ref to compare against, and these are
+      # fresh extractions that have never fetched. Fetch first so the lease still guards
+      # against someone else pushing while this run is in progress.
+      git -C "$WORKSPACE/$r" fetch -q origin "$PUBLISH_BRANCH" 2>/dev/null || true
+      git -C "$WORKSPACE/$r" push --force-with-lease -u origin "$PUBLISH_BRANCH"
+    else
+      git -C "$WORKSPACE/$r" push -u origin "$PUBLISH_BRANCH"
+    fi
   done
   echo "Done."
 else
