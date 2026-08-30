@@ -43,7 +43,7 @@ DEFAULT_CONFIG_PATH = pathlib.Path.home() / ".artie" / "config.yaml"
 # Where repositories are cloned when they have no explicit `path`.
 DEFAULT_WORKSPACE = pathlib.Path.home() / "artie-workspace"
 
-GITHUB_ORG = "https://github.com/MaxStrange"
+GITHUB_ORG = "https://github.com/ArtieBots"
 
 
 @dataclasses.dataclass

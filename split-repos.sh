@@ -17,17 +17,34 @@
 # Task-definition history begins at the commit that federated them; the substantial
 # history (libraries, services, base image, firmware, charts) reaches back to 2022-2023.
 #
-# This script only writes to $WORKSPACE. It does not create anything on GitHub and does
-# not push. Adding remotes and pushing is a deliberate, separate step - see the end.
+# By default this only writes to $WORKSPACE: it sets each repository's 'origin' remote
+# but does NOT push. Pushing is opt-in with --push, because it publishes.
 #
 # Usage:
-#   ./split-repos.sh [workspace-directory]      # defaults to ~/artie-workspace
+#   ./split-repos.sh [workspace-directory] [--push]
+#
+# Examples:
+#   ./split-repos.sh                      # extract into ~/artie-workspace, no push
+#   ./split-repos.sh ~/tmp/ws             # extract elsewhere, no push
+#   ./split-repos.sh ~/artie-workspace --push
 #
 set -euo pipefail
 
-WORKSPACE="${1:-$HOME/artie-workspace}"
+WORKSPACE="$HOME/artie-workspace"
+PUSH=0
+for arg in "$@"; do
+  case "$arg" in
+    --push) PUSH=1 ;;
+    *)      WORKSPACE="$arg" ;;
+  esac
+done
+
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BRANCH="$(git -C "$SRC" rev-parse --abbrev-ref HEAD)"
+
+# The GitHub organisation the component repositories live in. Keep in sync with
+# GITHUB_ORG in artietool/workspace.py.
+ORG="https://github.com/ArtieBots"
 
 command -v git-filter-repo >/dev/null 2>&1 || {
   echo "git-filter-repo is required: pip install git-filter-repo" >&2
@@ -113,18 +130,36 @@ for r in ArDK ArtieTool ArtieCLI ArtieDaemons Artie00; do
 done
 cp "$SRC/HW-LICENSE" "$WORKSPACE/Artie00/HW-LICENSE"
 
+# A README describing the component and pointing back at the documentation hub.
+python "$SRC/split-repos-readmes.py" "$WORKSPACE"
+
+REPOS="ArDK ArtieTool ArtieCLI ArtieWorkbench ArtieDaemons Artie00"
+
+for r in $REPOS; do
+  cd "$WORKSPACE/$r"
+  git add -A
+  git commit -q -m "Add README and licence for the standalone repository
+
+Split out of the Artie monorepo with history preserved." || true
+  git remote remove origin 2>/dev/null || true
+  git remote add origin "$ORG/$r.git"
+done
+
 echo
 echo "Extracted into $WORKSPACE"
-echo
-echo "Next, to verify before publishing anything:"
-echo "  cat > ~/.artie/config.yaml <<'EOF'"
-echo "  workspace: $WORKSPACE"
-echo "  repos:"
-for r in ardk:ArDK artietool:ArtieTool artiecli:ArtieCLI artieworkbench:ArtieWorkbench artiedaemons:ArtieDaemons artie00:Artie00; do
-  echo "    ${r%%:*}: { path: $WORKSPACE/${r##*:} }"
+for r in $REPOS; do
+  printf '  %-16s %4s commits  ->  %s\n' "$r" "$(git -C "$WORKSPACE/$r" rev-list --count HEAD)" "$ORG/$r.git"
 done
-echo "  EOF"
-echo "  cd $WORKSPACE/ArtieTool && python artie-tool.py build all"
-echo
-echo "Publishing is deliberately not automated. For each repository, create it on"
-echo "GitHub, then: git remote add origin <url> && git push -u origin <branch>"
+
+if [ "$PUSH" -eq 1 ]; then
+  echo
+  echo "Pushing $BRANCH to each origin..."
+  for r in $REPOS; do
+    echo "  $r"
+    git -C "$WORKSPACE/$r" push -u origin "$BRANCH"
+  done
+  echo "Done."
+else
+  echo
+  echo "Remotes are set but nothing was pushed. Re-run with --push to publish."
+fi
