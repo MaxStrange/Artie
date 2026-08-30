@@ -154,15 +154,23 @@ def clean():
 
 def default_build_location():
     """
-    Get the default build (artifacts) location.
+    Get the default build (artifacts) location, creating it if it does not exist.
+
+    In a monorepo checkout this directory is committed (it holds a .gitkeep), but when the
+    components are separate repositories it lives in the workspace, where nothing has
+    created it yet.
     """
-    return os.path.join(workspace.artifacts_root(), "build-artifacts")
+    location = os.path.join(workspace.artifacts_root(), "build-artifacts")
+    os.makedirs(location, exist_ok=True)
+    return location
 
 def default_test_results_location():
     """
-    Get the default test results location.
+    Get the default test results location, creating it if it does not exist.
     """
-    return os.path.join(workspace.artifacts_root(), "test-results")
+    location = os.path.join(workspace.artifacts_root(), "test-results")
+    os.makedirs(location, exist_ok=True)
+    return location
 
 def get_random_dirname() -> str:
     """
