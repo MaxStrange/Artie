@@ -55,14 +55,20 @@ mkdir -p "$WORKSPACE"
 
 extract() {
   local name="$1"; shift
+  local dest="${WORKSPACE:?}/$name"
   echo "==> $name"
-  rm -rf "${WORKSPACE:?}/$name"
-  git clone -q --no-local "$SRC" "$WORKSPACE/$name" --branch "$BRANCH"
+  # Clear any previous extraction. On Windows a directory can be un-removable while
+  # something still holds a handle on it, even when it is otherwise idle, so fall back to
+  # emptying it in place - git clone is happy to write into an existing empty directory.
+  if ! rm -rf "$dest" 2>/dev/null; then
+    find "$dest" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+  fi
+  git clone -q --no-local "$SRC" "$dest" --branch "$BRANCH"
   # On Git Bash, MSYS rewrites arguments that look like paths, which mangles the
   # 'old:new' form of --path-rename. Disable it for this call only - setting it for the
   # whole script would stop git clone above from seeing a usable source path.
-  ( cd "$WORKSPACE/$name" && MSYS2_ARG_CONV_EXCL='*' git-filter-repo --force "$@" >/dev/null )
-  echo "    $(git -C "$WORKSPACE/$name" rev-list --count HEAD) commits, back to $(git -C "$WORKSPACE/$name" log --format=%ad --date=short | tail -1)"
+  ( cd "$dest" && MSYS2_ARG_CONV_EXCL="*" git-filter-repo --force "$@" >/dev/null )
+  echo "    $(git -C "$dest" rev-list --count HEAD) commits, back to $(git -C "$dest" log --format=%ad --date=short | tail -1)"
 }
 
 extract ArDK \
@@ -135,12 +141,18 @@ python "$SRC/split-repos-readmes.py" "$WORKSPACE"
 
 REPOS="ArDK ArtieTool ArtieCLI ArtieWorkbench ArtieDaemons Artie00"
 
+# The branch the component repositories publish. The extraction inherits whatever branch
+# this monorepo is on, which is a migration branch; in a standalone repository the
+# content belongs on the default branch.
+PUBLISH_BRANCH=main
+
 for r in $REPOS; do
   cd "$WORKSPACE/$r"
   git add -A
   git commit -q -m "Add README and licence for the standalone repository
 
 Split out of the Artie monorepo with history preserved." || true
+  git branch -M "$PUBLISH_BRANCH"
   git remote remove origin 2>/dev/null || true
   git remote add origin "$ORG/$r.git"
 done
@@ -153,10 +165,10 @@ done
 
 if [ "$PUSH" -eq 1 ]; then
   echo
-  echo "Pushing $BRANCH to each origin..."
+  echo "Pushing $PUBLISH_BRANCH to each origin..."
   for r in $REPOS; do
     echo "  $r"
-    git -C "$WORKSPACE/$r" push -u origin "$BRANCH"
+    git -C "$WORKSPACE/$r" push -u origin "$PUBLISH_BRANCH"
   done
   echo "Done."
 else
