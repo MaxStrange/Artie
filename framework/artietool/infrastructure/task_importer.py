@@ -558,7 +558,7 @@ def _import_compose_network_name(compose_fname: str) -> str:
     """
     Determine the name of the Docker compose network based on the information in the compose file.
     """
-    compose_dpath = os.path.join(common.repo_root(), "framework", "artietool", "compose-files")
+    compose_dpath = os.path.join(workspace.repo_path("artietool"), "compose-files")
     compose_fpath = os.path.join(compose_dpath, compose_fname)
     with open(compose_fpath, 'r') as f:
         compose_config = yaml.load(f, yaml.FullLoader)

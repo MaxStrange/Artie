@@ -1,5 +1,6 @@
 from typing import List
 from .. import common
+from .. import workspace
 from . import artifact
 from . import job
 from . import result
@@ -72,7 +73,7 @@ class YoctoBuildJob(job.Job):
         if pathlib.Path(args.repos_directory).is_absolute():
             git_repo_location = os.path.abspath(os.path.join(args.repos_directory, self.repo_name))
         else:
-            git_repo_location = os.path.abspath(os.path.join(common.repo_root(), args.repos_directory, self.repo_name))
+            git_repo_location = os.path.abspath(os.path.join(workspace.artifacts_root(), args.repos_directory, self.repo_name))
 
         # Check if the repo is already cloned. If so, we should error out to avoid overwriting anything,
         # unless '--skip-clone' is given.

@@ -2,6 +2,7 @@
 All the machinery for building.
 """
 from .. import common
+from .. import workspace
 from .. import docker
 from ..infrastructure import run
 from ..infrastructure import task
@@ -78,7 +79,7 @@ def build(args):
     for t in ran_tasks:
         t.clean(args)
     docker.clean_docker_containers()
-    docker.clean_build_location(args, common.repo_root())
+    docker.clean_build_location(args, workspace.artifacts_root())
 
     # Print the results for human consumption
     retcode = 0

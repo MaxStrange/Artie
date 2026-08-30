@@ -148,7 +148,7 @@ def clean():
             shutil.rmtree(fpath, ignore_errors=True)
 
     # Clean the random scratch location
-    scratch = os.path.join(repo_root(), "tmp")
+    scratch = os.path.join(workspace.artifacts_root(), "tmp")
     if os.path.isdir(scratch):
         shutil.rmtree(scratch)
 
@@ -156,13 +156,13 @@ def default_build_location():
     """
     Get the default build (artifacts) location.
     """
-    return os.path.join(repo_root(), "build-artifacts")
+    return os.path.join(workspace.artifacts_root(), "build-artifacts")
 
 def default_test_results_location():
     """
     Get the default test results location.
     """
-    return os.path.join(repo_root(), "test-results")
+    return os.path.join(workspace.artifacts_root(), "test-results")
 
 def get_random_dirname() -> str:
     """
@@ -193,7 +193,7 @@ def get_scratch_location():
     """
     Return a location we can use for scratch stuff.
     """
-    scratch_location = os.path.join(repo_root(), "tmp")
+    scratch_location = os.path.join(workspace.artifacts_root(), "tmp")
     if not os.path.isdir(scratch_location):
         os.makedirs(scratch_location, exist_ok=True)  # Hopefully nip any race conditions in the bud
 

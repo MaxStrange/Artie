@@ -98,6 +98,22 @@ def monorepo_root() -> str:
     return os.path.abspath(root)
 
 
+def artifacts_root() -> str:
+    """
+    Where build artifacts, test results and scratch space go.
+
+    In a checkout of the monorepo that is the repository root, which is where CI expects
+    to find build-artifacts. Once the components are separate repositories there is no
+    shared root to hang them off, so it becomes the workspace directory - which is the
+    one place all the components have in common.
+    """
+    root = monorepo_root()
+    if os.path.isdir(os.path.join(root, "framework", "artietool")):
+        return root
+
+    return os.path.abspath(os.path.expanduser(config().workspace))
+
+
 @dataclasses.dataclass
 class Config:
     """
