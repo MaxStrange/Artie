@@ -43,8 +43,9 @@ which does the actual build, and a second step that transfers the built files fr
 
 ## Source Code
 
-The source for the files for most firmware live in `artie-common/firmware/`. Firmware libraries
-live in `framework/ardk/firmware/libraries/`.
+Firmware application source lives with the Artie it runs on, in that Artie's `firmware/`
+directory - for example `artie00/firmware/`. The reusable firmware *libraries* live in
+ArDK, at `framework/ardk/firmware/libraries/`.
 Firmware is mostly written in C and targets the Raspberry Pi Pico 1 and/or 2. But this is not a requirement -
 other MCUs or even FPGAs could be used if desired.
 

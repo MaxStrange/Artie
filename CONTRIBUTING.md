@@ -110,24 +110,6 @@ These directories contain infrastructure-related code and configurations.
 
 These directories contain items corresponding to actual Artie bots.
 
-* `artie-common/`: Contains items that have to do with the physical Artie robots and which are not
-  specific to any one type of Artie bot. These items are not necessarily found on all Arties, but
-  instead serve as a common location for a sort of Artie ecosystem that can be picked and chosen from
-  when building a specific Artie type.
-    * `audio-node/`: Source and electromechanical specs for the audio node, which handles audio input and output
-      for Artie bots.
-    * `controller-node/`: Source and electromechanical specs for the controller node, which serves as the main
-      SBC for an Artie bot. Every single Artie bot has a controller node.
-    * `drivers/`: Source and Docker images for the user-space driver applications more than one
-      type of Artie might use.
-    * `electrical-schematics/`: The schematics for the various components that are common to more than
-      one type of Artie bot. *TODO* We may find a better place to keep schematics and models.
-    * `firmware/`: Source and Docker images (for building) for the MCUs more than one type of Artie
-      might use.
-    * `mechanical-schematics/`: The mechanical drawings/models for the various components that are common
-      to more than one type of Artie bot. *TODO* We may find a better place to keep schematics and models.
-    * `vision-node/`: Source and electromechanical specs for the vision node, which handles camera input
-      and vision processing for Artie bots.
 * `artie00/`: Contains items that are specific to only Artie00, an Artie type that simulates a newborn infant.
 
 ## Contribution Guide

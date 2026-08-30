@@ -75,10 +75,10 @@ This will run Artie Tool's build command over the given target task.
 
 ## Source Code
 
-Driver source code lives in Artie Common (`artie-common/drivers`),
-unless it is source code for a driver that can only make sense
-in one particular type of Artie (which would be unusual), in which
-case it lives in that Artie's directory.
+Driver source code lives with the Artie it belongs to, in that Artie's `drivers/`
+directory - for example `artie00/drivers`. A driver that several Artie types share is
+still kept with one of them and referred to from the others' task definitions, rather
+than living in a shared bucket.
 
 Drivers are microservices and can therefore be written in any language
 so long as they are available on their buses, however they are typically

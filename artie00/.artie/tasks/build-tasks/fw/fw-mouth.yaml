@@ -15,12 +15,12 @@ steps:
       - docker-image
     img-base-name: artie-mouth
     buildx: false
-    dockerfile-dpath: "${REPO:artie-common}/firmware/mouth/build"
+    dockerfile-dpath: "${REPO_ROOT}/firmware/mouth/build"
     dockerfile: Dockerfile
     build-context: "."
     dependency-files:
-      - "${REPO:artie-common}/firmware/eyebrows/src"
-      - "${REPO:artie-common}/firmware/mouth/CMakeLists.txt"
+      - "${REPO_ROOT}/firmware/eyebrows/src"
+      - "${REPO_ROOT}/firmware/mouth/CMakeLists.txt"
       - "${REPO:ardk}/firmware/libraries/leds"
       - "${REPO:ardk}/firmware/libraries/errors"
       - "${REPO:ardk}/firmware/libraries/cmds"

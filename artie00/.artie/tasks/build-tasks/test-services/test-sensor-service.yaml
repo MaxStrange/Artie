@@ -14,7 +14,7 @@ steps:
     img-base-name: artie-test-sensor-service
     buildx: true
     platform: linux/arm64
-    dockerfile-dpath: "${REPO:artie-common}/drivers/example-sensor"
+    dockerfile-dpath: "${REPO_ROOT}/drivers/example-sensor"
     dockerfile: Dockerfile
     build-context: "."
     build-args:

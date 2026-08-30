@@ -79,9 +79,6 @@ _KNOWN_REPOS: Dict[str, RepoSpec] = {
     "artieworkbench": RepoSpec("artieworkbench", url=f"{GITHUB_ORG}/ArtieWorkbench.git", monorepo_subdir="framework/workbench"),
     "artiedaemons": RepoSpec("artiedaemons", url=f"{GITHUB_ORG}/ArtieDaemons.git", monorepo_subdir="framework/daemons"),
     "artie00": RepoSpec("artie00", url=f"{GITHUB_ORG}/Artie00.git", monorepo_subdir="artie00"),
-    # Transitional. artie-common's contents (firmware, drivers, schematics) are destined
-    # for Artie00; until they move, tasks still need to find them where they are.
-    "artie-common": RepoSpec("artie-common", monorepo_subdir="artie-common"),
 }
 
 
