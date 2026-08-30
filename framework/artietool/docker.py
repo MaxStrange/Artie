@@ -32,6 +32,20 @@ _BUILDX_DRIVER = None
 # Cached result of the Docker server's architecture (per process)
 _HOST_ARCH = None
 
+# Splits a fully-qualified Docker image name into registry/namespace, image and tag.
+#
+# The leading component is only treated as a registry or namespace when it is followed by
+# a '/'. Anchoring on the slash matters: without it, a name such as
+# 'artie-eyebrows:659e7a9' parses as repository 'artie-eyebrows:659' - reading the start of
+# a git short hash as a registry port - leaving image 'e7a9' and no tag at all. That only
+# bites locally built images, because CI always passes --docker-repo and so always has a
+# real '<repo>/' prefix, which is why it went unnoticed.
+_IMAGE_NAME_PATTERN = re.compile(
+    r"^(?:(?P<repository>[\w.\-_]+(?::\d+)?)/)?"
+    r"(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+)*)"
+    r"(?::(?P<tag>[\w.\-_]{1,127}))?$"
+)
+
 class DockerImageName:
     def __init__(self, repo: str, name: str, tag: str) -> None:
         self.repo = repo
@@ -349,15 +363,24 @@ def parse_docker_image_name(fully_qualified_name: str):
     construct_docker_image_name on the other hand, takes the constituent pieces already parsed,
     infers ones that aren't given, and returns the DockerImageName object from these pieces.
     """
-    # Thank you, Stack Overflow: https://stackoverflow.com/questions/74990220/how-to-use-docker-image-tag-parsing-regex-in-javascript
-    # With a minor modification
-    r = re.compile(r"^(?P<repository>[\w.\-_]+(?::\d+|)|)(?:/|)(?P<image>[a-z0-9.\-_]+(?:/[a-z0-9.\-_]+|))(:(?P<tag>[\w.\-_]{1,127})|)$")
-    o = r.match(fully_qualified_name)
+    o = _IMAGE_NAME_PATTERN.match(fully_qualified_name)
     if not o:
         errmsg = f"Could not understand the given string as a Docker image ID: {fully_qualified_name}"
         common.error(errmsg)
         raise ValueError(errmsg)
-    return DockerImageName(o.groupdict().get('repository', ""), o.groupdict().get('image', ""), o.groupdict().get('tag', ""))
+
+    # A group that did not participate in the match is None, not absent, so groupdict().get()
+    # with a default would still hand back None. Normalise explicitly instead.
+    repo = o.group('repository') or ""
+    image = o.group('image') or ""
+    tag = o.group('tag') or ""
+
+    # DockerImageName concatenates repo and name with no separator of its own, so the
+    # trailing slash belongs to the repo - as construct_docker_image_name also does.
+    if repo:
+        repo += "/"
+
+    return DockerImageName(repo, image, tag)
 
 def construct_docker_image_name(args, name, platform=None, repo_prefix=None, tag=None) -> DockerImageName:
     """
