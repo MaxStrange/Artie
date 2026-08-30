@@ -17,6 +17,8 @@ from .install import uninstall
 from .release import release
 from .status import status
 from .test import test
+from . import workspace
+from . import workspacecmd
 import argparse
 import multiprocessing
 import os
@@ -86,6 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument("--kube-config", default=None, type=common.argparse_file_path_type, help="Path to a Kube Config file if you do not store yours in the default location. If you do not know what this is, you can safely ignore it.")
     group.add_argument("--kube-timeout-s", default=180, type=int, help="Timeout (s) for commands that deal with the K8S cluster. Default: %(default)s")
     group.add_argument("--nprocs", default=multiprocessing.cpu_count(), type=int, help="If given, we will use at most this many processes to parallelize the command. Default: %(default)s")
+    group.add_argument("--workspace", default=None, type=str, help=f"Directory that Artie's repositories are cloned into. Overrides ARTIE_WORKSPACE and the config file. Default: {workspace.DEFAULT_WORKSPACE}")
+    group.add_argument("--repo", action='append', default=None, metavar="NAME=PATH", help=f"Use an existing checkout for one component instead of cloning it, as in --repo ardk=~/repos/ArDK. May be given more than once. Known components: {', '.join(workspace.known_repo_names())}")
+    group.add_argument("--channel", default=None, type=str, help="Release channel to resolve prebuilt artifacts from. Overrides ARTIE_CHANNEL and the config file.")
 
     # Parser for build command
     parser_build = subparsers.add_parser("build", parents=[option_parser])
@@ -123,6 +128,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser_get = subparsers.add_parser("get", parents=[option_parser])
     get.fill_subparser(parser_get, option_parser)
 
+    # Parser for the workspace command
+    parser_workspace = subparsers.add_parser("workspace", parents=[option_parser])
+    workspacecmd.fill_subparser(parser_workspace, option_parser)
+
     # Parser for clean command
     parser_clean = subparsers.add_parser("clean", parents=[option_parser])
     parser_clean.add_argument("--all", action='store_true', help="If given, we will also remove everything in build-artifacts/")
@@ -147,6 +156,11 @@ def main():
 
     # Set up logging
     common.set_up_logging(args)
+
+    # Resolve the workspace configuration once, folding in any command line overrides, so
+    # that everything downstream - including ${REPO:<name>} substitution in task
+    # definitions - sees the same view of where each component's source lives.
+    workspace.config(args)
 
     # Try to close gracefully with CTRL-C
     signal.signal(signal.SIGINT, handle_sigint)

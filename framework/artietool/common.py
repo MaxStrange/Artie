@@ -18,6 +18,8 @@ import subprocess
 import sys
 import threading
 
+from . import workspace
+
 try:
     from docker import errors as docker_errors
 except ModuleNotFoundError:
@@ -26,6 +28,9 @@ except ModuleNotFoundError:
 
 # The name of our logger
 LOGGER_NAME = 'artietool'
+
+# Matches ${REPO:<name>} in task definitions, resolving to another component's checkout.
+_REPO_REF_PATTERN = re.compile(r"\$\{REPO:(?P<repo_name>[\w-]+)\}")
 
 # Global list of threads that we have spawned and want to be able to kill if needed
 _MANAGED_THREADS = []
@@ -186,11 +191,18 @@ def get_scratch_location():
 
     return scratch_location
 
-def git_tag() -> str:
+def git_tag(repo: str = None) -> str:
     """
-    Return the git tag of the Artie repo.
+    Return the short git hash of an Artie component's checkout.
+
+    `repo`, if given, names a component - see workspace.known_repo_names(). Once the
+    components live in separate repositories they each have their own hash, so whatever
+    tags an artifact needs to say which component the artifact was built from. Passing
+    nothing keeps the historical behaviour of reading the current directory's repository,
+    which is what a single checkout of everything means.
     """
-    p = subprocess.run("git log --format='%h' -n 1".split(' '), capture_output=True)
+    cwd = workspace.repo_path(repo) if repo else None
+    p = subprocess.run("git log --format='%h' -n 1".split(' '), capture_output=True, cwd=cwd)
     p.check_returncode()
     return p.stdout.decode('utf-8').strip().strip("'")
 
@@ -292,6 +304,13 @@ def replace_vars_in_string(s: str, vars_dict: dict[str, str]|argparse.Namespace|
     if '${REPO_ROOT}' in s:
         s = s.replace("${REPO_ROOT}", repo_root())
 
+    # ${REPO:<name>} resolves to the checkout directory of another Artie component, so a
+    # task can reach across a repository boundary explicitly instead of assuming that
+    # everything sits under one root. A function replacement is used rather than a plain
+    # string so that Windows backslashes are not treated as regex escapes.
+    if '${REPO:' in s:
+        s = _REPO_REF_PATTERN.sub(lambda m: workspace.repo_path(m.group("repo_name")), s)
+
     if '${GIT_TAG}' in s:
         s = s.replace("${GIT_TAG}", git_tag())
 
@@ -314,13 +333,12 @@ def replace_vars_in_string(s: str, vars_dict: dict[str, str]|argparse.Namespace|
 def repo_root() -> str:
     """
     Return the absolute path of the root of the Artie repository.
-    """
-    thisdir = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.join(thisdir, "..", "..")
-    if not os.path.isdir(root):
-        raise FileNotFoundError("The Artie directory seems to have been altered in a way that I can't understand.")
 
-    return os.path.abspath(root)
+    Deprecated in favour of `workspace.repo_path(<component>)`. This only remains
+    meaningful while Artie's components all live in one repository; anything that refers
+    to a specific component should name it rather than assume a shared root.
+    """
+    return workspace.monorepo_root()
 
 def set_up_logging(args):
     """
