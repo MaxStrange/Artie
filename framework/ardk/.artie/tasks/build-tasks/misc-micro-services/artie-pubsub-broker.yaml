@@ -1,0 +1,50 @@
+name: artie-pubsub-broker
+labels:
+  - docker-image
+dependencies:
+artifacts:
+  - name: docker-image-amd64
+    type: docker-image
+  - name: docker-image-arm64
+    type: docker-image
+  - name: docker-image
+    type: docker-manifest
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image-amd64
+    img-base-name: artie-pubsub-broker
+    buildx: true
+    platform: linux/amd64
+    dockerfile-dpath: "${REPO_ROOT}/services/artie-pubsub-broker"
+    dockerfile: Dockerfile
+    build-context: "."
+    build-args:
+      - GIT_TAG: ${GIT_TAG}
+      - PUBSUB_BROKER_PORT: 9092
+      - CONTROLLER_PORT: 9093
+  - job: docker-build
+    artifacts:
+      - docker-image-arm64
+    img-base-name: artie-pubsub-broker
+    buildx: true
+    platform: linux/arm64
+    dockerfile-dpath: "${REPO_ROOT}/services/artie-pubsub-broker"
+    dockerfile: Dockerfile
+    build-context: "."
+    build-args:
+      - GIT_TAG: ${GIT_TAG}
+      - PUBSUB_BROKER_PORT: 9092
+      - CONTROLLER_PORT: 9093
+  - job: docker-manifest
+    artifacts:
+      - docker-image
+    img-base-name: artie-pubsub-broker
+    images:
+      - dependency:
+          name: docker-image-amd64
+          producing-task: artie-pubsub-broker
+      - dependency:
+          name: docker-image-arm64
+          producing-task: artie-pubsub-broker

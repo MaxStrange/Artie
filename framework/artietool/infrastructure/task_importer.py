@@ -15,6 +15,7 @@ from . import test_job
 from . import yocto_build_job
 from . import task
 from .. import common
+from .. import workspace
 from dataclasses import dataclass
 from enum import StrEnum
 from enum import unique
@@ -708,7 +709,9 @@ def _convert_deploy_what(what_val: str) -> deploy_job.DeploymentConfigurations:
 def _import_add_deploy_job(job_def: Dict, fpath: str, header: TaskHeader) -> deploy_job.AddDeployJob:
     _validate_dict(job_def, 'what', keyerrmsg=f"Missing 'what' definition in 'job' definition in {fpath}")
     what = _convert_deploy_what(job_def['what'])
-    chart = os.path.join(common.repo_root(), "framework", "artietool", job_def['chart'])
+    # Chart paths are relative to the component that owns the deploy task, so a component
+    # ships the chart that deploys it rather than leaving it in Artie Tool.
+    chart = os.path.join(workspace.current_repo_root(), job_def['chart'])
     return deploy_job.AddDeployJob(header.artifacts, what, chart)
 
 def _import_deploy_task(header: TaskHeader, steps_configs: List[Dict], fpath: str) -> task.DeployTask:
@@ -765,21 +768,70 @@ def _import_task(fpath: str) -> task.Task:
         print(f"Cannot import {fpath}: {e}")
         raise e
 
-def import_tasks(dpath: str) -> List[task.Task]:
+def import_tasks(dpath: str, repo: str = None) -> List[task.Task]:
     """
     Import all tasks that we find in the given directory, recursively
     and return them as a list of `Task` subclasses.
+
+    `repo`, if given, names the component that owns these definitions. It is recorded on
+    each Task and makes ${REPO_ROOT} inside them resolve to that component's checkout.
     """
     fpaths = glob.glob(os.path.join(dpath, "**", "*.yaml"), recursive=True)
     task_to_yaml_dict = {}
     tasks = []
-    for fpath in fpaths:
-        t = _import_task(fpath)
-        if t is None:
+    with workspace.importing_repo(repo):
+        for fpath in fpaths:
+            t = _import_task(fpath)
+            if t is None:
+                continue
+            elif t.name in task_to_yaml_dict:
+                raise FileExistsError(f"Already have a task with the name {t.name}. Task names must be unique. Offending YAML files: {fpath} and {task_to_yaml_dict[t.name]}")
+            else:
+                t.repo = repo
+                task_to_yaml_dict[t.name] = fpath
+                tasks.append(t)
+    return tasks
+
+# The kinds of task Artie Tool understands. Each maps to a '<kind>-tasks' directory.
+TASK_KINDS = ("build", "test", "deploy", "flash")
+
+# Where a component keeps the definitions of the tasks that build, test and deploy it.
+TASK_SUBDIR = os.path.join(".artie", "tasks")
+
+def task_directory(repo: str, kind: str) -> str:
+    """
+    Return the directory holding `repo`'s definitions of the given kind of task.
+    """
+    return os.path.join(workspace.repo_path(repo), TASK_SUBDIR, f"{kind}-tasks")
+
+def discover_tasks(kind: str) -> List[task.Task]:
+    """
+    Import every task of the given kind from every component in the workspace.
+
+    Each component owns the definitions of the tasks that build, test and deploy it, in
+    its own '.artie/tasks/<kind>-tasks' directory, so Artie Tool does not need to know
+    what any particular component contains - only where its checkout is.
+
+    Task names are the subcommands a user types, so they have to stay unique across the
+    whole workspace; two components claiming the same name is an error that names both.
+    """
+    if kind not in TASK_KINDS:
+        raise ValueError(f"Unknown task kind '{kind}'. Expected one of: {', '.join(TASK_KINDS)}")
+
+    tasks = []
+    owner_of = {}
+    for repo in workspace.known_repo_names():
+        dpath = task_directory(repo, kind)
+        if not os.path.isdir(dpath):
             continue
-        elif t.name in task_to_yaml_dict:
-            raise FileExistsError(f"Already have a task with the name {t.name}. Task names must be unique. Offending YAML files: {fpath} and {task_to_yaml_dict[t.name]}")
-        else:
-            task_to_yaml_dict[t.name] = fpath
+
+        for t in import_tasks(dpath, repo=repo):
+            if t.name in owner_of:
+                raise FileExistsError(
+                    f"Both '{owner_of[t.name]}' and '{repo}' define a {kind} task named '{t.name}'. "
+                    f"Task names are the subcommands users type, so they must be unique across all components."
+                )
+            owner_of[t.name] = repo
             tasks.append(t)
+
     return tasks

@@ -45,9 +45,9 @@ def _clean(args):
 
     # Now call 'clean()' on all possible tasks
     all_tasks = []
-    all_tasks.extend(build.BUILD_TASKS)
-    all_tasks.extend(test.TEST_TASKS)
-    all_tasks.extend(flash.FLASH_TASKS)
+    all_tasks.extend(build.build_tasks())
+    all_tasks.extend(test.test_tasks())
+    all_tasks.extend(flash.flash_tasks())
     for t in all_tasks:
         t.clean(args)
 
@@ -81,7 +81,9 @@ def build_parser() -> argparse.ArgumentParser:
     group.add_argument("--docker-logs", action='store_true', help="If given, we print Docker logs as we receive them (normally they are hidden).")
     group.add_argument("--docker-no-cache", action='store_true', help="If given, we pass --no-cache to Docker builds.")
     group.add_argument("--docker-repo", default=None, type=str, help="Docker repository for pushing/pulling.")
-    group.add_argument("--docker-tag", default=common.git_tag(), type=str, help="The tag (not name) of the Docker images we build (if any). If not given, we use the git hash.")
+    # Derived from Artie Tool's own checkout rather than the current directory, so that an
+    # installed `artie-tool` produces the same tag wherever it is invoked from.
+    group.add_argument("--docker-tag", default=common.git_tag("artietool"), type=str, help="The tag (not name) of the Docker images we build (if any). If not given, we use the git hash.")
     group.add_argument("--docker-password", default=None, type=str, help="The password to use for docker login. For CI, please use the environment variable ARTIE_TOOL_DOCKER_PASSWORD. If both are given, we use this arg instead of the env variable.")
     group.add_argument("--docker-username", default=None, type=str, help="The username for docker login. If not given, we do not attempt to login before pushing images.")
     group.add_argument("--insecure-docker-repo", action='store_true', help="(Experimental) If you are pushing a multiarch image to an insecure repo, you will need this flag.")

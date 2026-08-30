@@ -3,11 +3,13 @@ FROM ${ARTIE_BASE_IMG} AS BASE_IMG
 
 RUN mkdir -p /pico/src/graphics/lcd
 
-# Build context is the repo root
-COPY ./artie-common/firmware/eyebrows/src /pico/src
-COPY ./framework/ardk/firmware/libraries/leds /pico/src/leds
-COPY ./framework/ardk/firmware/libraries/errors /pico/src/errors
-COPY ./framework/ardk/firmware/libraries/cmds /pico/src/cmds
+# The build context is this directory. Artie Tool stages the firmware source and the
+# ArDK firmware libraries into ./tmp first (see the fw-eyebrows task's dependency-files),
+# so this build does not need every component checked out under one shared root.
+COPY ./tmp/src /pico/src
+COPY ./tmp/leds /pico/src/leds
+COPY ./tmp/errors /pico/src/errors
+COPY ./tmp/cmds /pico/src/cmds
 WORKDIR /pico/src/build
 
 ARG BUILD_TYPE=Debug

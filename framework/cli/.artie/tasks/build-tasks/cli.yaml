@@ -1,0 +1,54 @@
+name: artie-cli
+labels:
+  - docker-image
+dependencies:
+  - artie-base-image: docker-image-arm64
+  - artie-base-image: docker-image-amd64
+artifacts:
+  - name: docker-image-amd64
+    type: docker-image
+  - name: docker-image-arm64
+    type: docker-image
+  - name: docker-image
+    type: docker-manifest
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image-amd64
+    img-base-name: artie-cli
+    buildx: true
+    platform: linux/amd64
+    dockerfile-dpath: "${REPO_ROOT}/test"
+    dockerfile: Dockerfile
+    build-context: ".."
+    build-args:
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image-amd64
+            producing-task: artie-base-image
+  - job: docker-build
+    artifacts:
+      - docker-image-arm64
+    img-base-name: artie-cli
+    buildx: true
+    platform: linux/arm64
+    dockerfile-dpath: "${REPO_ROOT}/test"
+    dockerfile: Dockerfile
+    build-context: ".."
+    build-args:
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image-arm64
+            producing-task: artie-base-image
+  - job: docker-manifest
+    artifacts:
+      - docker-image
+    img-base-name: artie-cli
+    images:
+      - dependency:
+          name: docker-image-amd64
+          producing-task: artie-cli
+      - dependency:
+          name: docker-image-arm64
+          producing-task: artie-cli

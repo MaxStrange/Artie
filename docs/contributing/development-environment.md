@@ -136,9 +136,9 @@ The overarching flow of Artie Tool is this:
 The `build` subcommand of Artie Tool allows you to build various components of Artie. Try running
 `python artie-tool.py build --help` to see all the options, including the available targets.
 
-The targets are populated by the build tasks defined in the `framework/artietool/tasks/build-tasks/` directory.
+The targets are populated by the build tasks defined in the `.artie/tasks/build-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#build) for more information on how to
+See [the task specification document](../../framework/artietool/TASKS.md#build) for more information on how to
 define new build tasks.
 
 Of note:
@@ -161,9 +161,9 @@ but it will likely be removed in the future.
 
 The `test` subcommand of Artie Tool automates tests.
 
-The targets are populated by the test tasks defined in the `framework/artietool/tasks/test-tasks/` directory.
+The targets are populated by the test tasks defined in the `.artie/tasks/test-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#test) for more information on how
+See [the task specification document](../../framework/artietool/TASKS.md#test) for more information on how
 to define new test tasks.
 
 Of note:
@@ -195,9 +195,9 @@ are equipped with an over-the-air update mechanism, however, the end user will n
 the images at least once manually, and they could use this tool to do so. Another good option
 is the program Etcher.
 
-The targets are populated by the flash tasks defined in the `framework/artietool/tasks/flash-tasks/` directory.
+The targets are populated by the flash tasks defined in the `.artie/tasks/flash-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#flash) for more information on how
+See [the task specification document](../../framework/artietool/TASKS.md#flash) for more information on how
 to define new test tasks.
 
 ### Artie Tool: Install
@@ -222,9 +222,9 @@ The `uninstall` subcommand of Artie Tool allows a developer to uninstall an Arti
 The `deploy` subcommand of Artie Tool allows a developer to deploy a Helm chart to a particular
 Artie.
 
-The targets are populated by the deploy tasks defined in the `framework/artietool/tasks/deploy-tasks/` directory.
+The targets are populated by the deploy tasks defined in the `.artie/tasks/deploy-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#deploy) for more information on how
+See [the task specification document](../../framework/artietool/TASKS.md#deploy) for more information on how
 to define new test tasks.
 
 ### Artie Tool: Status

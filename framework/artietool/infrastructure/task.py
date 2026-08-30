@@ -51,8 +51,21 @@ class Task:
         self.artifacts = artifacts
         self.cli_args = cli_args
         self.jobs = jobs
+        # The component that owns this definition. Set by the importer once it knows
+        # which checkout the YAML came from; None for a task imported without one.
+        self.repo = None
         self._link_jobs()
         self.results = []
+
+    @property
+    def qualified_name(self) -> str:
+        """
+        The task's name qualified by its owning component, as in 'ardk:artie-base-image'.
+
+        Task names are unique across the workspace, so this is only ever an unambiguous
+        alias - useful for saying where a task came from in errors and in `--help`.
+        """
+        return f"{self.repo}:{self.name}" if self.repo else self.name
 
     def __repr__(self) -> str:
         return self.name

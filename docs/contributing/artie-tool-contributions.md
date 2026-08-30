@@ -23,7 +23,7 @@ normal development with Artie. To update Artie Tool to be able
 to build something new, flash something new, test something new,
 or deploy something new, you will need to create or update a task file.
 See the appropriate section of [the Setting up your Development Environment Guide](./development-environment.md#working-with-artie-tool)
-and the [Artie Tool Task Specification](../../framework/artietool/tasks/README.md) for understanding how to do this.
+and the [Artie Tool Task Specification](../../framework/artietool/TASKS.md) for understanding how to do this.
 
 ## How Artie Tool Works
 

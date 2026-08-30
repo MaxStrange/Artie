@@ -1,7 +1,7 @@
-# The firmware images use the repo root as their Docker build context (see
-# framework/artietool/tasks/build-tasks/fw/*.yaml, build-context: "../../../..").
-# Keep that context small: those builds only COPY artie-common/firmware/*/src
-# and framework/ardk/firmware/libraries.
+# Vestigial: no Artie build uses the repository root as its Docker build context any
+# more. Each component's tasks build from their own directory and stage anything they
+# need from another component via 'dependency-files' (see the fw-eyebrows and fw-mouth
+# tasks). This file only matters if you run `docker build` at the root by hand.
 .git
 .continue
 .vscode

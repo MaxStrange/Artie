@@ -5,11 +5,11 @@ class ArtieEnvVariables(enum.StrEnum):
     Various env-mapped configuration keys.
 
     These come from either the environment variables set in Kubernetes
-    (by means of the Helm Chart - see framework/artietool/deploy-files/artie-base/values.yaml),
+    (by means of the Helm Chart - see framework/ardk/deploy/artie-base/values.yaml),
     or from the Docker run command line (for testing).
 
     If you update these, make sure to also update the Helm Chart values
-    in framework/artietool/deploy-files/artie-base/values.yaml under baseEnvironment.
+    in framework/ardk/deploy/artie-base/values.yaml under baseEnvironment.
     """
     ARTIE_ID = "ARTIE_ID"
     ARTIE_RUN_MODE = "ARTIE_RUN_MODE"

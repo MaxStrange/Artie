@@ -1,0 +1,26 @@
+name: artie-test-sensor-service
+labels:
+  - docker-image
+dependencies:
+  - artie-base-image: docker-image-arm64
+artifacts:
+  - name: docker-image
+    type: docker-image
+type: build
+steps:
+  - job: docker-build
+    artifacts:
+      - docker-image
+    img-base-name: artie-test-sensor-service
+    buildx: true
+    platform: linux/arm64
+    dockerfile-dpath: "${REPO:artie-common}/drivers/example-sensor"
+    dockerfile: Dockerfile
+    build-context: "."
+    build-args:
+      - SERVICE_PORT: 18865
+      - GIT_TAG: ${GIT_TAG}
+      - ARTIE_BASE_IMG:
+          dependency:
+            name: docker-image-arm64
+            producing-task: artie-base-image

@@ -16,8 +16,21 @@ import os
 import traceback
 import xml.etree.ElementTree as ET
 
-# Populate the 'TEST_TASKS' list by parsing all the 'test' config files
-TEST_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "framework", "artietool", "tasks", "test-tasks"))
+# Test tasks come from every component in the workspace - see test_tasks().
+_TEST_TASKS = None
+
+def test_tasks():
+    """
+    Every test task in the workspace, discovered once per process.
+
+    Each component owns the definitions of its own tasks, so this looks across every
+    checkout rather than reading one directory. Deferred until first use so that a
+    malformed task definition in any component cannot break `--help` at import time.
+    """
+    global _TEST_TASKS
+    if _TEST_TASKS is None:
+        _TEST_TASKS = task_importer.discover_tasks("test")
+    return _TEST_TASKS
 
 TEST_CLASSES = [
     "all",
@@ -61,25 +74,25 @@ def _test_class_of_items(args):
     tasks = []
     match args.module:
         case "all":
-            tasks = [t for t in TEST_TASKS if task.Labels.HARDWARE not in t.labels] if args.include_yocto else [t for t in TEST_TASKS if task.Labels.YOCTO not in t.labels and task.Labels.HARDWARE not in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.HARDWARE not in t.labels] if args.include_yocto else [t for t in test_tasks() if task.Labels.YOCTO not in t.labels and task.Labels.HARDWARE not in t.labels]
         case "all-fw":
-            tasks = [t for t in TEST_TASKS if task.Labels.FIRMWARE in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.FIRMWARE in t.labels]
         case "all-containers":
-            tasks = [t for t in TEST_TASKS if task.Labels.DOCKER_IMAGE in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.DOCKER_IMAGE in t.labels]
         case "all-yocto":
-            tasks = [t for t in TEST_TASKS if task.Labels.YOCTO in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.YOCTO in t.labels]
         case "all-stress":
-            tasks = [t for t in TEST_TASKS if task.Labels.STRESS in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.STRESS in t.labels]
         case "all-unit":
-            tasks = [t for t in TEST_TASKS if task.Labels.UNIT in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.UNIT in t.labels]
         case "all-integration":
-            tasks = [t for t in TEST_TASKS if task.Labels.INTEGRATION in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.INTEGRATION in t.labels]
         case "all-sanity":
-            tasks = [t for t in TEST_TASKS if task.Labels.SANITY in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.SANITY in t.labels]
         case "all-hw":
-            tasks = [t for t in TEST_TASKS if task.Labels.HARDWARE in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.HARDWARE in t.labels]
         case "all-library":
-            tasks = [t for t in TEST_TASKS if task.Labels.LIBRARY in t.labels]
+            tasks = [t for t in test_tasks() if task.Labels.LIBRARY in t.labels]
         case _:
             raise ValueError(f"{args.module} is invalid for some reason")
 
@@ -87,7 +100,7 @@ def _test_class_of_items(args):
     tasks = _combine_hw_tests(tasks)
 
     # Run them and return the results
-    return run.run_tasks(args, tasks, TEST_TASKS + build.BUILD_TASKS)
+    return run.run_tasks(args, tasks, test_tasks() + build.build_tasks())
 
 def _write_results_to_output_folder(args, res: result.TaskResult, dpath):
     """
@@ -169,14 +182,14 @@ def test(args):
         common.clean()
 
     if args.module.startswith("all"):
-        results, test_tasks = _test_class_of_items(args)
+        results, ran_tasks = _test_class_of_items(args)
     else:
-        test_task = common.find_task_from_name(args.module, TEST_TASKS)
+        test_task = common.find_task_from_name(args.module, test_tasks())
         assert test_task is not None, f"Somehow test_task is None (args.module: {args.module})"
-        results, test_tasks = run.run_tasks(args, [test_task], TEST_TASKS + build.BUILD_TASKS)
+        results, ran_tasks = run.run_tasks(args, [test_task], test_tasks() + build.build_tasks())
 
     # Clean up after ourselves
-    for t in test_tasks:
+    for t in ran_tasks:
         t.clean(args)
     docker.clean_docker_containers()
 
@@ -238,7 +251,7 @@ def fill_subparser(parser_test: argparse.ArgumentParser, parent: argparse.Argume
         task_parser.set_defaults(cmd=test, module=name)
 
     # Add all the tests
-    for t in TEST_TASKS:
+    for t in test_tasks():
         task_parser = subparsers.add_parser(t.name, parents=[option_parser])
         t.fill_subparser(task_parser, option_parser)        # Fill argparse with anything that is specific to the task
         task_parser.set_defaults(cmd=test, module=t.name)   # Regardless of the task chosen, the command is always 'test' from this module

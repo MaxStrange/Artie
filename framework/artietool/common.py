@@ -174,8 +174,16 @@ def find_task_from_name(name: str, tasks):
     """
     Finds and retrieves the Task from the tasks list based on its name.
 
-    Returns None if can't find it.
+    Accepts either a bare task name or one qualified by its owning component, as in
+    'ardk:artie-base-image'. Returns None if it can't find it.
     """
+    if ':' in name:
+        repo, _, bare = name.partition(':')
+        for t in tasks:
+            if t.name == bare and getattr(t, 'repo', None) == repo:
+                return t
+        return None
+
     for t in tasks:
         if t.name == name:
             return t
@@ -202,9 +210,17 @@ def git_tag(repo: str = None) -> str:
     which is what a single checkout of everything means.
     """
     cwd = workspace.repo_path(repo) if repo else None
-    p = subprocess.run("git log --format='%h' -n 1".split(' '), capture_output=True, cwd=cwd)
-    p.check_returncode()
-    return p.stdout.decode('utf-8').strip().strip("'")
+    try:
+        p = subprocess.run("git log --format='%h' -n 1".split(' '), capture_output=True, cwd=cwd)
+        p.check_returncode()
+        return p.stdout.decode('utf-8').strip().strip("'")
+    except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError, OSError):
+        # Not a git checkout, or git is not installed. That is a normal state for an
+        # Artie Tool installed from a package index rather than cloned, and for a
+        # component vendored without its history. This value only ever labels artifacts,
+        # so fall back to the same placeholder the Dockerfiles already default to instead
+        # of refusing to run at all.
+        return "unversioned"
 
 def host_platform() -> str:
     """
@@ -301,8 +317,12 @@ def replace_vars_in_string(s: str, vars_dict: dict[str, str]|argparse.Namespace|
     """
     s = str(s)
 
+    # Inside a task definition, ${REPO_ROOT} means the repository that declares the task,
+    # so a component's tasks can refer to it with a plain relative path and keep working
+    # once that component moves to its own repository. Everywhere else it is the root of
+    # this checkout, as it always was.
     if '${REPO_ROOT}' in s:
-        s = s.replace("${REPO_ROOT}", repo_root())
+        s = s.replace("${REPO_ROOT}", workspace.current_repo_root())
 
     # ${REPO:<name>} resolves to the checkout directory of another Artie component, so a
     # task can reach across a repository boundary explicitly instead of assuming that
@@ -311,8 +331,11 @@ def replace_vars_in_string(s: str, vars_dict: dict[str, str]|argparse.Namespace|
     if '${REPO:' in s:
         s = _REPO_REF_PATTERN.sub(lambda m: workspace.repo_path(m.group("repo_name")), s)
 
+    # Inside a task definition, ${GIT_TAG} is the version of the component that declares
+    # the task, since separate repositories each have their own hash. Outside one it is
+    # the current directory's repository, as before.
     if '${GIT_TAG}' in s:
-        s = s.replace("${GIT_TAG}", git_tag())
+        s = s.replace("${GIT_TAG}", git_tag(workspace.current_repo_name()))
 
     if vars_dict is None:
         vars_dict = {}

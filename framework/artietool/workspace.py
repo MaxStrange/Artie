@@ -25,6 +25,7 @@ will never clone over it, fetch it, or otherwise touch it.
 This module must not import `common`, which imports it.
 """
 from typing import Dict, List, Optional
+import contextlib
 import dataclasses
 import logging
 import os
@@ -280,6 +281,52 @@ def known_repo_names() -> List[str]:
     Return the names of every repository Artie Tool knows how to locate.
     """
     return sorted(_KNOWN_REPOS)
+
+
+# The repository whose task definitions are currently being parsed. Task definitions are
+# read once, at start up, in a single thread per process, so a module-level value is
+# enough - and it keeps the owning repository out of the signature of every function in
+# the task parsing stack.
+_IMPORTING_REPO: Optional[str] = None
+
+
+@contextlib.contextmanager
+def importing_repo(name: Optional[str]):
+    """
+    Mark `name` as the repository whose task definitions are being parsed, so that
+    ${REPO_ROOT} inside them resolves to that repository rather than to a shared root.
+    """
+    global _IMPORTING_REPO
+
+    previous = _IMPORTING_REPO
+    _IMPORTING_REPO = name
+    try:
+        yield
+    finally:
+        _IMPORTING_REPO = previous
+
+
+def current_repo_name() -> Optional[str]:
+    """
+    Return the component whose task definitions are being parsed, or None outside of one.
+    """
+    return _IMPORTING_REPO
+
+
+def current_repo_root() -> str:
+    """
+    Return the root that ${REPO_ROOT} should resolve to right now.
+
+    Inside an `importing_repo` block that is the owning repository's checkout, which is
+    what lets a task definition refer to its own component with a plain relative path and
+    stay correct after that component moves to its own repository. Outside one - for
+    Artie Tool's own scratch, artifact and test-result directories - it is the monorepo
+    root, which is the historical behaviour.
+    """
+    if _IMPORTING_REPO:
+        return repo_path(_IMPORTING_REPO)
+
+    return monorepo_root()
 
 
 def _git(args_list: List[str], cwd: str) -> subprocess.CompletedProcess:

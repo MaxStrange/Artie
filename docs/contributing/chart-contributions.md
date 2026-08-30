@@ -14,7 +14,7 @@ on its MCUs, you should be able to update its software workload by means
 of Helm Chart deployment.
 
 The Helm Charts that we oficially provide for Arties currently
-live in `framework/artietool/deploy-files/` (along
-with an AI-written [HELM OVERVIEW](../../framework/artietool/deploy-files/HELM_ARCHITECTURE.md), which is probably good reading for this).
+live in each component's `deploy/` directory (for example `framework/ardk/deploy/`) (along
+with an AI-written [HELM OVERVIEW](../../framework/ardk/deploy/HELM_ARCHITECTURE.md), which is probably good reading for this).
 
 [Back to Artie Workbench Contributions](./artie-workbench-contributions.md) | [Forward to Simulator Contributions](./simulator-contributions.md)

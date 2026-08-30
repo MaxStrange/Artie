@@ -10,18 +10,31 @@ from collections.abc import Iterable
 import argparse
 import os
 
-# Populate the DEPLOY_TASKS list by parsing all the 'deploy' config files
-DEPLOY_TASKS = task_importer.import_tasks(os.path.join(common.repo_root(), "framework", "artietool", "tasks", "deploy-tasks"))
+# Deploy tasks come from every component in the workspace - see deploy_tasks().
+_DEPLOY_TASKS = None
+
+def deploy_tasks():
+    """
+    Every deploy task in the workspace, discovered once per process.
+
+    Each component owns the definitions of its own tasks, so this looks across every
+    checkout rather than reading one directory. Deferred until first use so that a
+    malformed task definition in any component cannot break `--help` at import time.
+    """
+    global _DEPLOY_TASKS
+    if _DEPLOY_TASKS is None:
+        _DEPLOY_TASKS = task_importer.discover_tasks("deploy")
+    return _DEPLOY_TASKS
 
 def deploy(args):
     """
     Top-level deploy function.
     """
-    deploy_task = common.find_task_from_name(args.module, DEPLOY_TASKS)
+    deploy_task = common.find_task_from_name(args.module, deploy_tasks())
     assert deploy_task is not None, f"Somehow deploy_task is None (args.module: {args.module})"
-    results, deploy_tasks = run.run_tasks(args, [deploy_task], DEPLOY_TASKS)
+    results, ran_tasks = run.run_tasks(args, [deploy_task], deploy_tasks())
 
-    for t in deploy_tasks:
+    for t in ran_tasks:
         t.clean(args)
 
     # Print the results for human consumption
@@ -43,7 +56,7 @@ def list_deployments(args):
     """
     List all deployments.
     """
-    for t in DEPLOY_TASKS:
+    for t in deploy_tasks():
         print(t.name)
 
     return 0
@@ -59,7 +72,7 @@ def fill_subparser(parser_deploy: argparse.ArgumentParser, parent: argparse.Argu
     group.add_argument("--delete", action='store_true', help="If given, we delete the deployment instead of creating it.")
 
     # Add all the deploy tasks
-    for t in DEPLOY_TASKS:
+    for t in deploy_tasks():
         task_parser = subparsers.add_parser(t.name, parents=[option_parser])
         t.fill_subparser(task_parser, option_parser)         # Fill argparse with anything that is specific to the task
         task_parser.set_defaults(cmd=deploy, module=t.name)  # Regardless of the task chosen, the command is always 'deploy' from this module

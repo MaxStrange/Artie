@@ -1,14 +1,20 @@
 """
-Helper script to prepare Helm charts with dependencies before deployment.
+Helper to prepare Helm charts with dependencies before deployment.
 
-This script runs 'helm dependency update' for charts that have dependencies,
-ensuring that dependent charts (like artie-base) are properly pulled in
-before deployment.
+Runs 'helm dependency update' for every chart in the workspace that declares
+dependencies, so that any subcharts are pulled in before deployment.
+
+Run it as a module from the framework directory, since it is part of the artietool
+package:
+
+    python -m artietool.update_chart_dependencies
 """
 import subprocess
 import sys
 import pathlib
 import yaml
+
+from . import workspace
 
 
 def update_chart_dependencies(chart_path: pathlib.Path) -> bool:
@@ -47,21 +53,29 @@ def update_chart_dependencies(chart_path: pathlib.Path) -> bool:
         return False
 
 
+def find_charts() -> list:
+    """
+    Return every Helm chart in the workspace.
+
+    Each component ships the chart that deploys it, in its own 'deploy' directory, so
+    this looks across all the components rather than at one shared directory.
+    """
+    charts = []
+    for repo in workspace.known_repo_names():
+        deploy_dir = pathlib.Path(workspace.repo_path(repo)) / "deploy"
+        if deploy_dir.is_dir():
+            charts.extend(sorted(deploy_dir.glob("*/Chart.yaml")))
+
+    return charts
+
+
 def main():
     """Main entry point."""
-    # Get the deploy-files directory
-    script_dir = pathlib.Path(__file__).parent
-    deploy_files_dir = script_dir / "deploy-files"
-    
-    if not deploy_files_dir.exists():
-        print(f"Error: deploy-files directory not found at {deploy_files_dir}")
-        sys.exit(1)
-    
     # Find the charts that actually declare dependencies, rather than hard-coding a
-    # list. As charts move out to their own repositories, whichever ones need a
-    # 'helm dependency update' should be discovered from their Chart.yaml.
+    # list. Charts that need a 'helm dependency update' are discovered from their
+    # Chart.yaml, wherever in the workspace they live.
     dependent_charts = []
-    for chart_yaml in sorted(deploy_files_dir.glob("*/Chart.yaml")):
+    for chart_yaml in find_charts():
         try:
             chart = yaml.safe_load(chart_yaml.read_text(encoding="utf-8"))
         except (OSError, yaml.YAMLError) as e:
