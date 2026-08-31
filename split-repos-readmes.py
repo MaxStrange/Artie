@@ -84,6 +84,26 @@ firmware, user-space drivers, electrical schematics, and the Helm chart that dep
 }
 
 
+def _existing_body(readme: pathlib.Path) -> str:
+    """
+    Return the useful part of a README the component already had, without its title.
+
+    The components carried their own READMEs in the monorepo, some with things that
+    exist nowhere else - ArtieCLI's, for instance, documents an Ubuntu install
+    workaround. Overwriting them wholesale would drop that, so keep it below the new
+    overview instead.
+    """
+    if not readme.is_file():
+        return ""
+
+    lines = readme.read_text(encoding="utf-8").splitlines()
+    # Drop a leading '# Title' and any blank lines after it; the new README has its own.
+    while lines and (not lines[0].strip() or lines[0].startswith("# ")):
+        lines.pop(0)
+
+    return "\n".join(lines).strip()
+
+
 def main(workspace: str) -> int:
     ws = pathlib.Path(workspace)
     for name, (tagline, body) in READMES.items():
@@ -92,13 +112,18 @@ def main(workspace: str) -> int:
             print(f"  skipping {name}: {target} does not exist")
             continue
 
-        (target / "README.md").write_text(
+        readme = target / "README.md"
+        previous = _existing_body(readme)
+        carried_over = f"\n---\n\n{previous}\n" if previous else ""
+
+        readme.write_text(
             f"# {name}\n\n{tagline}.\n\n{body}\n\n"
             "## About Artie\n\n"
             "Artie is an open source developmental robotics platform. The documentation,\n"
             "the getting started guide and the architecture overview live in the main\n"
             f"repository: {HUB}\n\n"
-            "This repository was split out of that one; its history is preserved.\n",
+            "This repository was split out of that one; its history is preserved.\n"
+            f"{carried_over}",
             encoding="utf-8",
         )
     return 0
