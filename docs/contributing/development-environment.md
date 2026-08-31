@@ -12,6 +12,39 @@ Hence, first follow the instructions found in
 Once you have followed those instructions, you can set up your development
 environment by following these additional steps.
 
+## Get the Component Repositories
+
+Artie's components live in separate repositories. Artie Tool locates each of them through
+a workspace, so you do not clone them by hand or arrange them in any particular way:
+
+```bash
+pip install artietool
+artie-tool workspace sync      # clones every component into ~/artie-workspace
+artie-tool workspace status    # shows where each one resolved to, and its state
+```
+
+To work on a component you already have a checkout of, point the workspace at it. Artie
+Tool then builds from your checkout and **never** clones over it, fetches it, or otherwise
+touches it - so `workspace sync` cannot destroy work in progress:
+
+```yaml
+# ~/.artie/config.yaml
+workspace: ~/artie-workspace
+repos:
+  ardk:    { path: ~/repos/ArDK }
+  artie00: { path: ~/repos/Artie00 }
+```
+
+The same settings can come from `ARTIE_WORKSPACE` and `ARTIE_REPO_<NAME>` environment
+variables, or from `--workspace` and `--repo <name>=<path>` on the command line. Command
+line arguments beat environment variables, which beat the config file, which beats the
+built-in defaults.
+
+Each component owns the definitions of the tasks that build and test it, in its own
+`.artie/tasks/` directory, and declares its own version in a `VERSION` file at its root.
+See [versioning and releases](./versioning.md) for how those versions are combined into a
+release.
+
 ## Set Up a Local Docker Registry
 
 If you develop software for Artie, you will need to build Docker images and push them to a Docker registry
