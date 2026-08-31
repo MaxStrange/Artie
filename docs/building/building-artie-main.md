@@ -12,7 +12,7 @@ You will need the following items:
 * Electrical and mechanical components - some parts can't be fabricated on your own; in particular motors, sensors,
   microcontrollers, single board computers, etc. You can find a list of all the required components in the
   bill of materials document for the Artie you are building. If you are building Artie00,
-  [that can be found here](../../artie00/bom.md).
+  [that can be found here](https://github.com/ArtieBots/Artie00/blob/main/bom.md).
 * Soldering equipment - you are going to have to get your hands dirty to put the circuit boards together.
 
 ### Setting up your Development Computer
@@ -56,10 +56,10 @@ If you are running Linux, I personally do the following:
 
 ### Install Artie Workbench on Your Development Machine
 
-Change directory to the 'framework/workbench' directory of this repo and run `pip install .`.
+Run `pip install artieworkbench`, or clone https://github.com/ArtieBots/ArtieWorkbench and run `pip install .` in it.
 You should now be able to run Artie Workbench from anywhere by running `artie-workbench`.
-(TODO: This is not currently true; right now you have to run it from the framework/workbench directory
-with `python -m workbench.workbench`).
+(TODO: Artie Workbench is not published to PyPI yet, so for now clone the repository and
+install from it.)
 
 ## Get the circuit boards
 

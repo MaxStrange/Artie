@@ -62,73 +62,46 @@ just good software engineering principles):
   - Charts: Helm charts for deploying Artie software
   - Simulator: simulated environment and simulated Artie for training and testing
 
-## File Structure
+## Where the code lives
 
-The repository is organized into the following main directories:
+Artie is split across several repositories. Each owns its own source, its own task
+definitions, its own version, and its contributor guide.
 
-**Meta Directories**
+| Repository | Contains | Contributor guide |
+|---|---|---|
+| **Artie** (this one) | Documentation, architecture, the getting started guide | this file |
+| [ArDK](https://github.com/ArtieBots/ArDK) | `libraries/` - `artie-util` (logging and common code), `artie-i2c`, `artie-gpio`, `artie-can` (CAN bus, C and Python), `artie-service-client` (service discovery, retries, timeouts for in-cluster applications), `artie-tooling` (shared by Artie Tool, Workbench and CLI)<br>`services/` - API server, pub/sub broker, service broker, telemetry<br>`base-image/`, `firmware/libraries/`, `deploy/artie-base/` | [library contributions](https://github.com/ArtieBots/ArDK/blob/main/docs/contributing/library-contributions.md) |
+| [ArtieTool](https://github.com/ArtieBots/ArtieTool) | The build system, test harness and deployment tool | [Artie Tool contributions](https://github.com/ArtieBots/ArtieTool/blob/main/docs/contributing/artie-tool-contributions.md), [charts](https://github.com/ArtieBots/ArtieTool/blob/main/docs/contributing/chart-contributions.md), [release process](https://github.com/ArtieBots/ArtieTool/blob/main/docs/contributing/release-process.md) |
+| [ArtieWorkbench](https://github.com/ArtieBots/ArtieWorkbench) | The graphical application | [Workbench contributions](https://github.com/ArtieBots/ArtieWorkbench/blob/main/docs/contributing/artie-workbench-contributions.md) |
+| [ArtieCLI](https://github.com/ArtieBots/ArtieCLI) | The command line interface to a running Artie | [CLI contributions](https://github.com/ArtieBots/ArtieCLI/blob/main/docs/contributing/artie-cli-contributions.md) |
+| [ArtieDaemons](https://github.com/ArtieBots/ArtieDaemons) | k3s host daemons for the admin and compute nodes | - |
+| [Artie00](https://github.com/ArtieBots/Artie00) | One specific robot: hardware manifest, BOM, `firmware/`, `drivers/`, `electrical-schematics/`, `deploy/artie00/` | [firmware](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md), [drivers](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md), [electronics](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md), [mechanical](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/mechanical-design.md) |
 
-These directories contain meta-information about the project.
+The single board computers' Yocto images live in
+[artie-controller-node](https://github.com/MaxStrange/artie-controller-node), which Artie
+Tool clones when building them.
 
-* `.circleci/`: CircleCI configuration files for automated testing and building.
-* `build-artifacts/`: Artifacts generated during the build process.
-* `docs/`: Documentation.
-
-**Infrastructure and Common Software Component Directories**
-
-These directories contain infrastructure-related code and configurations.
-
-* `framework/`: Core framework code for Artie.
-    * `ardk/`: Artie Development Kit (ArDK) code and related resources.
-        * `base-image/`: Docker images used in building various Artie components.
-        * `firmware/`: Bootloader and libraries that can be used by various Artie MCUs.
-        * `libraries/`: Common libraries used by more than one element of Artie.
-            * `artie-can/`: Application-level (SBC) library and FW library for interacting with the CAN bus.
-            * `artie-gpio/`: Application-level (SBC) library for interacting with GPIO pins.
-            * `artie-i2c/`: Application-level (SBC) library for interfacing with the I2C bus.
-            * `artie-service-client/`: All applications running in Docker containers inside the K3S cluster
-              should include this library. It provides means to discover other services, handle retries,
-              and handle timeouts when calling other microservices.
-            * `artie-tooling/`: Library common to tooling components, such as Artie Tool, Artie Workbench,
-              and Artie CLI. Note the distinction between this library and `artie-util`, which is for
-              actual Artie software, not for Artie tools.
-            * `artie-util/`: Non-specific software common to Artie application components, such as logging.
-        * `services/`: Microservices that are expected to be found in all Artie deployments.
-            * `artie-api-server/`: Code and Dockerfile for Artie API server, which currently serves as the single input/output
-              gateway for the Artie Kubernetes cluster.
-            * `artie-pubsub-broker/`: Code and Dockerfile for the Pub/Sub messaging broker.
-            * `artie-service-broker/`: Code and Dockerfile for the service broker.
-            * `telemetry/`: Code and Dockerfiles for the telemetry microservices.
-    * `artietool/`: Artie Tool code and related resources.
-      See the [Artie Tool contributing guide](./docs/contributing/artie-tool-contributions.md) for more information.
-    * `cli/`: Artie CLI code and related resources.
-      See the [Artie CLI contributing guide](./docs/contributing/artie-cli-contributions.md) for more information.
-    * `daemons/`: Daemons that run as part of the Kubernetes cluster, but do not run on Artie SBCs.
-    * `workbench/`: Code for Artie Workbench.
-
-**Artie Proper**
-
-These directories contain items corresponding to actual Artie bots.
-
-* `artie00/`: Contains items that are specific to only Artie00, an Artie type that simulates a newborn infant.
+Artie Tool builds across all of these at once. `artie-tool workspace sync` fetches them,
+and `artie-tool workspace status` shows where each one currently resolves to. See
+[setting up a development environment](./docs/contributing/development-environment.md).
 
 ## Contribution Guide
 
 Please read the following documents for more information on contributing:
 
-1. [Release process](./docs/contributing/release-process.md)
+1. [Release process](https://github.com/ArtieBots/ArtieTool/blob/main/docs/contributing/release-process.md)
 1. [Versioning and releases](./docs/contributing/versioning.md)
 1. [Pull request process](./docs/contributing/pull-request-process.md)
 1. [Overall architecture](./docs/contributing/overall-architecture.md)
 1. [Setting up a development environment](./docs/contributing/development-environment.md)
-1. [Electronic design contributions](./docs/contributing/electronic-design.md)
-1. [Mechanical design contributions](./docs/contributing/mechanical-design.md)
-1. [Firmware contributions](./docs/contributing/firmware-contributions.md)
+1. [Electronic design contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md)
+1. [Mechanical design contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/mechanical-design.md)
+1. [Firmware contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md)
 1. [Yocto image contributions](./docs/contributing/yocto-image-contributions.md)
-1. [Driver contributions](./docs/contributing/driver-contributions.md)
-1. [Library contributions](./docs/contributing/library-contributions.md)
-1. [Artie CLI contributions](./docs/contributing/artie-cli-contributions.md)
-1. [Artie Tool contributions](./docs/contributing/artie-tool-contributions.md)
-1. [Artie Workbench contributions](./docs/contributing/artie-workbench-contributions.md)
-1. [Chart contributions](./docs/contributing/chart-contributions.md)
+1. [Driver contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md)
+1. [Library contributions](https://github.com/ArtieBots/ArDK/blob/main/docs/contributing/library-contributions.md)
+1. [Artie CLI contributions](https://github.com/ArtieBots/ArtieCLI/blob/main/docs/contributing/artie-cli-contributions.md)
+1. [Artie Tool contributions](https://github.com/ArtieBots/ArtieTool/blob/main/docs/contributing/artie-tool-contributions.md)
+1. [Artie Workbench contributions](https://github.com/ArtieBots/ArtieWorkbench/blob/main/docs/contributing/artie-workbench-contributions.md)
+1. [Chart contributions](https://github.com/ArtieBots/ArtieTool/blob/main/docs/contributing/chart-contributions.md)
 1. [Simulator contributions](./docs/contributing/simulator-contributions.md)

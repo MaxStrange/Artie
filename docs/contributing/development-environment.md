@@ -1,6 +1,6 @@
 # Setting up a Development Environment
 
-[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](./electronic-design.md)
+[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md)
 
 This document provides instructions for setting up a development environment for contributing to the Artie project.
 These instructions closely mirror those used by an end-user to set up and administer an Artie, but with
@@ -101,7 +101,7 @@ Anyway, you will want to make sure you do the following on your *development mac
 
 Once the local Docker registry is set up, you can build all the images and firmware with Artie Tool:
 
-`python artie-tool.py build all -e --docker-repo <example:5000> --docker-logs --insecure -o artie-tool-log.txt`
+`artie-tool build all -e --docker-repo <example:5000> --docker-logs --insecure -o artie-tool-log.txt`
 
 This command will invoke the `build` subcommand of Artie Tool with `all` as its target. Artie Tool has several
 different subcommands:
@@ -134,11 +134,11 @@ The overarching flow of Artie Tool is this:
 ### Artie Tool: Build
 
 The `build` subcommand of Artie Tool allows you to build various components of Artie. Try running
-`python artie-tool.py build --help` to see all the options, including the available targets.
+`artie-tool build --help` to see all the options, including the available targets.
 
 The targets are populated by the build tasks defined in the `.artie/tasks/build-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/TASKS.md#build) for more information on how to
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#build) for more information on how to
 define new build tasks.
 
 Of note:
@@ -163,7 +163,7 @@ The `test` subcommand of Artie Tool automates tests.
 
 The targets are populated by the test tasks defined in the `.artie/tasks/test-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/TASKS.md#test) for more information on how
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#test) for more information on how
 to define new test tasks.
 
 Of note:
@@ -197,7 +197,7 @@ is the program Etcher.
 
 The targets are populated by the flash tasks defined in the `.artie/tasks/flash-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/TASKS.md#flash) for more information on how
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#flash) for more information on how
 to define new test tasks.
 
 ### Artie Tool: Install
@@ -208,7 +208,7 @@ Each Artie instance is managed by an Artie Profile - a JSON file stored to the u
 hard drive. This JSON file is managed entirely by Artie Tool and Artie Workbench and in practice,
 a user/developer should never need to know it even exists or where to find it. The stuff
 it contains and the Python code managing it can be found in
-`framework/ardk/libraries/artie-tooling/src/artie_tooling/artie_profile.py`
+`libraries/artie-tooling/src/artie_tooling/artie_profile.py` in [ArDK](https://github.com/ArtieBots/ArDK)
 
 Installing an Artie is easily done through the Workbench application, and end users and developers
 alike should use that route whenever possible.
@@ -224,7 +224,7 @@ Artie.
 
 The targets are populated by the deploy tasks defined in the `.artie/tasks/deploy-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/TASKS.md#deploy) for more information on how
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#deploy) for more information on how
 to define new test tasks.
 
 ### Artie Tool: Status
@@ -240,4 +240,4 @@ The `get` subcommand of Artie Tool is useful mostly programatically.
 
 The `clean` subcommand of Artie Tool cleans up all the build artifacts.
 
-[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](./electronic-design.md)
+[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md)

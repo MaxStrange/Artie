@@ -1,6 +1,6 @@
 # Yocto Image Contribution Guide
 
-[Back to Firmware Contributions](./firmware-contributions.md) | [Forward to Driver Contributions](./driver-contributions.md)
+[Back to Firmware Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md) | [Forward to Driver Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md)
 
 This document provides guidelines and best practices for contributing (to) Yocto images (to) the Artie project.
 
@@ -46,11 +46,11 @@ Next, ensure you install all the required software packages:
 
 Finally, you can run Artie Tool:
 
-`python artie-tool.py build yocto-controller-module -e --yocto-image artie-image-dev --repos-directoy <path to where you will put the artie-controller-node repo>`
+`artie-tool build yocto-controller-module -e --yocto-image artie-image-dev --repos-directoy <path to where you will put the artie-controller-node repo>`
 
 If something goes wrong with building and you need to rerun, make sure to add the `--skip-clone` arg. Otherwise
 it will error out, as it won't want to re-download the git repo.
 
 TODO: A general Yocto tutorial
 
-[Back to Firmware Contributions](./firmware-contributions.md) | [Forward to Driver Contributions](./driver-contributions.md)
+[Back to Firmware Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md) | [Forward to Driver Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md)

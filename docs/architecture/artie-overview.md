@@ -46,7 +46,7 @@ have direct connections to their single board computers. This is for latency/thr
 The next layer up is the bus layer. Artie makes use of a few different hardware buses, but the main ones are:
 
 * **CAN**: Almost all the SBCs and MCUs are on the CAN bus. We make use of several different protocols
-           on top of the CAN layer to ensure data delivery. See [the CAN protocol details](../specifications/CANProtocol.md)
+           on top of the CAN layer to ensure data delivery. See [the CAN protocol details](https://github.com/ArtieBots/ArDK/blob/main/docs/specifications/CANProtocol.md)
            for more details.
 * **I2C**: Some MCUs are peripherals on an I2C bus with the controller node SBC acting as controller.
            This is mostly due to legacy reasons, but is also for physical dimension constraint reasons as well.

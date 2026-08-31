@@ -1,9 +1,0 @@
-# Runtime dependencies for the controller node LED daemon.
-#
-# Unlike the other drivers, this one has no Dockerfile and no Artie Tool build task - it
-# runs directly on the controller node and is installed by the node's Yocto image. These
-# are its requirements when installed there.
-artie-util>=0.0.1
-
-# Direct GPIO access on the Raspberry Pi based controller node.
-RPi.GPIO

@@ -16,7 +16,7 @@ admind daemon (or use the latest release, once we have releases):
 
 * `sudo apt update`
 * `sudo apt install -y git curl dos2unix`
-* `git clone https://github.com/MaxStrange/Artie.git && cd Artie/framework/daemons/artie-admind`
+* `git clone https://github.com/ArtieBots/ArtieDaemons.git && cd ArtieDaemons/artie-admind`
 * `dos2unix ./install.sh && chmod +x ./install.sh`
 * `sudo ./install.sh`
 

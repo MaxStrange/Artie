@@ -1,7 +1,0 @@
-{
-    "artie_name": "unit-test-artie",
-    "api_server_info": {
-        "host": "artie-api-server",
-        "port": 8782
-    }
-}

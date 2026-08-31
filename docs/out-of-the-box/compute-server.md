@@ -18,7 +18,7 @@ computed daemon (or use the latest release, once we have releases):
 
 * `sudo apt update`
 * `sudo apt install -y git curl dos2unix`
-* `git clone https://github.com/MaxStrange/Artie.git && cd Artie/framework/daemons/artie-computed`
+* `git clone https://github.com/ArtieBots/ArtieDaemons.git && cd ArtieDaemons/artie-computed`
 * `dos2unix ./install.sh && chmod +x ./install.sh`
 
 At this point, you will need a few things:

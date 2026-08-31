@@ -128,13 +128,6 @@ dmypy.json
 .vscode/
 
 # Build
-firmware/eyebrows/src/build/
-framework/cli/build/
-# setuptools/CMake build trees. Any ardk library produces one of these from a
-# `pip wheel` / `setup.py build`, not just artie-can.
-framework/ardk/libraries/*/build/
-# Output of `python build_ffi.py`, the standalone build of the artie-can Python bindings
-framework/ardk/libraries/artie-can/build-python/
 *.elf
 *.uf2
 *.hex

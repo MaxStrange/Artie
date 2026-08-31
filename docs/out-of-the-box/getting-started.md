@@ -61,8 +61,8 @@ To remove an Artie from your cluster, you can use Artie Workbench:
 
 To do it by means of Artie Tool, run the following commands instead:
 
-1. `python artie-tool.py deploy base --delete`
-1. `python artie-tool.py uninstall --artie-name <Your Artie's name>`
+1. `artie-tool deploy base --delete`
+1. `artie-tool uninstall --artie-name <Your Artie's name>`
 
 ## Changing the Version of Artie Images
 
@@ -70,5 +70,5 @@ Updating images in your Artie deployment is straightforward in Artie Workbench.
 
 To update the images used in your Artie deployment using Artie Tool, you can run:
 
-1. `python artie-tool.py deploy base --delete`
-1. `python artie-tool.py deploy base --chart-version <tag> [--deployment-repo <repo>]`
+1. `artie-tool deploy base --delete`
+1. `artie-tool deploy base --chart-version <tag> [--deployment-repo <repo>]`

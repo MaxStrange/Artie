@@ -12,8 +12,10 @@ data storage, and telemetry databases, are hosted on the admin server or additio
 This design ensures that Artie's onboard resources are dedicated to real-time processing and control tasks,
 while the admin server handles the overhead associated with managing the cluster and running non-real-time services.
 
-TODO: Add this diagram
-![Kubernetes Architecture Diagram](../assets/K8sArch.png "Artie Kubernetes Architecture")
+TODO: Add this diagram. The image below does not exist yet, so it is commented out
+rather than left to render as a broken link.
+
+<!-- ![Kubernetes Architecture Diagram](../assets/K8sArch.png "Artie Kubernetes Architecture") -->
 
 The Kubernetes architecture consists of the following hardware components:
 
