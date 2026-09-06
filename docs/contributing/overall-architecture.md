@@ -26,4 +26,10 @@ Here are a few links to architectural discussions:
 TODO: Look into ElasticSearch for logging data.
 TODO: Look into PostgreSQL for logging debug logs.
 
+---
+
+## Versioning
+
+For details on how the components are versioned and how releases are managed, see the [Versioning and Releases guide](./versioning.md).
+
 [Back to Pull Request Process](./pull-request-process.md) | [Forward to Development Environment](./development-environment.md)
