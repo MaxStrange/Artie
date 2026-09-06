@@ -14,7 +14,7 @@ environment by following these additional steps.
 
 ## Get the Component Repositories
 
-Artie's components live in separate repositories. Artie Tool locates each of them through
+The Artie Project's components live in separate repositories. Artie Tool locates each of them through
 a workspace, so you do not clone them by hand or arrange them in any particular way:
 
 ```bash
@@ -47,7 +47,7 @@ release.
 
 ## Set Up a Local Docker Registry
 
-If you develop software for Artie, you will need to build Docker images and push them to a Docker registry
+If you develop software for the Artie Project, you will need to build Docker images and push them to a Docker registry
 with astonishing size and frequency. Using something like DockerHub is not typically feasible for fast iteration,
 as you will hit rate limiting unless you are paying for a plan.
 
@@ -59,7 +59,8 @@ If you cannot be sure there is no man in the middle, then you should follow one 
 or official guides out there for setting up a Docker registry.
 
 If however, you are on your own local network in your own home, you can probably get away with going
-the insecure route. *To be clear, this is insecure*. Don't do it if you cannot guarantee the security of your network.
+the insecure route. *To be clear, this is insecure*. Don't do it if you cannot guarantee the security of your network:
+a man in the middle can deliver an arbitrary Docker container to your computer, which you then might trust and run.
 
 To do it, follow these steps:
 
@@ -214,7 +215,7 @@ Of note:
       message is logged.
     - Hardware Tests: These tests assume a running Artie K3S cluster and create a Kubernetes job. It's
       been a while since I've run one of these... so I don't remember how they work exactly. See the
-      module documentation in `hardware_test_job.py` for some explanation.
+      module documentation in `hardware_test_job.py` for some explanation. (TODO)
 * Tests should be designed to allow as much parallelization between different tests as possible
   and so that failing one test does not cause downstream failures that are hard to understand.
 
@@ -224,7 +225,7 @@ The `flash` subcommand of Artie Tool allows a developer to flash FW images onto 
 (this is useful for development, but in a real Artie, the FW images are flashed to the MCUs
 by means of CAN bus from Docker containers deployed to the cluster). It also allows a developer
 to flash an SD card with a Yocto image - this is useful in development mostly, as the Yocto images
-are equipped with an over-the-air update mechanism, however, the end user will need to flash
+are equipped with an over-the-air update mechanism (TODO: At least, they will be), however, the end user will need to flash
 the images at least once manually, and they could use this tool to do so. Another good option
 is the program Etcher.
 
@@ -237,7 +238,7 @@ to define new test tasks.
 
 The `install` subcommand of Artie Tool allows a developer to install a new Artie.
 
-Each Artie instance is managed by an Artie Profile - a JSON file stored to the user's/developer's
+Each robot instance is managed by an Artie Profile - a JSON file stored to the user's/developer's
 hard drive. This JSON file is managed entirely by Artie Tool and Artie Workbench and in practice,
 a user/developer should never need to know it even exists or where to find it. The stuff
 it contains and the Python code managing it can be found in

@@ -4,8 +4,9 @@ Artie's components live in separate repositories and version independently. This
 describes how a version is decided, how images get tagged, and how a deployment pins a
 combination that is known to work.
 
-## Components version independently
+## Components
 
+Components version independently.
 Each component declares its own version in a `VERSION` file at its repository root:
 
 | Component | Repository |
@@ -24,10 +25,9 @@ Artie Tool resolves a component's version in this order:
 3. an exact git tag on `HEAD`, with a leading `v` stripped
 4. the short git hash - what a development build gets
 
-A fix in ArDK bumps ArDK and nothing else. That is the point of the split: a component
-should be releasable without dragging every other component's version along with it.
+For example, a fix in ArDK bumps ArDK and nothing else.
 
-## Images carry the version of the component that built them
+## Images
 
 An image is tagged with the version of the component it came from, not with a single
 number for the whole build:
@@ -42,9 +42,9 @@ artie-eyebrow-driver:0.1.0  # from Artie00
 `--docker-tag` overrides this and stamps every image in one run with the same tag. That
 is for CI and one-off development builds, not for releases.
 
-## A release manifest says which versions go together
+## Release Manifests
 
-Because no single number describes an Artie any more, a **release manifest** records one
+Because no single number describes an Artie, a **release manifest** records one
 combination of component versions, the commit each was built from, and the image tags that
 combination produces:
 
@@ -70,11 +70,11 @@ images:
   # ...
 ```
 
-This is the artefact to cite in a paper, to attach to an experiment's data, and to hand
+This is the artifact to cite in a paper, to attach to an experiment's data, and to hand
 someone who needs to reproduce a result. The `components` section says what the software
 was; the `images` section is what a deployment actually pulls.
 
-### Generating one
+### Generating
 
 Build and test a workspace, then record what you just verified:
 
@@ -87,7 +87,7 @@ artie-tool release manifest --release 2026.3 --manifest-out artie-release.yaml
 Artie Tool warns if a component's checkout is dirty, because then the recorded commit does
 not describe what was actually built.
 
-### Using one
+### Using
 
 Pass it to any command. Every component is pinned to the version the manifest names,
 regardless of what the checkouts say:
@@ -118,7 +118,7 @@ you do not normally edit it.
 ## Choosing a version number
 
 Use semantic versioning. The interesting question for Artie is what counts as a breaking
-change, and it differs per component:
+change, and it differs per component (this list is non-exhaustive):
 
 - **ArDK** - the library APIs and the wire protocols. A change to the CAN protocol, the
   RPC schema, or a library's public interface is breaking. The base image's contents are
@@ -130,6 +130,4 @@ change, and it differs per component:
   hardware revisions are the usual reason to bump it.
 
 When components must change together - a protocol change in ArDK that drivers in Artie00
-have to follow - release them together and record the pair in a manifest. The manifest is
-what makes "these two go together" explicit, rather than hoping matching version numbers
-imply it.
+have to follow - release them together and record the pair in a manifest.
