@@ -1,5 +1,7 @@
 # Versioning and Releases
 
+[Back to Pull Request Process](./pull-request-process.md) | [Forward to Overall Architecture](./overall-architecture.md)
+
 Artie's components live in separate repositories and version independently. This document
 describes how a version is decided, how images get tagged, and how a deployment pins a
 combination that is known to work.
@@ -131,3 +133,5 @@ change, and it differs per component (this list is non-exhaustive):
 
 When components must change together - a protocol change in ArDK that drivers in Artie00
 have to follow - release them together and record the pair in a manifest.
+
+[Back to Pull Request Process](./pull-request-process.md) | [Forward to Overall Architecture](./overall-architecture.md)

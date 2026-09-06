@@ -1,16 +1,23 @@
 # Contributing
 
 Thank you for your interest in contributing to the Artie project!
-We welcome contributions to help improve and expand the capabilities of Artie,
+We welcome contributions to help improve and expand the capabilities of Artie Framework,
 so long as they align with the project's vision (or especially if they fix bugs :D)
 
 ## Vision
 
-So what is the vision? Artie aims to be a fully open source, 3D-printable robot that is as affordable as possible,
-while still being easy to use and extend. Artie's main purpose is for data collection and testing developmental robotics theories,
+So what is the vision?
+
+**Artie Framework** seeks to be a reliable and easy-to-use robotics platform for citizen scientists and professional
+researchers alike, particularly for the field of developmental robotics.
+
+**Artie00** seeks to be a fully open source, 3D-printable robot that is as affordable as possible,
+while still being easy to use and extend. The 00 means this is the very first version of Artie,
+and it represents a human infant that is 0 months old. Future Arties might be Artie03 (3-month old), Artie06 (6-month old),
+etc. Each Artie's main purpose is for data collection and testing developmental robotics theories,
 but a side effect of this is that Artie can also be used for education and hobbyist robotics.
 
-The so-called "north star" of Artie is that it would ultimately be indistinguishable from a human infant in terms
+The so-called "north star" is that one day we will build a robot that is indistinguishable from a human infant in terms
 of its learning and development. There is obviously a long way to go before we reach that point, but every contribution
 that helps us get closer to that goal is welcome!
 
@@ -23,28 +30,42 @@ with links to the original research papers. If Artie replicates these results, h
 
 Of course, we also have more traditional software and hardware requirements for Artie, which are documented TODO.
 
+## Contribution Philosophy
+
+Broadly, there are a few classes of contributions:
+
+* **Bug fixing:** always welcome! If you have a bug that you would like to fix (or if you just have a bug),
+  please open an issue on the appropriate repository, put your repro steps, symptoms, and (if you know one) cause
+  in the issue.
+* **Artie Framework Extension:** If you want to extend Artie Framework in a way that you think would be helpful,
+  please open an issue and discuss with repo owners before pouring your heart and soul into a code change that
+  we might not accept. Open the issue in this repo if you are unsure of exactly where the code would land
+  or if it would span more than one repo, otherwise open the issue on the repo where the code would land.
+* **Research Contributions:** If you would like to contribute to the research (and get your name on a publication),
+  see the [Research Roadmap](https://github.com/ArtieBots/Artie/blob/main/docs/contributing/research-roadmap.md)
+
 ## Overall Design Considerations
 
-When contributing to Artie, please keep the following design considerations in mind (these are mostly
+When contributing to the Artie Project, please keep the following design considerations in mind (these are mostly
 just good software engineering principles):
 
-- **Affordability**: Strive to keep costs low to make Artie accessible to a wider audience.
-- **Modularity**: Design components to be easily replaceable and upgradable. Each layer of Artie's architecture
+- **Affordability**: Strive to keep costs low to make Artie robots accessible to a wider audience.
+- **Modularity**: Design components to be easily replaceable and upgradable. Each layer of architecture
   should know as little about the layers above and below it as possible. That is, interfaces should be well-defined and
   decoupled. It is hard to know ahead of time what capabilities a future Artie might need, so modularity is key.
 - **Extensibility**: Ensure that new features and functionalities can be added without major overhauls to the existing system.
 - **Usability**: Prioritize ease of use for both developers and end-users. Clear documentation is important.
-- **Open Source**: The licensing model for Artie is MIT for software, except for Workbench, which requires LGPLv3 due to
+- **Open Source**: The licensing model for the Artie Project is MIT for software, except for Workbench, which requires LGPLv3 due to
   its use of Qt. Any contributions must be compatible with these licenses. Hardware is licensed under CERN-OHL-P. Yocto
   images are licensed as Linux images, with all kinds of licenses for different components,
   see the [Yocto documentation](https://docs.yoctoproject.org/next/overview-manual/development-environment.html#licensing) for details.
 
 **Important concepts:**
 
-* All Artie software components, especially infrastructure and tooling, are designed to support
+* All Artie Framework software components, especially infrastructure and tooling, are designed to support
   multiple Artie robot *instances* of potentially different *types* running in parallel.
   For example, the Artie Tool and Artie Workbench should be able to
-  manage multiple Arties (which may not have the same hardware or software configurations) at once
+  manage multiple robots (which may not have the same hardware or software configurations) at once
   (typically by allowing the user to switch between them or choose which one to interact with).
 * The Artie ecosystem is composed of multiple layers, each with its own responsibilities and interfaces.
   This guide will discuss each of these layers in detail.
@@ -60,7 +81,7 @@ just good software engineering principles):
   - Artie Tool: tool for flashing, testing, building, releasing, etc.
   - Artie Workbench: desktop graphical user interface for controlling and configuring Arties
   - Charts: Helm charts for deploying Artie software
-  - Simulator: simulated environment and simulated Artie for training and testing
+  - Simulator: (doesn't exist yet) simulated environment and simulated Artie for training and testing
 
 ## Where the code lives
 
