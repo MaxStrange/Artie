@@ -1,13 +1,12 @@
 # Building Artie
 
-This guide shows you how to build a physical Artie from scratch.
+This guide shows you how to build a physical Artie robot from scratch.
 
 ## Prerequisites
 
 You will need the following items:
 
 * A development computer - the computer can be running any OS that supports git, Docker, and Helm/Kubectl.
-* This repository - this repo contains all the code and instructions
 * A 3D printer - as many of the parts as possible are 3D-printable using a small-volume, budget 3D printer
 * Electrical and mechanical components - some parts can't be fabricated on your own; in particular motors, sensors,
   microcontrollers, single board computers, etc. You can find a list of all the required components in the

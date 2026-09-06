@@ -24,7 +24,7 @@ artie-tool workspace status    # shows where each one resolved to, and its state
 ```
 
 To work on a component you already have a checkout of, point the workspace at it. Artie
-Tool then builds from your checkout and **never** clones over it, fetches it, or otherwise
+Tool then builds from your checkout and never clones over it, fetches it, or otherwise
 touches it - so `workspace sync` cannot destroy work in progress:
 
 ```yaml
