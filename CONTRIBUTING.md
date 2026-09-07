@@ -96,7 +96,7 @@ definitions, its own version, and its contributor guide.
 | [ArtieWorkbench](https://github.com/ArtieBots/ArtieWorkbench) | The graphical application | [Workbench contributions](https://github.com/ArtieBots/ArtieWorkbench/blob/main/docs/contributing/artie-workbench-contributions.md) |
 | [ArtieCLI](https://github.com/ArtieBots/ArtieCLI) | The command line interface to a running Artie | [CLI contributions](https://github.com/ArtieBots/ArtieCLI/blob/main/docs/contributing/artie-cli-contributions.md) |
 | [ArtieDaemons](https://github.com/ArtieBots/ArtieDaemons) | k3s host daemons for the admin and compute nodes | - |
-| [Artie00](https://github.com/ArtieBots/Artie00) | One specific robot: hardware manifest, BOM, `firmware/`, `drivers/`, `electrical-schematics/`, `deploy/artie00/` | [firmware](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md), [drivers](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md), [electronics](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md), [mechanical](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/mechanical-design.md) |
+| [Artie00](https://github.com/ArtieBots/Artie00) | One specific robot: hardware manifest, BOM, `firmware/`, `drivers/`, `electrical-schematics/`, `deploy/artie00/` | [firmware](https://github.com/ArtieBots/Artie/blob/main/docs/contributing/firmware-contributions.md), [drivers](https://github.com/ArtieBots/Artie/blob/main/docs/contributing/driver-contributions.md), [electronics](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md), [mechanical](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/mechanical-design.md) |
 
 The single board computers' Yocto images live in
 [artie-controller-node](https://github.com/MaxStrange/artie-controller-node), which Artie
@@ -117,9 +117,9 @@ Please read the following documents for more information on contributing:
 1. [Setting up a development environment](./docs/contributing/development-environment.md)
 1. [Electronic design contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md)
 1. [Mechanical design contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/mechanical-design.md)
-1. [Firmware contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md)
+1. [Firmware contributions](./docs/contributing/firmware-contributions.md)
 1. [Yocto image contributions](./docs/contributing/yocto-image-contributions.md)
-1. [Driver contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md)
+1. [Driver contributions](./docs/contributing/driver-contributions.md)
 1. [Library contributions](https://github.com/ArtieBots/ArDK/blob/main/docs/contributing/library-contributions.md)
 1. [Artie CLI contributions](https://github.com/ArtieBots/ArtieCLI/blob/main/docs/contributing/artie-cli-contributions.md)
 1. [Artie Tool contributions](https://github.com/ArtieBots/ArtieTool/blob/main/docs/contributing/artie-tool-contributions.md)

@@ -1,6 +1,6 @@
 # Yocto Image Contribution Guide
 
-[Back to Firmware Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md) | [Forward to Driver Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md)
+[Back to Firmware Contributions](./firmware-contributions.md) | [Forward to Driver Contributions](./driver-contributions.md)
 
 This document provides guidelines and best practices for contributing (to) Yocto images (to) the Artie project.
 
@@ -53,4 +53,4 @@ it will error out, as it won't want to re-download the git repo.
 
 TODO: A general Yocto tutorial
 
-[Back to Firmware Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/firmware-contributions.md) | [Forward to Driver Contributions](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/driver-contributions.md)
+[Back to Firmware Contributions](./firmware-contributions.md) | [Forward to Driver Contributions](./driver-contributions.md)
