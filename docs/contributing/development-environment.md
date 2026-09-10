@@ -142,7 +142,7 @@ different subcommands:
 
 * [**build**](#artie-tool-build): Build Docker images, Yocto images,
   or firmware and output the build artifacts into the build-artifacts directory.
-* [**release**](#artie-tool-release): Create an official release. This is not yet implemented and might get removed.
+* [**release**](#artie-tool-release): Record a release manifest - the exact combination of component versions and commits that were built and tested together - and build and push the images for a release.
 * [**test**](#artie-tool-test): Run sanity tests, unit tests, integration tests, and hardware tests.
 * [**flash**](#artie-tool-flash): Flash FW onto an MCU directly or a Yocto image onto an SD card.
 * [**install**](#artie-tool-install): Install an Artie (typically it is a better experience to use Workbench for this task).
@@ -188,8 +188,16 @@ Of note:
 
 ### Artie Tool: Release
 
-The `release` subcommand of Artie Tool automates the process of packaging up a release. At least that's the idea,
-but it will likely be removed in the future.
+The `release` subcommand has two jobs:
+
+* `artie-tool release manifest` records a **release manifest**: one combination of component
+  versions, the commit each was built from, and the image tags that combination produces.
+  Generate one from a workspace you have just built and tested, then hand it back to any
+  command with `--release-file` to pin every component to exactly that combination. This is
+  the artifact to cite in a paper or attach to an experiment's data. See
+  [versioning and releases](./versioning.md) for the full workflow.
+* `artie-tool release build` checks out a branch and then builds and pushes every image for
+  a release.
 
 ### Artie Tool: Test
 
