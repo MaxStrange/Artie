@@ -66,7 +66,11 @@ To do it, follow these steps:
 
 1. Procure a Raspberry Pi or similar.
 1. Procure a big ol' SSD.
-1. Mount the SSD permenantly (e.g., `lsblk` then edit `/etc/fstab` with the information).
+1. Mount the SSD permenantly. Do **not** just let your desktop environment automount it under
+   `/media/<user>/<label>` - that path only appears once you log in, which means it is *not* mounted
+   at boot when the registry container starts. See
+   [Registry storage and /etc/fstab](#registry-storage-and-etcfstab) below for how to do this properly;
+   getting it wrong silently fills up your root partition.
 1. Make a directory: `mkdir docker-registry`
 1. Change into that directory: `cd docker-registry`
 1. `mkdir certs`
@@ -115,14 +119,17 @@ To do it, follow these steps:
       -e REGISTRY_HTTP_ADDR=0.0.0.0:5000 \
       -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
       -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
-      -v <path you mounted the drive on the machine>:/var/lib/registry \
+      -v /mnt/artie-registry:/var/lib/registry \
       -v <path to this directory>/config.yml:/etc/docker/registry/config.yml \
       -v <path to this directory>/certs:/certs \
       registry:3
     ```
 1. Make the script executable and run it: `chmod +x ./run-docker-registry.sh`, then `./run-docker-registry.sh`.
 
-I think that's good enough to cause Docker to start the registry every time the machine boots up, but I don't remember.
+The `--restart=always` flag is what causes Docker to start the registry again every time the machine
+boots up. Be aware that this is a double-edged sword: the container will come back at boot *whether or
+not the SSD actually mounted*, and if it didn't mount, the registry will happily write blobs onto your
+root partition instead. See [Registry storage and /etc/fstab](#registry-storage-and-etcfstab).
 
 Anyway, you will want to make sure you do the following on your *development machine*:
 
@@ -130,6 +137,123 @@ Anyway, you will want to make sure you do the following on your *development mac
    e.g., `10.0.0.251  artiehub`
 1. Update your Docker config JSON with `"insecure-registries": ["artiehub:5000"]`
 1. Make sure to pass `--insecure` with any Artie Tool command that makes use of the Docker registry.
+
+### Registry storage and /etc/fstab
+
+The registry's blob storage is a bind mount from the SSD, so how you mount that SSD matters a great deal.
+The failure mode here is nasty because it is completely silent: if the SSD is not mounted when the registry
+container starts, the container writes into the bare mount point directory, which lives on the Pi's root
+partition. Everything looks fine - pushes succeed, pulls succeed - right up until the root partition hits
+100% and the machine falls over. Meanwhile `du` will not show you the culprit, because the SSD is now
+mounted on top of the data and masking it.
+
+Some rules to avoid this:
+
+* **Don't mount under `/media/<user>/`.** That is the desktop automounter's (udisks) territory, and those
+  mounts only happen after that user logs in - long after Docker has started. Use `/mnt` or `/srv` instead.
+  Having both an fstab entry and udisks pointed at the same path is also a good way to end up with a doubled
+  or unexpected mount.
+* **Keep `nofail`, but make Docker depend on the mount.** Without `nofail` a missing drive drops a headless
+  Pi into an emergency shell, which is worse than the disease. The fix is not to remove it, but to add an
+  explicit ordering dependency so the registry cannot start without its storage. USB storage enumeration on
+  a Pi is slow and variable, so a timeout alone will not save you.
+* **Use fsck pass `0` for exfat.** There is generally no `fsck.exfat` helper installed, so asking for a pass
+  produces boot-time warnings or failures.
+
+A good `/etc/fstab` line looks like this:
+
+```
+UUID=<your-uuid>  /mnt/artie-registry  exfat  defaults,noatime,nofail,x-systemd.device-timeout=30,uid=1000,gid=1000,umask=022  0  0
+```
+
+Get the UUID from `sudo blkid`. Then make Docker refuse to start unless that mount is live, via
+`sudo systemctl edit docker.service`:
+
+```ini
+[Unit]
+RequiresMountsFor=/mnt/artie-registry
+```
+
+Finally, belt and braces: make the bare mount point physically unwritable, so that even if something
+bypasses the dependency, the errant write fails loudly instead of quietly eating your root partition.
+
+```bash
+sudo umount /mnt/artie-registry 2>/dev/null
+sudo chattr +i /mnt/artie-registry   # immutable while unmounted; mounting over it still works fine
+sudo systemctl daemon-reload
+sudo mount -a
+sudo systemctl restart docker
+```
+
+One more consideration: **exfat is a mediocre choice for registry storage.** It has no POSIX permissions or
+ownership (which is why the `uid`/`gid`/`umask` options above are needed as a blunt global override), no
+symlinks or hardlinks, and no journaling, so it is more prone to corruption on the unclean shutdowns a Pi
+will eventually experience. If the SSD is dedicated to this machine and doesn't need to be readable on
+Windows or macOS, format it `ext4` and drop the `uid`/`gid`/`umask` options.
+
+### Troubleshooting: the registry Pi's root partition is full
+
+If `df -h` shows `/dev/root` at 100%, first find out whether the used space is actually *visible*:
+
+```bash
+sudo du -shx /* 2>/dev/null | sort -h
+```
+
+Note the `-x`, which stops `du` from wandering onto the SSD and other filesystems. Add up what it reports.
+If the total is far less than what `df` claims is used, the space is hidden, and there are really only two
+ways that happens:
+
+1. **Files hidden underneath a mount point.** This is the common one, and it means you've hit the problem
+   described above. To see the root filesystem with nothing mounted over it, bind mount it somewhere and
+   look again:
+
+    ```bash
+    sudo mount --bind / /mnt/rootfs
+    sudo du -shx /mnt/rootfs/* | sort -h
+    ```
+
+   If the SSD's mount point shows up as tens of GB through the bind mount, that's your answer. Before
+   deleting anything, confirm you are looking at the hidden copy and not your real registry data:
+   `findmnt /mnt/rootfs/<mountpoint>` should report nothing, and `df -h /mnt/rootfs/<mountpoint>` should
+   say `/dev/root` rather than the SSD's device. Delete through the bind mount, then `sudo umount /mnt/rootfs`
+   and fix the fstab entry so it can't happen again.
+
+   If the disk is so full you cannot even `mkdir /mnt/rootfs`, bind mount onto an existing empty directory
+   such as `/mnt` itself.
+
+   Scan the whole sorted list rather than just the SSD's mount point - anything mounted over a subdirectory
+   (say, `/var/lib/docker` pointed at the SSD) can mask data the same way, and `/tmp` and `/run` will show
+   whatever was written to the on-disk directories before their tmpfs mounts came up.
+
+1. **Deleted-but-still-open files.** A rotated or deleted log that a long-running process still holds open
+   keeps its blocks allocated until the process closes the handle.
+
+    ```bash
+    sudo lsof +L1 2>/dev/null | awk '{print $7, $NF}' | sort -rn | head -20
+    ```
+
+   Check the `DEVICE` column on anything large: `0,1` means anonymous memory (memfd) rather than a block
+   device, so those entries are living in RAM and are not your problem. Real offenders are released by
+   restarting the process holding them.
+
+Worth checking regardless of the above, since these accumulate on a busy registry host:
+
+```bash
+docker info | grep -i "Docker Root Dir"   # is this on the SSD or the root partition?
+docker system df -v                       # registry blobs, dangling images, build cache
+journalctl --disk-usage                   # then: sudo journalctl --vacuum-size=200M
+sudo du -shx /var/* | sort -h | tail
+```
+
+Remember that the registry config above sets `delete.enabled: true`, but deleting a manifest through the
+API only *marks* blobs as unreferenced. The space is not actually reclaimed until you run garbage
+collection:
+
+```bash
+docker exec registry bin/registry garbage-collect /etc/docker/registry/config.yml
+```
+
+Given how frequently Artie development pushes images, running that periodically is a good idea.
 
 ## Working with Artie Tool
 
