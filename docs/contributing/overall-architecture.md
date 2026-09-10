@@ -20,10 +20,16 @@ Here are a few links to architectural discussions:
 
 ### Low-Level
 
-* [CAN Protocols](../sdk/CANProtocol.md) - We overlay several protocols on top of CAN. This document describes them in detail.
-* [MsgPack Schema](../sdk/MsgPackSchema.md) - We use [MsgPack](https://msgpack.org/) for some of the serialization/deserialization.
+* [CAN Protocols](https://github.com/ArtieBots/ArDK/blob/main/docs/specifications/CANProtocol.md) - We overlay several protocols on top of CAN. This document describes them in detail.
+* [MsgPack Schema](https://github.com/ArtieBots/ArDK/blob/main/docs/specifications/MsgPackSchema.md) - We use [MsgPack](https://msgpack.org/) for some of the serialization/deserialization.
 
 TODO: Look into ElasticSearch for logging data.
 TODO: Look into PostgreSQL for logging debug logs.
+
+---
+
+## Versioning
+
+For details on how the components are versioned and how releases are managed, see the [Versioning and Releases guide](./versioning.md).
 
 [Back to Pull Request Process](./pull-request-process.md) | [Forward to Development Environment](./development-environment.md)

@@ -1,11 +1,11 @@
 # Security Design
 
-Since one of the main purposes of Artie is data collection during experimentation,
+Since one of the main purposes of Artie robots is data collection during experimentation,
 it makes sense to give some thought to how to protect the data that gets collected,
 especially as some of it may be personally-identifiable information (PII), such
 as voice, or images of faces.
 
-To this end, this document breaks down the security design of Artie.
+To this end, this document breaks down the security design of the Artie project.
 
 ## Where's the Money Lebowski?
 
@@ -15,30 +15,30 @@ security is necessary, after all.
 
 In our case, we can think of the following things that might be of value:
 
-* Physical Artie - the actual Artie robot. It represents a significant cost investment.
+* Physical robot. It represents a significant cost investment.
 * Data, which may be further subdivided:
     * Sensor Data:
-        * Personally-Identifiable Data (PII): Data such as images of people's faces, or
+        * Personally-Identifiable Information (PII): Data such as images of people's faces, or
           recordings of their voices. This information must be protected, if for no
           other reason than from an ethical standpoint.
         * Non-PII sensor data: Data like accelerometer values or temperature readings.
           This data probably does not represent much value for an attacker.
-        * Internal network traffic: Artie sends many commands and responses throughout
-          his system all the time, such as 'drive motor A to whatever degrees'.
+        * Internal network traffic: An Artie cluster sends many commands and responses throughout
+          the system all the time, such as 'drive motor A to whatever degrees'.
           This is valuable to an attacker only insofar as it can provide insights into
           how best to design an attack that produces value somewhere else or if it can
           provide insights into secret algorithms.
         * Experimental/secret algorithms: These are closed-source "secret sauce" algorithms.
-          I personally open-source all of my work, but Artie has an MIT license,
-          and people can use him to test out algorithms that are closed-source.
+          The Artie project has an MIT license,
+          and people can use it to test out algorithms that are closed-source.
           Some effort should be taken to protect this information.
 
 ## Security Boundaries
 
 ### Physical
 
-I take the view that if an attacker has somehow gained physical access to Artie,
-it is game over. It takes a lot of money and time to put together an Artie;
+We take the view that if an attacker has somehow gained physical access to your robot,
+it is game over. It takes a lot of money and time to put together an Artie robot;
 you should protect him.
 
 As such, there is no effort to encrypt or authenticate at the physical level.

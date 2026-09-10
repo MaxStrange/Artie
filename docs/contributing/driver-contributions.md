@@ -1,6 +1,6 @@
 # Driver Contribution Guide
 
-[Back to Yocto Contributions](./yocto-image-contributions.md) | [Forward to Library Contributions](./library-contributions.md)
+[Back to Yocto Contributions](./yocto-image-contributions.md) | [Forward to Library Contributions](https://github.com/ArtieBots/ArDK/blob/main/docs/contributing/library-contributions.md)
 
 This document provides guidelines and best practices for contributing drivers to the Artie project.
 
@@ -25,8 +25,8 @@ TODO: Diagram showing where the drivers fit in the overall architecture.
 ### Design Philosophy of the Drivers
 
 Drivers should provide a service, and should generally be the one
-point of control (at the microservices level) over a particular feature
-of an Artie.
+point of control (at the microservices level) over a particular physical feature
+of a robot.
 
 For example, a single driver might be responsible for eyebrow control
 of both eyebrows. How abstracted this eyebrow driver's API is
@@ -75,14 +75,14 @@ This will run Artie Tool's build command over the given target task.
 
 ## Source Code
 
-Driver source code lives in Artie Common (`artie-common/drivers`),
-unless it is source code for a driver that can only make sense
-in one particular type of Artie (which would be unusual), in which
-case it lives in that Artie's directory.
+Driver source code lives with the Artie it belongs to, in that Artie's `drivers/`
+directory - for example `artie00/drivers`. A driver that several Artie types share is
+still kept with one of them and referred to from the others' task definitions, rather
+than living in a shared bucket.
 
 Drivers are microservices and can therefore be written in any language
 so long as they are available on their buses, however they are typically
 written in Python and make use of some of the libraries found
 in `framework/ardk/libraries/`.
 
-[Back to Yocto Contributions](./yocto-image-contributions.md) | [Forward to Library Contributions](./library-contributions.md)
+[Back to Yocto Contributions](./yocto-image-contributions.md) | [Forward to Library Contributions](https://github.com/ArtieBots/ArDK/blob/main/docs/contributing/library-contributions.md)

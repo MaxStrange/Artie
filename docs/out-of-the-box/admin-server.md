@@ -1,7 +1,7 @@
 # Admin Server Installation
 
 The Artie Admin Server is the component of the system that does much of the behind-the-scenes infrastructure
-work for Artie. This includes:
+work for an Artie cluster. This includes:
 
 * Maintaining all the microservices
 * Collecting telemetry
@@ -11,17 +11,17 @@ TODO: Figure out minimum system requirements
 
 ## Artie Admind
 
-Once you have the Linux server up and running, download this git repository onto it and install the
+Once you have the Linux server up and running, download the ArtieDaemons git repository onto it and install the
 admind daemon (or use the latest release, once we have releases):
 
 * `sudo apt update`
 * `sudo apt install -y git curl dos2unix`
-* `git clone https://github.com/MaxStrange/Artie.git && cd Artie/framework/daemons/artie-admind`
+* `git clone https://github.com/ArtieBots/ArtieDaemons.git && cd ArtieDaemons/artie-admind`
 * `dos2unix ./install.sh && chmod +x ./install.sh`
 * `sudo ./install.sh`
 
 Copy the token that is output at the end of the installation process and save it somewhere safe. You will need it later
-when you add Artie to this Kubernetes cluster (which is what you just started by the way).
+when you add a robot to this Kubernetes cluster (which is what you just started by the way).
 
 Verify that the admind service is running:
 

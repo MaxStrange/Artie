@@ -1,6 +1,6 @@
 # Setting up a Development Environment
 
-[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](./electronic-design.md)
+[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md)
 
 This document provides instructions for setting up a development environment for contributing to the Artie project.
 These instructions closely mirror those used by an end-user to set up and administer an Artie, but with
@@ -12,9 +12,42 @@ Hence, first follow the instructions found in
 Once you have followed those instructions, you can set up your development
 environment by following these additional steps.
 
+## Get the Component Repositories
+
+The Artie Project's components live in separate repositories. Artie Tool locates each of them through
+a workspace, so you do not clone them by hand or arrange them in any particular way:
+
+```bash
+pip install artietool
+artie-tool workspace sync      # clones every component into ~/artie-workspace
+artie-tool workspace status    # shows where each one resolved to, and its state
+```
+
+To work on a component you already have a checkout of, point the workspace at it. Artie
+Tool then builds from your checkout and never clones over it, fetches it, or otherwise
+touches it - so `workspace sync` cannot destroy work in progress:
+
+```yaml
+# ~/.artie/config.yaml
+workspace: ~/artie-workspace
+repos:
+  ardk:    { path: ~/repos/ArDK }
+  artie00: { path: ~/repos/Artie00 }
+```
+
+The same settings can come from `ARTIE_WORKSPACE` and `ARTIE_REPO_<NAME>` environment
+variables, or from `--workspace` and `--repo <name>=<path>` on the command line. Command
+line arguments beat environment variables, which beat the config file, which beats the
+built-in defaults.
+
+Each component owns the definitions of the tasks that build and test it, in its own
+`.artie/tasks/` directory, and declares its own version in a `VERSION` file at its root.
+See [versioning and releases](./versioning.md) for how those versions are combined into a
+release.
+
 ## Set Up a Local Docker Registry
 
-If you develop software for Artie, you will need to build Docker images and push them to a Docker registry
+If you develop software for the Artie Project, you will need to build Docker images and push them to a Docker registry
 with astonishing size and frequency. Using something like DockerHub is not typically feasible for fast iteration,
 as you will hit rate limiting unless you are paying for a plan.
 
@@ -26,7 +59,8 @@ If you cannot be sure there is no man in the middle, then you should follow one 
 or official guides out there for setting up a Docker registry.
 
 If however, you are on your own local network in your own home, you can probably get away with going
-the insecure route. *To be clear, this is insecure*. Don't do it if you cannot guarantee the security of your network.
+the insecure route. *To be clear, this is insecure*. Don't do it if you cannot guarantee the security of your network:
+a man in the middle can deliver an arbitrary Docker container to your computer, which you then might trust and run.
 
 To do it, follow these steps:
 
@@ -225,14 +259,14 @@ Given how frequently Artie development pushes images, running that periodically 
 
 Once the local Docker registry is set up, you can build all the images and firmware with Artie Tool:
 
-`python artie-tool.py build all -e --docker-repo <example:5000> --docker-logs --insecure -o artie-tool-log.txt`
+`artie-tool build all -e --docker-repo <example:5000> --docker-logs --insecure -o artie-tool-log.txt`
 
 This command will invoke the `build` subcommand of Artie Tool with `all` as its target. Artie Tool has several
 different subcommands:
 
 * [**build**](#artie-tool-build): Build Docker images, Yocto images,
   or firmware and output the build artifacts into the build-artifacts directory.
-* [**release**](#artie-tool-release): Create an official release. This is not yet implemented and might get removed.
+* [**release**](#artie-tool-release): Record a release manifest - the exact combination of component versions and commits that were built and tested together - and build and push the images for a release.
 * [**test**](#artie-tool-test): Run sanity tests, unit tests, integration tests, and hardware tests.
 * [**flash**](#artie-tool-flash): Flash FW onto an MCU directly or a Yocto image onto an SD card.
 * [**install**](#artie-tool-install): Install an Artie (typically it is a better experience to use Workbench for this task).
@@ -258,11 +292,11 @@ The overarching flow of Artie Tool is this:
 ### Artie Tool: Build
 
 The `build` subcommand of Artie Tool allows you to build various components of Artie. Try running
-`python artie-tool.py build --help` to see all the options, including the available targets.
+`artie-tool build --help` to see all the options, including the available targets.
 
-The targets are populated by the build tasks defined in the `framework/artietool/tasks/build-tasks/` directory.
+The targets are populated by the build tasks defined in the `.artie/tasks/build-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#build) for more information on how to
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#build) for more information on how to
 define new build tasks.
 
 Of note:
@@ -278,16 +312,24 @@ Of note:
 
 ### Artie Tool: Release
 
-The `release` subcommand of Artie Tool automates the process of packaging up a release. At least that's the idea,
-but it will likely be removed in the future.
+The `release` subcommand has two jobs:
+
+* `artie-tool release manifest` records a **release manifest**: one combination of component
+  versions, the commit each was built from, and the image tags that combination produces.
+  Generate one from a workspace you have just built and tested, then hand it back to any
+  command with `--release-file` to pin every component to exactly that combination. This is
+  the artifact to cite in a paper or attach to an experiment's data. See
+  [versioning and releases](./versioning.md) for the full workflow.
+* `artie-tool release build` checks out a branch and then builds and pushes every image for
+  a release.
 
 ### Artie Tool: Test
 
 The `test` subcommand of Artie Tool automates tests.
 
-The targets are populated by the test tasks defined in the `framework/artietool/tasks/test-tasks/` directory.
+The targets are populated by the test tasks defined in the `.artie/tasks/test-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#test) for more information on how
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#test) for more information on how
 to define new test tasks.
 
 Of note:
@@ -305,7 +347,7 @@ Of note:
       message is logged.
     - Hardware Tests: These tests assume a running Artie K3S cluster and create a Kubernetes job. It's
       been a while since I've run one of these... so I don't remember how they work exactly. See the
-      module documentation in `hardware_test_job.py` for some explanation.
+      module documentation in `hardware_test_job.py` for some explanation. (TODO)
 * Tests should be designed to allow as much parallelization between different tests as possible
   and so that failing one test does not cause downstream failures that are hard to understand.
 
@@ -315,24 +357,24 @@ The `flash` subcommand of Artie Tool allows a developer to flash FW images onto 
 (this is useful for development, but in a real Artie, the FW images are flashed to the MCUs
 by means of CAN bus from Docker containers deployed to the cluster). It also allows a developer
 to flash an SD card with a Yocto image - this is useful in development mostly, as the Yocto images
-are equipped with an over-the-air update mechanism, however, the end user will need to flash
+are equipped with an over-the-air update mechanism (TODO: At least, they will be), however, the end user will need to flash
 the images at least once manually, and they could use this tool to do so. Another good option
 is the program Etcher.
 
-The targets are populated by the flash tasks defined in the `framework/artietool/tasks/flash-tasks/` directory.
+The targets are populated by the flash tasks defined in the `.artie/tasks/flash-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#flash) for more information on how
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#flash) for more information on how
 to define new test tasks.
 
 ### Artie Tool: Install
 
 The `install` subcommand of Artie Tool allows a developer to install a new Artie.
 
-Each Artie instance is managed by an Artie Profile - a JSON file stored to the user's/developer's
+Each robot instance is managed by an Artie Profile - a JSON file stored to the user's/developer's
 hard drive. This JSON file is managed entirely by Artie Tool and Artie Workbench and in practice,
 a user/developer should never need to know it even exists or where to find it. The stuff
 it contains and the Python code managing it can be found in
-`framework/ardk/libraries/artie-tooling/src/artie_tooling/artie_profile.py`
+`libraries/artie-tooling/src/artie_tooling/artie_profile.py` in [ArDK](https://github.com/ArtieBots/ArDK)
 
 Installing an Artie is easily done through the Workbench application, and end users and developers
 alike should use that route whenever possible.
@@ -346,9 +388,9 @@ The `uninstall` subcommand of Artie Tool allows a developer to uninstall an Arti
 The `deploy` subcommand of Artie Tool allows a developer to deploy a Helm chart to a particular
 Artie.
 
-The targets are populated by the deploy tasks defined in the `framework/artietool/tasks/deploy-tasks/` directory.
+The targets are populated by the deploy tasks defined in the `.artie/tasks/deploy-tasks/` directory of each component.
 
-See [the task specification document](../../framework/artietool/tasks/README.md#deploy) for more information on how
+See [the task specification document](https://github.com/ArtieBots/ArtieTool/blob/main/artietool/TASKS.md#deploy) for more information on how
 to define new test tasks.
 
 ### Artie Tool: Status
@@ -364,4 +406,4 @@ The `get` subcommand of Artie Tool is useful mostly programatically.
 
 The `clean` subcommand of Artie Tool cleans up all the build artifacts.
 
-[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](./electronic-design.md)
+[Back to Overall Architecture](./overall-architecture.md) | [Forward to Electronic Design](https://github.com/ArtieBots/Artie00/blob/main/docs/contributing/electronic-design.md)

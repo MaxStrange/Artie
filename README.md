@@ -1,25 +1,86 @@
 # Artie
 
-**This code is pre-release: you cannot yet build an Artie bot - not all of the software and hardware is ready!**
+**This code is pre-release: you cannot yet build an Artie bot nor can you use the framework - not all of the software and hardware is ready!**
 
-This repository contains all the software and documentation required to build and use Artie,
-an open source developmental robotics platform.
+Artie is an open source developmental robotics platform. This repository is the
+documentation hub and the place to start; the software itself lives in the component
+repositories listed below.
 
 The purpose of Artie is twofold: data collection and testing developmental robotics theories.
 
 The vision is that Artie will be fully open source, 3D-printable, and as cheap as is feasible,
 while still being easy to use and extend.
 
+Fundamentally, this project provides:
+
+* A software development kit (ArDK) - code libraries for use building robots
+* A platform - a suite of tools and documents for building a Kubernetes cluster designed from the ground-up
+  for research
+* A reference robot (Artie00) - if you want to build your own completely different robot from the one we
+  use, that's fine! But you might want to use Artie00 as a reference
+
+## The repositories
+
+| Repository | What it is |
+|---|---|
+| **Artie** (this one) | Documentation, architecture, getting started. Cite this repository. |
+| [ArDK](https://github.com/ArtieBots/ArDK) | The Artie Development Kit: the libraries you write applications and drivers against, the platform services, the base Docker image, and the protocol specifications. |
+| [ArtieTool](https://github.com/ArtieBots/ArtieTool) | Builds, tests, flashes and deploys everything. Installs the `artie-tool` command. |
+| [ArtieWorkbench](https://github.com/ArtieBots/ArtieWorkbench) | The graphical application most people use to set up and drive an Artie Framework robot. |
+| [ArtieCLI](https://github.com/ArtieBots/ArtieCLI) | A command line interface to a running robot, for testing and low-level debugging. |
+| [ArtieDaemons](https://github.com/ArtieBots/ArtieDaemons) | Host daemons for the Kubernetes cluster an Artie robot runs on. |
+| [Artie00](https://github.com/ArtieBots/Artie00) | The first Artie: its hardware manifest, bill of materials, firmware, drivers and schematics. |
+
+Your own code stays in your own repository. You depend on Artie's libraries, build your
+applications and firmware into images following the usage guidelines, and deploy them
+with Helm - normally through Artie Workbench or Artie Tool.
+
 ## Get Started
 
 **Looking for the contributing guide?** [See here](./CONTRIBUTING.md)
+
+### Using Artie
+
+Most people will want Artie Workbench, which installs Artie Tool along with it. This is
+a graphical application that should make using an Artie Framework robot easy (for a human):
+
+```bash
+pip install artieworkbench
+artie-workbench
+```
+
+If you would rather work from a terminal, or you are automating something:
+
+```bash
+pip install artietool
+artie-tool workspace status    # where each component resolves to
+artie-tool workspace sync      # clone the components you want to build from source
+artie-tool build all           # by default, builds the latest stable framework components
+artie-tool deploy artie        # will only work if you have something to deploy to
+```
+
+Artie Tool reads its configuration from `~/.artie/config.yaml`, from `ARTIE_*` environment
+variables, and from command line arguments, in increasing order of precedence. Point a
+component at a checkout of your own and Artie Tool will build from it instead:
+
+```yaml
+# ~/.artie/config.yaml
+workspace: ~/artie-workspace
+repos:
+  ardk: { path: ~/repos/ArDK }   # your working copy; sync leaves it alone; build will pick it up
+```
+
+Which versions of the components are tested against a real robot and therefore form a known stable
+release is stated by a release manifest -
+see [versioning and releases](./docs/contributing/versioning.md).
+*That manifest is what to attach to an experiment's data and cite in a paper.*
+
+### Building Artie00
 
 Before you can use Artie, you need to build him.
 
 **Please note:** you cannot yet build an Artie! These instructions will certainly change, the bill of materials
 will change, the schematics will change, etc.
-
-### Building Artie
 
 Building Artie is composed of the following steps:
 
@@ -29,28 +90,23 @@ Building Artie is composed of the following steps:
 
 [See here for the full instructions](./docs/building/building-artie-main.md)
 
-### Using Artie
+### Building a Custom Robot
 
-The Artie ecosystem consists of the following:
+Artie Framework doesn't just work with official Artie robots! Artie Framework provides tools for managing
+an awful lot of complexity behind convenient tooling while bringing you things like:
 
-* *Artie*: The actual robot itself - the PCBs, 3D printed parts, the single board computers (SBCs),
-           microcontroller units (MCUs), sensors, actuators, LCDs, etc.
-           The first release will be a robot that is physically similar to a full-term newborn infant.
-           This Artie is refered to as Artie00. There are plans for future versions of Artie that
-           are physically similar to older infants and toddlers. But you could also build your own
-           version of Artie that is physically similar to a different age or even a different species!
-    - *Firmware*: The MCU firmware.
-    - *Yocto Images*: The custom embedded Linux images for the SBCs.
-    - *Drivers*: Applications that run on the SBCs and interface with hardware.
-* *Artie Framework*: The tooling, services, and libraries that allow users to build applications
-  that run on an Artie and interface with Artie's hardware and software.
-    - *Artie Tool*: A single tool to flash, test, build, release, etc.
-    - *Artie Workbench*: A graphical user interface that allows a user to control and configure an Artie.
-    - *ArDK*: The Artie Development Kit - libraries, base Docker images, and infrastructural applications.
+* Data provenance
+* Reliability
+* Repeatability
+
+- the types of things that are super important in scientific endeavors.
+
+[See here for how to bring your own robot](./docs/building/bring-your-own.md)
 
 ### Artie Out of the Box
 
-Once you have built an Artie, [see here for instructions on using your Artie](./docs/out-of-the-box/getting-started.md).
+Once you have built an Artie (or brought your own robot),
+[see here for instructions on using your Artie](./docs/out-of-the-box/getting-started.md).
 
 ## Motivation
 
@@ -74,8 +130,6 @@ Here's a great excerpt from Wikipedia:
   The typical methodological approach consists in starting from theories of human and animal development
   elaborated in fields such as developmental psychology, neuroscience, developmental and evolutionary biology,
   and linguistics, then to formalize and implement them in robots
-
-Developmental robotics is such a cool field. I wish way more people were interested in it.
 
 ### Embodiment
 
@@ -124,15 +178,12 @@ We found that we needed a robot that fulfilled the following criteria:
   such as research in traditional robotics, human-robot interaction, or AI. These robots never
   take into account the specific needs of developmental robotics research, such as the physical constraints
   of a human infant, or the physiological requirements of various sensor components. Artie is designed
-  from the ground up with developmental robotics in mind: we have compromised on biomimicry only as far
+  from the ground up with developmental robotics in mind: we have compromised on biomimeticity only as far
   as is absolutely necessary to make the robot affordable and buildable.
 * Modular and Extensible - we wanted a robot that could be easily modified, extended, and repaired.
   Research moves quickly, and we wanted a robot that could keep pace.
   We also wanted a robot that could be customized to fit the needs of different researchers
   and different experiments, which means that we aren't building a robot - we are building a robotics ecosystem.
-* Easy to Build - we wanted a robot that could be built by a single person with moderate technical skills
-  and a small budget. This means that we had to make the robot as easy to assemble as possible,
-  while still maintaining the other criteria.
 * Professional grade - we wanted a robot that was reliable and fun to use. Every layer of Artie's
   software stack is designed to be robust, maintainable, and to follow engineering best practices,
   so that researchers can focus on their research, not on debugging the robot.
@@ -142,23 +193,22 @@ We found that we needed a robot that fulfilled the following criteria:
   across different deployments. Additionally, even the single board computers are running custom
   Linux images built using Yocto, so that the entire software stack is under control: if it worked once,
   it should work every time; you are running an experiment with Artie, not just getting him to work this one time.
-* Fun to use - we wanted a robot that was enjoyable to work with, both for researchers and for
-  the subjects of experiments. A robot that is engaging and appealing is more likely to elicit
-  natural behaviors from human subjects, which is crucial for developmental robotics research.
 
 Alternatives exist, but they don't meet these criteria. For example, there's:
   - [Poppy](https://www.generationrobots.com/en/312-poppy-humanoid-robot), which is about $10k USD,
-    and while it's open source and extensible, it's not designed specifically for developmental robotics,
-    with very little biomimicry.
+    and while it's open source and extensible, it's not designed specifically for developmental robotics; it is
+    not biomimetic at all.
   - [Nao](https://en.wikipedia.org/wiki/Nao_(robot)), which is about $15k USD, and while it is well-regarded
     and used extensively, its hardware is not extensible or modifiable, and it
-    is designed more for human-robot interaction than developmental robotics. Again, very little biomimicry.
-  - [iCub](https://icub.iit.it/products/product-catalog), which is about$250k USD, and while it is
-    designed for developmental robotics and has a high degree of biomimicry, its cost
-    makes it inaccessible to most researchers.
+    is designed more for human-robot interaction than developmental robotics. Again, very little biomimeticity.
+  - [iCub](https://icub.iit.it/products/product-catalog), which is about $250k USD, and while it is
+    designed for developmental robotics and has a high degree of biomimeticity, its cost
+    makes it inaccessible to most researchers - particularly to citizen scientists or students.
   - [Berkeley Humanoid Lite](https://lite.berkeley-humanoid.org/), which is about $5k USD, and while it is affordable
-    and open source, it is not designed specifically for developmental robotics, again with very little biomimicry
+    and open source, it is not designed specifically for developmental robotics, again with very little biomimeticity
     in mind.
+
+### Why not ROS?
 
 Additionally, we did not use ROS (Robot Operating System) as the basis for Artie's software stack.
 While ROS is a great tool for traditional robotics development, we felt it was not well-suited
